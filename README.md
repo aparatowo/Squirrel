@@ -203,8 +203,6 @@ Squirrel! pochodzi z prostego przekonania: **jeśli ja mogę sobie z tym poradzi
 
 Jestem szczęśliwy — codziennie odzyskując kawałek siebie i swojego życia. Nie pomimo wszystkiego — po części właśnie dzięki temu. Ten projekt jest jednym z wyrazów tego stanu.
 
-> *„ADHD zostaje ze mną. Ale jeśli ja mogę sobie z tym poradzić, każdy powinien mieć taką samą szansę."*
-> — Ijon Tichy
 
 ---
 
@@ -421,8 +419,6 @@ Squirrel! comes from a simple conviction: **if I can manage this, everyone shoul
 
 I am happy — reclaiming a piece of myself and my life, every single day. Not in spite of everything. Partly because of it. This project is one expression of that.
 
-> *"ADHD stays with me. But if I can manage it, everyone should have the same chance."*
-> — Ijon Tichy
 
 ---
 
