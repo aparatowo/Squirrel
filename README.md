@@ -1,3 +1,7 @@
+![Squirrel!](squirrel.jpg)
+
+
+
 # 🐿️ Squirrel!
 
 **Elektroniczny asystent o wielkim sercu i puchatym ogonie, który mieści się w małym urządzeniu w Twojej kieszeni.**
