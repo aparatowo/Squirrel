@@ -173,6 +173,8 @@ Squirrel! jest zaprojektowany tak, żeby poczuł się jak twój. Kolory, rozmiar
 - Rutyny — codzienne powtarzające się przypomnienia ze śledzeniem wykonania
 - Ćwiczenia oddechowe — prowadzona regulacja lęku
 - Metronom — rytm w tle
+- Brzęczyk — opcjonalny, dolutowany sygnał dla powiadomień, Pomodoro, metronomu i kukułki
+- Dioda RGB — sygnalizacja kolorem wbudowaną diodą: powiadomienia, Pomodoro, metronom, kukułka, ćwiczenia oddechowe
 - Statystyki dzienne — skupienie, rutyny, zadania na słupkach
 - Personalizacja — kolory, układ, dźwięki w jednym pliku konfiguracyjnym
 
@@ -181,8 +183,10 @@ Squirrel! jest zaprojektowany tak, żeby poczuł się jak twój. Kolory, rozmiar
 - Skrót Quick Capture — natychmiastowy nowy wpis skądkolwiek
 - Tagi emocjonalne na notatkach — jednym klawiszem po stworzeniu wpisu
 - Zapamiętywanie ostatnio otwartej notatki — wracasz tam, gdzie skończyłeś
-- Automatyczne znaczniki czasu na notatkach z RTC
+- Automatyczne znaczniki czasu na notatkach
 - Tryb dysku USB — przeglądanie karty SD z komputera bez wyjmowania
+- Tryb hiperoszczędny — automatyczne wyłączanie funkcji, które zużywają najwięcej energii
+- Spokojniejszy ekran — rzadsze przerysowywanie, tylko gdy coś się naprawdę zmienia
 - **Port na programowalne smartwatche** — Squirrel! na nadgarstku, bez klawiatury, ale zawsze przy Tobie; dotykowy ekran, wibracje zamiast dźwięków, mikro serwer www do zarządzania rutynami z telefonu oraz dedykowana współpraca z M5Cardputer
 
 ---
@@ -389,6 +393,8 @@ Squirrel! is designed to feel like yours. Colors, text sizes, layout positions, 
 - Routines — daily repeating reminders with completion tracking
 - Breathing Exercises — guided anxiety regulation
 - Metronome — background beat
+- Buzzer — optional, soldered-on signal for notifications, Pomodoro, the metronome and the cuckoo clock
+- RGB LED — color signals from the built-in LED: notifications, Pomodoro, the metronome, the cuckoo clock, breathing exercises
 - Daily Statistics — focus, routines, and to-do bars per day
 - Personalization — colors, layout, sounds all in one config file
 
@@ -397,8 +403,10 @@ Squirrel! is designed to feel like yours. Colors, text sizes, layout positions, 
 - Quick Capture shortcut — instant new entry from anywhere
 - Emotional tags on notes — one keypress context labeling after creation
 - Last-opened note breadcrumb — return to where you left off on boot
-- Automatic timestamps on notes using the RTC
+- Automatic timestamps on notes
 - USB drive mode — browse your SD card from a computer without removing it
+- Ultra power-saving mode — automatically switches off the features that use the most energy
+- Calmer screen — redraws less often, only when something has actually changed
 - **Port to programmable smartwatches** — Squirrel! on your wrist, no keyboard but always with you; touchscreen, vibration instead of sound, a micro web server for managing routines from your phone, and dedicated cooperation with the M5Cardputer
 
 ---

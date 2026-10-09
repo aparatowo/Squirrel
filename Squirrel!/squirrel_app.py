@@ -5,29 +5,31 @@ import time
 import boot_log
 import gfx
 from gfx import Lcd
-from boot_log import log
+from boot_log import log, trace
 from ui_renderer import UIRenderer
-from cardputer_keypad import CardputerKeypad
-from sd_card import SDCardManager
+from hw.cardputer_keypad import CardputerKeypad
+from hw.sd_card import SDCardManager
 from storage_manager import StorageManager
 from todo_editor import TodoEditor
 from note_editor import NoteEditor
-from rtc_provider import RTCManager
-from audio_manager import AudioManager
+from hw.rtc_provider import RTCManager
+from hw.audio_manager import AudioManager
 from services import ServiceManager
 from focus_timer import FocusTimer
-from buttons import ButtonPoller
-from radio import RadioManager
+from hw.buttons import ButtonPoller
+from hw.radio import RadioManager
 from wifi_ntp import WifiNtpClient
 from time_sync import TimeSyncService
-from battery import BatteryMonitor, BatteryLogger
+from hw.battery import BatteryMonitor, BatteryLogger
 from bars import StatusBars
 from screen_dimmer import ScreenDimmer
 from notifier import Notifier
 from scheduler import DayCounter, RoutineStore, Scheduler
-from power import PowerManager, collect
+from hw.power import PowerManager, collect
 import nuts
 from appconfig import cfg
+from hw.buzzer import buzzer
+from hw.led import led
 
 from screens.clock_screen import ClockScreen
 from screens.menu_screen import MenuScreen
@@ -60,6 +62,8 @@ _LAZY_SCREENS = {
     "METRONOME": ("screens.rhythm_screens", "MetronomeScreen", ()),
     "BREATHING": ("screens.rhythm_screens", "BreathingScreen", ()),
     "FONT_TEST": ("screens.font_test_screen", "FontTestScreen", ()),
+    "SILENT_MODE": ("screens.silent_mode_screen", "SilentModeScreen", ()),
+    "LED_TESTS": ("screens.led_test_screen", "LedTestScreen", ()),
 }
 # Of those, the ones used again and again stay in memory once they have been opened (compiling them anew at every visit
 # would be slow and would fragment the heap); the rest are given back when the user leaves them (POWER_UNLOAD_SCREENS).
@@ -82,6 +86,9 @@ class SquirrelApp:
         print("\n==========================================")
         print("[APP INIT] Start modularnej aplikacji Squirrel...")
         print("==========================================")
+
+        # 0. The buzzer's pin LOW at once: until then it floats, and the NPN behind it could sound
+        buzzer.begin(quiet=lambda: self.audio.is_recording())
 
         # 1. SD card — must be mounted before StorageManager
         self.sd = SDCardManager()
@@ -110,17 +117,22 @@ class SquirrelApp:
 
         # Background services: ticked by the main loop whichever screen is active
         self.services = ServiceManager()
-        self.services.add(cfg)          # watches config.txt for edits made while running
+        self.services.add(buzzer)       # plays buzzer signals in the background
         self.focus = self.services.add(FocusTimer(
             self.rtc, nuts.BASE_DIR + "/focus",
             goal_seconds=lambda: cfg.get("FOCUS_GOAL_MINUTES") * 60))
 
         # Status bars, screen dimming and notifications (all ticked by the main loop)
         self.battery = self.services.add(BatteryMonitor())
+        led.begin(battery=self.battery)               # dark at once; then signals, Breathing, the charging light
+        self.services.add(led)
         self.bars = StatusBars(cfg, self.battery, self.focus)
         self.renderer.bars = self.bars
-        self.dimmer = self.services.add(ScreenDimmer(Lcd, cfg, self._can_dim))
-        self.services.add(BatteryLogger(cfg, self.battery, self.dimmer, nuts.BASE_DIR + "/battery.csv"))
+        self.dimmer = self.services.add(ScreenDimmer(Lcd, cfg, self._can_dim,
+                                                     lambda: self.active_screen is self.screens["CLOCK"],
+                                                     on_wake=cfg.check_file,     # an edit of config.txt made from a PC counts after a wake
+                                                     floor=led.backlight_floor)) # the LED is powered through the back-light
+        self.battery_log = self.services.add(BatteryLogger(cfg, self.battery, self.dimmer, nuts.BASE_DIR + "/battery.csv"))
         self.notifier = self.services.add(Notifier(self, self.audio))
 
         # Radios stay off unless a network task needs them.  Without a working DS1302 the
@@ -158,6 +170,10 @@ class SquirrelApp:
             machine = None
         self.power = self.services.add(PowerManager(cfg, self.dimmer, self._power_busy, machine, self.keypad))
         self.power.start(getattr(self.keypad, "i2c", None))
+        # what the energy log times, now that every part exists (see hw/battery.py)
+        self.battery_log.attach(slow=lambda: self.power.slow, led=lambda: led.backlight_floor() > 0,
+                                speaker=lambda: self.audio.speaker_on, radio=self._radio_in_use,
+                                sleeps=lambda: self.power.sleeps)
 
         # 3. Screen registry
         self.screens = {                # everything else is built on first use, see _LAZY_SCREENS
@@ -185,7 +201,7 @@ class SquirrelApp:
     def _power_busy(self):
         """True while something needs the CPU at full speed and the screen's attention."""
         try:
-            if self.audio.is_recording() or self.audio.is_playing() or self.notifier.busy:
+            if self.audio.is_recording() or self.audio.is_playing() or self.notifier.busy or buzzer.busy or led.busy:
                 return True
             busy = getattr(self.timesync, "busy", False)
             if (busy() if callable(busy) else busy) or (self._metronome is not None and self._metronome.running):
@@ -194,13 +210,17 @@ class SquirrelApp:
             return True
         return False
 
+    def _radio_in_use(self):
+        busy = getattr(self.timesync, "busy", False)
+        return busy() if callable(busy) else bool(busy)
+
     def _unload_screen(self, name):
         """Give a rarely used screen back to the heap (the next visit builds it again)."""
         module_name = _LAZY_SCREENS[name][0]
         self.screens.pop(name, None)
         if not any(v[0] == module_name and k in self.screens for k, v in _LAZY_SCREENS.items()):
             sys.modules.pop(module_name, None)          # no screen of this module is left: its code can go too
-        log(f"[MEM] {name} unloaded, free heap {collect()} bytes")
+        trace(f"[MEM] {name} unloaded, free heap {collect()} bytes")
 
     def _load_screen(self, name):
         """Create a rarely used screen the first time it is asked for.  Returns False if it cannot be."""
@@ -209,7 +229,7 @@ class SquirrelApp:
         try:
             module = __import__(module_name, None, None, (class_name,))
             self.screens[name] = getattr(module, class_name)(self, *args)
-            log(f"[MEM] {name} loaded, free heap {collect()} bytes")
+            trace(f"[MEM] {name} loaded, free heap {collect()} bytes")
             return True
         except Exception as e:                       # includes MemoryError
             log(f"[NAV] Cannot load {name}: {type(e).__name__}: {e}")
@@ -225,7 +245,7 @@ class SquirrelApp:
             if not self._load_screen(screen_name):
                 return
         if screen_name in self.screens:
-            log(f"[NAV] -> {screen_name}")
+            trace(f"[NAV] -> {screen_name}")
             # Domyślnie wracamy do trybu nawigacji przy każdej zmianie ekranu
             if hasattr(self, 'keypad'):
                 self.keypad.set_text_mode(False)
@@ -301,10 +321,10 @@ class SquirrelApp:
             self._render_active()
             return
         if not getattr(screen, "quick_record_from", False):
-            log(f"[BTN0] ignored on {type(screen).__name__}")
+            trace(f"[BTN0] ignored on {type(screen).__name__}")
             return
         target = self._return_target(screen)
-        log(f"[BTN0] quick recorder from {target[0]}")
+        trace(f"[BTN0] quick recorder from {target[0]}")
         self.set_screen("RECORD", autostart=True, return_to=target)
 
     def _on_config_changed(self, key, value):

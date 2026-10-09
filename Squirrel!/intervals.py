@@ -9,12 +9,21 @@ import json
 import time
 import nuts
 from boot_log import log
+from hw.buzzer import signal
+from hw.led import signal as led_signal
 
 COLORS = ("blue", "yellow", "orange", "red", "green")
 NAMES = {"blue": "Prepare", "yellow": "Light", "orange": "Normal", "red": "Hard", "green": "Rest"}
 SOUND = {"blue": "step", "yellow": "step", "orange": "go", "red": "go", "green": "rest"}
+BUZZ = {"step": "double", "go": "triple", "rest": "long"}        # the buzzer mode for each signal
 MIN_S, MAX_S = 5, nuts.MAX_BLOCK_SECONDS
-METRO_STEPS = (1, 2, 5, 30, 60, 120)
+METRO_STEPS = (0.125, 0.25, 0.5, 1, 2, 5, 30, 60, 120)    # seconds between beats (the METRO_INTERVAL_S choices)
+_FRACTIONS = {0.125: "1/8 s", 0.25: "1/4 s", 0.5: "1/2 s"}
+
+
+def metro_label(seconds):
+    """How an interval is shown: "1/8 s" ... "120 s"."""
+    return _FRACTIONS.get(seconds) or "%d s" % seconds
 DEFAULT_TRAINING = [["blue", 120], ["yellow", 180], ["orange", 180], ["red", 60], ["green", 60],
                     ["red", 60], ["green", 60], ["green", 120]]
 
@@ -95,7 +104,10 @@ class IntervalRunner:
         self.state = "idle"
 
     def _signal(self):
-        self._audio.beep(SOUND[self.plan[self.index][0]])
+        sound = SOUND[self.plan[self.index][0]]
+        self._audio.beep(sound)
+        signal("BUZZER_INTERVALS", BUZZ[sound])
+        led_signal("LED_INTERVALS")
 
     def _account(self):
         now = self._now()
@@ -158,7 +170,14 @@ class Metronome:
         if self._audio.is_recording():
             self.running = False
             return
-        if time.ticks_diff(self._now(), self._next) >= 0:
-            self._audio.beep("tick" if self.beats % 4 else "tock", volume=self._cfg.get("METRO_VOLUME"))
+        now = self._now()
+        if time.ticks_diff(now, self._next) >= 0:
+            # started by hand, so the silent hours do not stop it (force=True)
+            self._audio.beep("tick" if self.beats % 4 else "tock", volume=self._cfg.get("METRO_VOLUME"), force=True)
+            signal("BUZZER_METRONOME", "click" if self.beats % 4 else "short", force=True)
+            led_signal("LED_METRONOME", force=True)
             self.beats += 1
-            self._next = time.ticks_add(self._next, self._cfg.get("METRO_INTERVAL_S") * 1000)
+            interval = int(self._cfg.get("METRO_INTERVAL_S") * 1000)          # ticks_add takes whole milliseconds
+            self._next = time.ticks_add(self._next, interval)
+            if time.ticks_diff(now, self._next) >= 0:
+                self._next = time.ticks_add(now, interval)    # fell behind (a screen loading ...): no burst of beats

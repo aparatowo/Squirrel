@@ -81,8 +81,10 @@ class RecordScreen(BaseScreen):
             self._leave()
 
     def _stop(self):
-        self.app.audio.stop_recording()
-        self.app.renderer.render_options("Saved!")
+        if self.app.audio.stop_recording():
+            self.app.renderer.render_options("Saved!")
+        else:
+            self.app.renderer.render_alert("Too short - not saved")
         time.sleep(0.6)
         self._leave()
 

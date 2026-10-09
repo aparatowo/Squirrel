@@ -9,6 +9,8 @@ import os
 import time
 import nuts
 from boot_log import log
+from hw.buzzer import signal
+from hw.led import signal as led_signal
 from timeutil import days_from_civil, civil_from_days, weekday_from_days
 
 _MIN_YEAR = 2024
@@ -27,55 +29,87 @@ def day_key(t):
 
 
 class DayCounter:
-    """Counts per calendar day, in a text file of "YYYY-MM-DD,count" lines (older days are dropped)."""
+    """Counts per calendar day (routines done, To-Dos done), in a text file of "YYYY-MM-DD,count" lines.
+
+    Nothing is kept in memory and the file is not read at start-up: add() appends one line ("2026-10-09,1", or ",-1"
+    when a To-Do is un-ticked), and the totals are read only when they are asked for (get(), week() - the statistics).
+    Reading adds the lines up per day and, when the file holds more lines than days (or days older than keep_days),
+    writes it back with one line per day."""
 
     def __init__(self, path, keep_days=60):
         self._path = path
         self._keep = keep_days
-        self._d = {}
-        try:
-            with open(path) as f:
-                for line in f.read().split("\n"):
-                    key, _sep, n = line.partition(",")
-                    if len(key) == 10 and n.strip().isdigit():
-                        self._d[key] = int(n)
-        except OSError:
-            pass
-
-    def get(self, key):
-        return self._d.get(key, 0)
+        self._folder_ok = False
 
     def add(self, key, n=1):
-        self._d[key] = max(0, self._d.get(key, 0) + n)
-        self._save()
+        try:
+            if not self._folder_ok:
+                folder = self._path.rpartition("/")[0]
+                if folder:
+                    try:
+                        os.mkdir(folder)
+                    except OSError:
+                        pass
+                self._folder_ok = True
+            with open(self._path, "a") as f:
+                f.write("%s,%d\n" % (key, n))
+        except OSError as e:
+            self._folder_ok = False
+            log(f"[COUNT] cannot save {self._path}: {e}")
+
+    def totals(self):
+        """{"YYYY-MM-DD": count} read from the file now."""
+        days, lines = {}, 0
+        try:
+            with open(self._path) as f:
+                for line in f:
+                    key, _sep, n = line.strip().partition(",")
+                    try:
+                        n = int(n)
+                    except ValueError:
+                        continue
+                    if len(key) == 10:
+                        days[key] = max(0, days.get(key, 0) + n)     # in order: an un-tick never goes below zero
+                        lines += 1
+        except OSError:
+            return days
+        if lines > len(days) or len(days) > self._keep:
+            days = self._compact(days)
+        return days
+
+    def get(self, key):
+        return self.totals().get(key, 0)
 
     def week(self, n=7):
         """[(key, weekday 0=Mon, count)] for the n days up to today, oldest first."""
         t = valid_now()
         if t is None:
             return [("", i, 0) for i in range(n)]
+        days = self.totals()
         today = days_from_civil(t[0], t[1], t[2])
         out = []
         for z in range(today - n + 1, today + 1):
             y, m, d = civil_from_days(z)
             key = "%04d-%02d-%02d" % (y, m, d)
-            out.append((key, weekday_from_days(z), self._d.get(key, 0)))
+            out.append((key, weekday_from_days(z), days.get(key, 0)))
         return out
 
-    def _save(self):
-        newest = sorted(self._d)[-self._keep:]
-        self._d = {k: self._d[k] for k in newest}
+    def _compact(self, days):
+        newest = sorted(days)[-self._keep:]
+        days = {k: days[k] for k in newest}
+        tmp = self._path + ".tmp"
         try:
-            folder = self._path.rpartition("/")[0]
-            if folder:
-                try:
-                    os.mkdir(folder)
-                except OSError:
-                    pass
-            with open(self._path, "w") as f:
-                f.write("\n".join("%s,%d" % (k, self._d[k]) for k in sorted(self._d)) + "\n")
+            with open(tmp, "w") as f:
+                for k in newest:
+                    f.write("%s,%d\n" % (k, days[k]))
+            try:
+                os.remove(self._path)
+            except OSError:
+                pass
+            os.rename(tmp, self._path)
         except OSError as e:
-            log(f"[COUNT] cannot save {self._path}: {e}")
+            log(f"[COUNT] cannot compact {self._path}: {e}")
+        return days
 
 
 class RoutineStore:
@@ -113,6 +147,7 @@ class RoutineStore:
 
     @staticmethod
     def days_text(mask):
+        """Compact form ("MTWTF.."); the screens show appconfig.days_shown() instead."""
         return "".join(DAYS[i] if mask >> i & 1 else "." for i in range(7))
 
 
@@ -171,8 +206,12 @@ class Scheduler:
             if minute == 0:
                 log(f"[CUCKOO] {hour:02d}:00")          # one line an hour: the proof that it was meant to sound
                 self._audio.beep("cuckoo")
+                signal("BUZZER_CUCKOO", "double")
+                led_signal("LED_CUCKOO")
             elif minute % 15 == 0 and self._cfg.get("CUCKOO_QUARTERS"):
                 self._audio.beep("tick", volume=self._cfg.get("CUCKOO_QUARTER_VOLUME"))
+                signal("BUZZER_CUCKOO", "click")
+                led_signal("LED_CUCKOO")
 
     def _fire(self, routine, snooze_number):
         from notifier import Notification

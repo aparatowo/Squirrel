@@ -104,6 +104,7 @@ Po zakończeniu odłącz i podłącz ponownie kabel (lub naciśnij przycisk rese
 | `main.py` | `/flash/apps/Squirrel/main.py` |
 | `nuts.py` (konfiguracja) | `/flash/apps/Squirrel/nuts.py` |
 | Folder `screens/` (cały) | `/flash/apps/Squirrel/screens/` |
+| Folder `hw/` (cały) | `/flash/apps/Squirrel/hw/` |
 
 > ℹ️ Pozostałe moduły są już **zamrożone** w firmware — nie trzeba ich wgrywać osobno.
 

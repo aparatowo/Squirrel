@@ -11,7 +11,7 @@
 
 import machine
 from boot_log import log
-from rtc_base import TimeProvider
+from hw.rtc_base import TimeProvider
 from nuts import RTC_CLK_PIN, RTC_DAT_PIN, RTC_RST_PIN
 
 
@@ -89,7 +89,7 @@ class RTCManager:
         anything else leaves the internal clock untouched.  Returns True if synced.
         """
         try:
-            from rtc_ds1302 import DS1302TimeProvider
+            from hw.rtc_ds1302 import DS1302TimeProvider
             hw = DS1302TimeProvider(RTC_CLK_PIN, RTC_DAT_PIN, RTC_RST_PIN)
             dt = hw.read_valid()
         except Exception as e:
@@ -111,7 +111,7 @@ class RTCManager:
             (False, "RTC not found: <reason>")    on failure
         """
         try:
-            from rtc_ds1302 import DS1302TimeProvider
+            from hw.rtc_ds1302 import DS1302TimeProvider
             hw = DS1302TimeProvider(RTC_CLK_PIN, RTC_DAT_PIN, RTC_RST_PIN)
             dt = hw.get_datetime()
             self._provider.set_datetime(dt)
@@ -141,7 +141,7 @@ class RTCManager:
 
         # Mirror to hardware RTC if available — non-fatal if not connected
         try:
-            from rtc_ds1302 import DS1302TimeProvider
+            from hw.rtc_ds1302 import DS1302TimeProvider
             hw = DS1302TimeProvider(RTC_CLK_PIN, RTC_DAT_PIN, RTC_RST_PIN)
             hw.set_datetime(dt)
             print("[RTC] Time mirrored to DS1302")

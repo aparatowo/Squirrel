@@ -22,13 +22,13 @@ class MenuScreen(BaseScreen):
         self.selected_index = 0
         self.scroll_offset = 0
         self.max_visible = 5
-        self._remember = {}             # menu id -> (selected_index, scroll_offset)
+        self._remember = {}             # menu id -> (selected_index, scroll_offset, label) as the user left it
         self._items_cache = None        # file lists are cached per visit
         self._items_cache_menu = None
         self._delete_confirm = None     # None = no warning, int = DEL presses still needed
         self._delete_target = None      # (absolute path, label) of the file being deleted
 
-    def on_enter(self, menu_name=None, **kwargs):
+    def on_enter(self, menu_name=None, fresh=False, **kwargs):
         # Files may have been added, edited or deleted while another screen was active.
         self._items_cache = None
         if menu_name == "TODO":
@@ -38,26 +38,42 @@ class MenuScreen(BaseScreen):
                 log(f"[TODO] clean-up failed: {e}")
         self._delete_confirm = None      # a warning never survives leaving the screen
         self._delete_target = None
+        if fresh:
+            # Entered anew (from the clock): every menu starts at its first row again.
+            self._remember = {}
         if menu_name:
             # Coming back from a screen: land on the entry we left from.
-            self._open(menu_name, restore=True)
+            self._open(menu_name, restore=not fresh)
 
     def return_target(self):
-        """Where the quick recorder should come back to: this very menu."""
+        """Where the quick recorder should come back to: this very menu, on the same row."""
+        self._remember_position()
         return ("MENU", {"menu_name": self.current_menu})
+
+    # Position memory: going BACK to a menu (ESC / LEFT from a submenu, or a screen that returns here) lands on the
+    # row the user left it from; going INTO a menu starts at its first row.  Every menu and file list works the same
+    # way, so the whole path back is remembered (a note -> Text Notes on that note -> Notes on "Text Notes" ...).
+    # A file list is matched by the row's text first, because files may have been added or deleted meanwhile.
 
     def _open(self, menu, restore):
         self.current_menu = menu
-        if restore and menu in MENUS:
-            self.selected_index, self.scroll_offset = self._remember.get(menu, (0, 0))
-        else:
-            self.selected_index, self.scroll_offset = 0, 0
+        self.selected_index, self.scroll_offset = 0, 0
+        saved = self._remember.get(menu) if restore else None
+        if saved is not None:
+            index, self.scroll_offset, label = saved
+            items = self._get_current_items()
+            if items[index:index + 1] != [label] and label in items:
+                index = items.index(label)                # the same file, moved by an added / removed one
+            self.selected_index = index
+            self._clamp_selection()
         apply = getattr(self.app, "_apply_screen_input_mode", None)        # OPT must arrive as a key in the To-Do list only
         if apply is not None and getattr(self.app, "active_screen", None) is self:
             apply()
 
     def _remember_position(self):
-        self._remember[self.current_menu] = (self.selected_index, self.scroll_offset)
+        items = self._get_current_items()
+        label = items[self.selected_index] if self.selected_index < len(items) else None
+        self._remember[self.current_menu] = (self.selected_index, self.scroll_offset, label)
 
     def _go_back(self):
         parent = PARENTS.get(self.current_menu)
@@ -69,7 +85,7 @@ class MenuScreen(BaseScreen):
     def _get_current_items(self):
         if self.current_menu in MENUS:
             entries = MENUS[self.current_menu][1]
-            return ["%d. %s" % (i + 1, entry[0]) for i, entry in enumerate(entries)]
+            return ["%d. %s" % (i + 1, self._label(entry)) for i, entry in enumerate(entries)]
 
         if self._items_cache is not None and self._items_cache_menu == self.current_menu:
             return self._items_cache
@@ -82,6 +98,23 @@ class MenuScreen(BaseScreen):
         self._items_cache = items
         self._items_cache_menu = self.current_menu
         return items
+
+    def _label(self, entry):
+        """The label of a menu entry, with its summary when it has one (the 4th item, see menu_tree.py)."""
+        if len(entry) < 4:
+            return entry[0]
+        return "%-7s %s" % (entry[0], self._summary(entry[3]))
+
+    @staticmethod
+    def _summary(what):
+        """'quiet:<channel>': the days of that channel's quiet hours ("M T W T F - -"), or "off"."""
+        if what.startswith("quiet:"):
+            from quiet_hours import keys
+            from appconfig import days_shown
+            k_from, k_to, k_days = keys(what[6:])
+            days = cfg.get(k_days)
+            return "off" if cfg.get(k_from) == cfg.get(k_to) or not days else days_shown(days)
+        return ""
 
     def _clamp_selection(self):
         """Keep the highlighted row and the scroll window valid after the list got shorter."""
@@ -160,6 +193,7 @@ class MenuScreen(BaseScreen):
             if self.current_menu in MENUS:
                 self._activate_entry(MENUS[self.current_menu][1][self.selected_index])
             elif self.selected_index == 0:
+                self._remember_position()
                 self.handle_add_new_item()
             else:
                 self._open_collection_item(items)
@@ -175,7 +209,7 @@ class MenuScreen(BaseScreen):
         self._items_cache = None                                      # redraw with the new mark
 
     def _activate_entry(self, entry):
-        label, kind, arg = entry
+        kind, arg = entry[1], entry[2]
         self._remember_position()
         if kind == "menu":
             self._open(arg, restore=False)
@@ -199,8 +233,25 @@ class MenuScreen(BaseScreen):
             else:
                 self.app.renderer.render_options("Config: %d changed, %d bad" % result)
             time.sleep(1.2)
+        elif name.startswith("buzz:"):
+            from hw.buzzer import buzzer
+            played = buzzer.play(name[5:])
+            self.app.renderer.render_options("Buzzer: " + name[5:] if played else (buzzer.problem or "Silent (recording)"))
+            end = time.ticks_add(time.ticks_ms(), 800)
+            while buzzer.busy or time.ticks_diff(end, time.ticks_ms()) > 0:     # the main loop waits: keep the signal in time
+                buzzer.tick()
+                time.sleep_ms(5)
+        elif name.startswith("led:"):
+            from hw.led import led
+            played = led.play(name[4:], "green")
+            self.app.renderer.render_options("LED: " + name[4:] if played else led.status())
+            end = time.ticks_add(time.ticks_ms(), 800)
+            while led.busy or time.ticks_diff(end, time.ticks_ms()) > 0:        # the main loop waits: keep the light in time
+                led.tick()
+                self.app.dimmer.tick()          # ... and the back-light up: the LED is powered through it
+                time.sleep_ms(5)
         elif name == "test_sound":
-            played = self.app.audio.beep("notify")
+            played = self.app.audio.beep("notify", force=True)          # a test sounds in the silent hours too
             self.app.renderer.render_options("Signal played" if played else "Muted (sound off / recording)")
             time.sleep(0.8)
         elif name == "test_notification":

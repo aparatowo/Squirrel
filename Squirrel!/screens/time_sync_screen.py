@@ -28,7 +28,7 @@ class TimeSyncScreen(BaseScreen):
 
     def handle_input(self, action):
         if action == 'ESC':
-            self.app.set_screen("MENU", menu_name="SETTINGS")
+            self.app.set_screen("MENU", menu_name="TIME_DATE")
         elif action == 'ENTER' and not self.app.timesync.busy:
             self.app.timesync.start("manual")
 
