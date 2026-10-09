@@ -8,22 +8,38 @@
 #   * what exists .... appconfig_schema.SETTINGS (kind, range / options, label)
 #   * the file ....... plain "KEY = value" lines, one per setting, with comments.  It is
 #                      created with the defaults when missing, and a reset restores them.
-#   * live changes ... cfg.set() applies at once and saves; the file is also watched, so an
-#                      edit made to it while the program runs is picked up within seconds
-#                      (cfg.tick() is registered as a background service).
+#   * live changes ... cfg.set() applies at once and saves.  The values in memory are what the program
+#                      uses; the file only brings them back after a restart.  It is NOT polled: it is
+#                      read at start-up, by Settings -> Reload config, and checked once whenever the
+#                      screen wakes up (check_file(): only its date and size; read again if they changed),
+#                      so an edit made to it from a PC or Thonny is still picked up.
 #   * listeners ...... cfg.on_change(fn) calls fn(key, new_value) for every value that changed.
 #
 # A value that cannot be understood never breaks anything: it falls back to the default and
 # is reported in the log; the file is left untouched so the typo can be fixed.
 
 import os
-import time
 import nuts
 from boot_log import log
-from appconfig_schema import SETTINGS
+from appconfig_schema import SETTINGS, HELP
 
 _TRUE = ("true", "on", "yes", "1")
 _FALSE = ("false", "off", "no", "0")
+DAYS = "MTWTFSS"                 # kind "days": bit 0 = Monday
+
+
+def time_text(minutes):
+    return "%02d:%02d" % (minutes // 60, minutes % 60)
+
+
+def days_text(mask):
+    """The days as config.txt stores them: MTWTFSS, '.' for a day that is not ticked."""
+    return "".join(DAYS[i] if mask >> i & 1 else "." for i in range(7))
+
+
+def days_shown(mask):
+    """The days as the screen shows them: spaced out, '-' for a day that is not ticked ("M T W T F - -")."""
+    return " ".join(DAYS[i] if mask >> i & 1 else "-" for i in range(7))
 
 
 def _stamp(path):
@@ -62,7 +78,6 @@ class Config:
         self._extra = []           # lines of the file we do not recognise: kept when saving
         self._path = None
         self._stamp = None         # (mtime, size) as of our last read / write
-        self._next_poll = 0
         self.last_changed = 0      # results of the most recent (re)load, for the UI
         self.last_problems = 0
         for key, kind, group, label, extra in SETTINGS:
@@ -99,6 +114,11 @@ class Config:
         """(kind, group, label, extra) - what a settings screen needs to edit the key."""
         return self._schema[key]
 
+    @staticmethod
+    def help(key):
+        """What to know about the setting beyond its name ("" if nothing); lines are split by "\n"."""
+        return HELP.get(key, "")
+
     def text_of(self, key):
         return self._to_text(self._schema[key][0], self._values[key])
 
@@ -124,6 +144,10 @@ class Config:
             if value in extra:
                 return value
             raise ValueError("not one of the allowed values")
+        if kind in ("time", "days"):
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < (1440 if kind == "time" else 128):
+                raise ValueError("expected HH:MM" if kind == "time" else "expected 7 days, e.g. MTWTF..")
+            return value
         if kind == "color":
             if isinstance(value, str) and value.lower() in nuts.PALETTE:
                 return value.lower()
@@ -150,6 +174,18 @@ class Config:
                 if str(option).lower() == t.lower():
                     return option
             raise ValueError("not one of the allowed values")
+        if kind == "time":
+            hours, sep, minutes = t.partition(":")
+            if not sep or not hours.strip().isdigit() or not minutes.strip().isdigit():
+                raise ValueError("expected HH:MM")
+            h, m = int(hours), int(minutes)
+            if h > 23 or m > 59:
+                raise ValueError("expected HH:MM")
+            return h * 60 + m
+        if kind == "days":
+            if len(t) != 7:
+                raise ValueError("expected 7 days, e.g. MTWTF..")
+            return sum(1 << i for i in range(7) if t[i] not in ".-_")
         return self.validate(key, t)
 
     def set(self, key, value, save=True):
@@ -222,19 +258,18 @@ class Config:
         self._read_file()
         return (self.last_changed, self.last_problems)
 
-    def tick(self):
-        """Service hook: notice edits made to the file while the program runs."""
+    def check_file(self):
+        """Read the file again if it was edited outside the program (its date or size changed).  One os.stat() when
+        it was not; called when the screen wakes up.  Returns what reload() returns, or None."""
         if not self._path:
-            return
-        now = time.ticks_ms()
-        if time.ticks_diff(now, self._next_poll) < 0:
-            return
-        self._next_poll = time.ticks_add(now, nuts.CONFIG_POLL_MS)
+            return None
         stamp = _stamp(self._path)
-        if stamp is not None and stamp != self._stamp:
-            result = self.reload()
-            if result is not None:
-                log(f"[CONFIG] File edited: {result[0]} setting(s) changed, {result[1]} problem(s)")
+        if stamp is None or stamp == self._stamp:
+            return None
+        result = self.reload()
+        if result is not None:
+            log(f"[CONFIG] File edited: {result[0]} setting(s) changed, {result[1]} problem(s)")
+        return result
 
     def save(self):
         """Write every setting.  tmp file + remove + rename, because FAT cannot rename over a file."""
@@ -320,6 +355,9 @@ class Config:
                 group = g
                 lines.append("# --- %s ---" % g)
             lines.append("# %s%s" % (label, self._hint(kind, extra)))
+            for help_line in HELP.get(key, "").split("\n"):
+                if help_line:
+                    lines.append("#   " + help_line)
             lines.append("%s = %s" % (key, self._to_text(kind, self._values[key])))
         if self._extra:
             lines.append("")
@@ -337,12 +375,20 @@ class Config:
             return " (" + ", ".join([str(o) for o in extra]) + ")"
         if kind == "color":
             return " (" + ", ".join(nuts.PALETTE) + ")"
+        if kind == "time":
+            return " (HH:MM)"
+        if kind == "days":
+            return " (MTWTFSS, '.' = not that day)"
         return " (up to %d characters)" % extra
 
     @staticmethod
     def _to_text(kind, value):
         if kind == "bool":
             return "true" if value else "false"
+        if kind == "time":
+            return time_text(value)
+        if kind == "days":
+            return days_text(value)
         return str(value)
 
 

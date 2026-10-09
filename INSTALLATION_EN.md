@@ -104,6 +104,7 @@ When done, unplug and replug the cable (or press the reset button on the device)
 | `main.py` | `/flash/apps/Squirrel/main.py` |
 | `nuts.py` (config) | `/flash/apps/Squirrel/nuts.py` |
 | `screens/` folder (whole) | `/flash/apps/Squirrel/screens/` |
+| `hw/` folder (whole) | `/flash/apps/Squirrel/hw/` |
 
 > ℹ️ All other modules are already **frozen** into the firmware — no need to upload them separately.
 

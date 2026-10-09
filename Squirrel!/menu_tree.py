@@ -1,5 +1,7 @@
 # menu_tree.py - the structure of the menus, as data (edit this file to reshuffle the UI)
 #
+# Every entry is (label, kind, argument), optionally with a 4th item: a summary shown after the label
+# (see MenuScreen._summary), e.g. "quiet:sound" = the days of the sound's quiet hours.
 # Every entry is (label, kind, argument):
 #   "menu"   - open another menu           (argument = menu id)
 #   "screen" - open a screen                (argument = screen name registered in SquirrelApp,
@@ -16,13 +18,13 @@ MENUS = {
         ("Settings", "menu", "SETTINGS"),
     ]),
     "FOCUS": ("Focus Tools", [
-        ("Routines", "screen", "ROUTINES"),
-        ("Pomodoro", "screen", ("INTERVALS", {"mode": "pomodoro"})),
-        ("Training", "screen", ("INTERVALS", {"mode": "training"})),
-        ("Metronome", "screen", "METRONOME"),
-        ("Breathing", "screen", "BREATHING"),
         ("Cuckoo Clock", "screen", ("PERSONALIZE", {"groups": ("Cuckoo",), "title": "Cuckoo Clock",
                                                    "back": ("MENU", {"menu_name": "FOCUS"})})),
+        ("Routines", "screen", "ROUTINES"),
+        ("Pomodoro", "screen", ("INTERVALS", {"mode": "pomodoro"})),
+        ("Metronome", "screen", "METRONOME"),
+        ("Training", "screen", ("INTERVALS", {"mode": "training"})),
+        ("Breathing", "screen", "BREATHING"),
         ("Statistics", "screen", "FOCUS_STATS"),
     ]),
     "NOTES_ROOT": ("Notes", [
@@ -34,6 +36,7 @@ MENUS = {
         ("Personalize", "screen", "PERSONALIZE"),
         ("Connections", "menu", "CONNECTIONS"),
         ("Time and date", "menu", "TIME_DATE"),
+        ("Silent mode", "menu", "SILENT"),
         ("Reload config", "action", "reload_config"),
         ("Key Calibration", "screen", "CALIBRATOR"),
         ("Experimental", "menu", "EXPERIMENTAL"),
@@ -52,10 +55,48 @@ MENUS = {
         ("Time settings", "screen", ("PERSONALIZE", {"groups": ("Time",), "title": "Time settings",
                                                     "back": ("MENU", {"menu_name": "TIME_DATE"})})),
     ]),
+    # Silent hours, separately for the speaker and the buzzer (QUIET_* settings, see quiet_hours.py)
+    "SILENT": ("Silent mode", [
+        ("Sound", "screen", ("SILENT_MODE", {"channel": "sound"}), "quiet:sound"),
+        ("Buzzer", "screen", ("SILENT_MODE", {"channel": "buzzer"}), "quiet:buzzer"),
+        ("LED", "screen", ("SILENT_MODE", {"channel": "led"}), "quiet:led"),
+    ]),
+    # The buzzer soldered to a GPIO (nuts.BUZZER_*): a try of every mode.  Which features may use it, and whether
+    # it works at all, is shown in Personalize -> Buzzer.
+    # "buzz:<mode>" = play that mode of buzzer.MODES, whatever the settings say
+    "BUZZER_TEST": ("Buzzer test", [
+        ("Click", "action", "buzz:click"),
+        ("Short", "action", "buzz:short"),
+        ("Double", "action", "buzz:double"),
+        ("Triple", "action", "buzz:triple"),
+        ("Long", "action", "buzz:long"),
+        ("Alarm", "action", "buzz:alarm"),
+        ("SOS", "action", "buzz:sos"),
+    ]),
+    # Tests of the LED, one thing at a time (screens/led_test_screen.py), and the modes the features use
+    "LED_TEST": ("LED test", [
+        ("Steady colours", "screen", ("LED_TESTS", {"test": "colors"})),
+        ("Blink intervals", "screen", ("LED_TESTS", {"test": "blink"})),
+        ("Brightness steps", "screen", ("LED_TESTS", {"test": "steps"})),
+        ("Smooth fade", "screen", ("LED_TESTS", {"test": "fade"})),
+        ("Modes", "menu", "LED_MODES"),
+    ]),
+    # "led:<mode>" = light that mode of led.MODES (in green), whatever the settings say
+    "LED_MODES": ("LED modes", [
+        ("Flash", "action", "led:flash"),
+        ("Double", "action", "led:double"),
+        ("Triple", "action", "led:triple"),
+        ("Long", "action", "led:long"),
+        ("Pulse", "action", "led:pulse"),
+        ("Alarm", "action", "led:alarm"),
+        ("SOS", "action", "led:sos"),
+    ]),
     # Features that work but are not finished or fully trusted yet
     "EXPERIMENTAL": ("Experimental", [
         ("Test notification", "action", "test_notification"),
         ("Test sound", "action", "test_sound"),
+        ("Buzzer test", "menu", "BUZZER_TEST"),
+        ("LED test", "menu", "LED_TEST"),
         ("Font test", "screen", "FONT_TEST"),
     ]),
 }
@@ -76,6 +117,10 @@ PARENTS = {
     "EXPERIMENTAL": "SETTINGS",
     "CONNECTIONS": "SETTINGS",
     "TIME_DATE": "SETTINGS",
+    "SILENT": "SETTINGS",
+    "BUZZER_TEST": "EXPERIMENTAL",
+    "LED_TEST": "EXPERIMENTAL",
+    "LED_MODES": "LED_TEST",
     "TODO": "MAIN",
     "NOTES": "NOTES_ROOT",
     "MIND": "NOTES_ROOT",

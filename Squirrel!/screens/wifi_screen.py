@@ -90,7 +90,7 @@ class WifiScreen(BaseScreen):
         elif action == 'DEL' and self.sel > 0:
             self._delete = _DELETE_PRESSES
         elif action in ('ESC', 'LEFT'):
-            self.app.set_screen("MENU", menu_name="SETTINGS")
+            self.app.set_screen("MENU", menu_name="CONNECTIONS")
 
     def _open_row(self):
         if self.sel == 0:

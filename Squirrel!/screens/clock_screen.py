@@ -48,7 +48,7 @@ class ClockScreen(BaseScreen):
             self.app.set_screen("MIND_DUMP", return_to=("CLOCK", {}))
             return
         print(f"[NAV] CLOCK -> MENU (MAIN) on key: '{action}'")
-        self.app.set_screen("MENU", menu_name="MAIN")
+        self.app.set_screen("MENU", menu_name="MAIN", fresh=True)
 
     def needs_refresh(self):
         if self._notice is not None and time.ticks_diff(time.ticks_ms(), self._notice_until) >= 0:

@@ -2,9 +2,13 @@
 #
 # States: 'stopped' (idle) -> 'running' <-> 'paused'.  Time is counted from
 # time.ticks_ms(), so it does not depend on the RTC being right; the RTC only
-# decides which calendar day the counted seconds belong to.  Totals per day are
-# kept in <data_dir>/focus.txt as "YYYY-MM-DD,seconds" lines and written at most
-# every 15 minutes while running, and on every pause / stop.
+# decides which calendar day the counted seconds belong to.
+#
+# The file <data_dir>/focus.txt holds "YYYY-MM-DD,seconds" lines; a day may have several (they add up).  Only TODAY's
+# total is kept in memory - the status bars show it all the time - and it is read from the file once, when the day
+# starts being counted.  New seconds are APPENDED (at most every 15 minutes while running, and on every pause / stop),
+# so a save never reads the file.  The whole history is read only for the statistics (week()), which also rewrite
+# the file with one line per day when it has more.
 
 import os
 import time
@@ -27,13 +31,14 @@ class FocusTimer:
         self._tmp = data_dir + "/focus.tmp"
         self._goal = goal_seconds      # a number, or a function returning it (read live)
         self.state = "stopped"
-        self._days = {}              # "YYYY-MM-DD" -> seconds
+        self._day_key = None         # the day whose total is in memory
+        self._day_secs = 0           # its total, saved and unsaved
+        self._unsaved = {}           # "YYYY-MM-DD" -> seconds not appended to the file yet
         self._last_ms = 0
         self._frac_ms = 0
         self._last_save_ms = 0
         self._last_key = None
-        self._dirty = False
-        self._load()
+        self._recover()
 
     @property
     def goal_seconds(self):
@@ -77,7 +82,7 @@ class FocusTimer:
             return
         now = time.ticks_ms()
         self._accumulate(now)
-        if self._dirty and time.ticks_diff(now, self._last_save_ms) >= _SAVE_INTERVAL_MS:
+        if self._unsaved and time.ticks_diff(now, self._last_save_ms) >= _SAVE_INTERVAL_MS:
             self._save()
 
     def _accumulate(self, now):
@@ -91,8 +96,9 @@ class FocusTimer:
         if key is None:
             return
         self._last_key = key
-        self._days[key] = self._days.get(key, 0) + seconds
-        self._dirty = True
+        self._use_day(key)
+        self._day_secs += seconds
+        self._unsaved[key] = self._unsaved.get(key, 0) + seconds
 
     # ---------------- queries ----------------
 
@@ -101,24 +107,37 @@ class FocusTimer:
 
     def today_seconds(self):
         key = self._today_key()
-        return self._days.get(key, 0) if key else 0
+        if key is None:
+            return 0
+        self._use_day(key)
+        return self._day_secs
 
     def goal_reached(self):
         return self.today_seconds() >= self.goal_seconds
 
     def week(self, n=7):
-        """Last n days, oldest first, ending today: [(date_key, weekday 0=Mon, seconds)]."""
+        """Last n days, oldest first, ending today: [(date_key, weekday 0=Mon, seconds)].  Reads the file: call it when
+        the statistics are opened, not on every redraw."""
         key = self._today_key()
         if key is None:
             return []
+        days = self._read()
+        for k, secs in self._unsaved.items():
+            days[k] = days.get(k, 0) + secs
         base = days_from_civil(int(key[0:4]), int(key[5:7]), int(key[8:10]))
         result = []
         for back in range(n - 1, -1, -1):
             z = base - back
             y, m, d = civil_from_days(z)
             k = _key(y, m, d)
-            result.append((k, weekday_from_days(z), self._days.get(k, 0)))
+            result.append((k, weekday_from_days(z), days.get(k, 0)))
         return result
+
+    def _use_day(self, key):
+        """Make `key` the day kept in memory (its saved total is read from the file once)."""
+        if key != self._day_key:
+            self._day_key = key
+            self._day_secs = self._read(only=key).get(key, 0) + self._unsaved.get(key, 0)
 
     def _today_key(self):
         """'YYYY-MM-DD' from the RTC, or None while the clock is unset / implausible."""
@@ -133,29 +152,61 @@ class FocusTimer:
 
     # ---------------- persistence ----------------
 
-    def _load(self):
-        for path in (self._file, self._tmp):     # tmp only survives an interrupted save
-            try:
-                with open(path, "r") as f:
-                    text = f.read()
-            except OSError:
-                continue
-            bad = 0
-            for line in text.split("\n"):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    key, secs = line.split(",")
-                    secs = int(secs)
-                    if len(key) != 10 or key[4] != "-" or key[7] != "-" or secs < 0:
-                        raise ValueError
-                    int(key[0:4]); int(key[5:7]); int(key[8:10])
-                    self._days[key] = secs
-                except Exception:
-                    bad += 1
-            log(f"[FOCUS] Loaded {len(self._days)} day(s) from {path}" + (f" ({bad} bad line(s) skipped)" if bad else ""))
+    def _recover(self):
+        """A save of the old kind (rewrite through focus.tmp) interrupted between remove and rename: keep the tmp."""
+        try:
+            os.stat(self._file)
             return
+        except OSError:
+            pass
+        try:
+            os.rename(self._tmp, self._file)
+            log("[FOCUS] Recovered focus.txt from an interrupted save")
+        except OSError:
+            pass
+
+    def _read(self, only=None):
+        """{"YYYY-MM-DD": seconds} from the file (lines of the same day add up); only=key keeps just that day.
+        Reading the whole history also rewrites the file with one line per day when it has more."""
+        days, lines, bad = {}, 0, 0
+        try:
+            with open(self._file, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        key, secs = line.split(",")
+                        secs = int(secs)
+                        if len(key) != 10 or key[4] != "-" or key[7] != "-" or secs < 0:
+                            raise ValueError
+                    except Exception:
+                        bad += 1
+                        continue
+                    lines += 1
+                    if only is None or key == only:
+                        days[key] = days.get(key, 0) + secs
+        except OSError:
+            return days
+        if bad:
+            log(f"[FOCUS] {bad} bad line(s) in {self._file} skipped")
+        if only is None and lines > len(days):
+            self._write_all(days)
+        return days
+
+    def _write_all(self, days):
+        """Rewrite the file with one line per day; FAT cannot rename over an existing file, so: tmp, remove, rename."""
+        try:
+            with open(self._tmp, "w") as f:
+                for key in sorted(days):
+                    f.write("%s,%d\n" % (key, days[key]))
+            try:
+                os.remove(self._file)
+            except OSError:
+                pass
+            os.rename(self._tmp, self._file)
+        except Exception as e:
+            log(f"[FOCUS] Cannot compact {self._file}: {e}")
 
     def _ensure_dir(self):
         try:
@@ -171,19 +222,16 @@ class FocusTimer:
             return False
 
     def _save(self):
-        """Write all totals; FAT cannot rename over an existing file, so: tmp, remove, rename."""
+        """Append the seconds counted since the last save (one line per day that has some)."""
+        if not self._unsaved:
+            return True
         if not self._ensure_dir():
             return False
         try:
-            with open(self._tmp, "w") as f:
-                for key in sorted(self._days):
-                    f.write("%s,%d\n" % (key, self._days[key]))
-            try:
-                os.remove(self._file)
-            except OSError:
-                pass
-            os.rename(self._tmp, self._file)
-            self._dirty = False
+            with open(self._file, "a") as f:
+                for key in sorted(self._unsaved):
+                    f.write("%s,%d\n" % (key, self._unsaved[key]))
+            self._unsaved = {}
             self._last_save_ms = time.ticks_ms()
             return True
         except Exception as e:

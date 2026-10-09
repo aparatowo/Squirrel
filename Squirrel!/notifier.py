@@ -13,6 +13,8 @@
 import time
 from M5 import Lcd
 from boot_log import log
+from hw.buzzer import signal
+from hw.led import signal as led_signal
 
 
 def wrap(text, width, max_lines):
@@ -109,6 +111,8 @@ class Notifier:
             self._audio.beep(pattern)
         except Exception as e:
             log(f"[NOTIFY] Sound failed: {e}")
+        signal("BUZZER_NOTIFY", "double")
+        led_signal("LED_NOTIFY")
 
     def _show(self, notification, now):
         self.current = notification

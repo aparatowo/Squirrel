@@ -16,7 +16,7 @@
 
 import gc
 import time
-from boot_log import log
+from boot_log import log, trace
 
 _BMI270_ADDRS = (0x69, 0x68)
 _BMI270_PWR_CTRL = 0x7D         # bits: aux, gyr, acc, temp enable - 0 = all off
@@ -99,7 +99,7 @@ class PowerManager:
             try:
                 self._mp.freq(_SLOW_HZ if slow else self._fast)
                 self.slow = slow
-                log(f"[POWER] CPU {(_SLOW_HZ if slow else self._fast) // 1000000} MHz")
+                trace(f"[POWER] CPU {(_SLOW_HZ if slow else self._fast) // 1000000} MHz")
             except Exception as e:
                 log(f"[POWER] cannot change the CPU frequency: {e}")
                 self.slow = slow

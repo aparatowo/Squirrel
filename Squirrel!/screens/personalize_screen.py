@@ -24,7 +24,7 @@ from nuts import PALETTE, named_color
 _NOTICE_MS = 2500
 _VISIBLE = 5                     # rows the menu renderer shows
 _RESET_ALL = "Reset all to defaults"
-_ELSEWHERE = ("Time", "Network", "Cuckoo")          # groups that are reached from other menus, not from the main list
+_ELSEWHERE = ("Time", "Network", "Cuckoo", "Silent")          # groups that are reached from other menus, not from the main list
 _SETTINGS_MENU = ("MENU", {"menu_name": "SETTINGS"})
 _INT_DIGITS = 6
 
@@ -209,11 +209,28 @@ class PersonalizeScreen(BaseScreen):
         elif action == 'DOWN':
             self.p, self.p_top = self._move(self.p, self.p_top, len(self.options), +1)
         elif action == 'ENTER':
-            cfg.set(self.key, self.options[self.p][1])
-            self._notify("Saved")
+            value = self.options[self.p][1]
+            cfg.set(self.key, value)
+            self._notify(self._after_pick(self.key, value))
             self.mode = "items"
         elif action in ('ESC', 'LEFT'):
             self.mode = "items"
+
+    @staticmethod
+    def _after_pick(key, value):
+        """What to do once an option is chosen; returns the notice to show.  A buzzer mode is played at once, so the
+        user hears what was chosen."""
+        if key.startswith("BUZZER_") and key.endswith("_MODE"):
+            from hw.buzzer import buzzer
+            if buzzer.demo(key[:-5], value):
+                return "Saved - listen"
+            return "Saved (" + buzzer.status() + ")"
+        if key.startswith("LED_") and key not in ("LED_BREATHING", "LED_CHARGING"):
+            from hw.led import led
+            if led.demo(key[:-6] if key.endswith("_COLOR") else key):
+                return "Saved - look"
+            return "Saved (" + led.status() + ")"
+        return "Saved"
 
     def _leave_edit(self, notice=None):
         self._text_mode(False)
@@ -279,6 +296,9 @@ class PersonalizeScreen(BaseScreen):
             value = self.buf
             notice = "Saved"
         cfg.set(self.key, value)
+        if self.key == "LED_BRIGHTNESS":
+            from hw.led import led
+            led.demo(self.key)                       # a flash at the new brightness
         self._leave_edit(notice)
 
     # ------------------------------------------------------------------ drawing
@@ -294,11 +314,21 @@ class PersonalizeScreen(BaseScreen):
         elif self.mode == "pick":
             label = cfg.describe(self.key)[2]
             renderer.render_menu(label, [text for text, _v in self.options], self.p, self.p_top, _VISIBLE)
+            help_text = cfg.help(self.key).replace("\n", " ")
+            if help_text:                                     # one line under the options
+                Lcd.setTextColor(renderer.theme["ACCENT"], renderer.theme["BG"])
+                Lcd.drawString(help_text[:38], 5, 119)
             if cfg.describe(self.key)[0] == "color":
                 for row, (_text, name) in enumerate(self.options[self.p_top:self.p_top + _VISIBLE]):
                     Lcd.fillRect(205, 40 + 15 * row, 24, 9, named_color(name))
         elif self.mode == "items":
             title = self._title if (self._restricted and len(self._groups) == 1) else self._groups[self.g]
+            if title == "Buzzer":
+                from hw.buzzer import buzzer
+                title = "Buzzer: " + buzzer.status()          # whether it works at all, above its on/off list
+            elif title == "LED":
+                from hw.led import led
+                title = "LED: " + led.status()
             renderer.render_menu(title, self._item_rows(), self.i, self.i_top, _VISIBLE)
         else:
             renderer.render_menu(self._title, self._group_rows(), self.g, self.g_top, _VISIBLE)
@@ -335,15 +365,22 @@ class PersonalizeScreen(BaseScreen):
         else:
             hint = "up to %d characters" % extra
         Lcd.drawString(hint[:38], 5, 22)
+        help_lines = [line for line in cfg.help(self.key).split("\n") if line]
         Lcd.drawRect(5, 38, 230, 28, theme["ACCENT"])
         shown = "*" * len(self.buf) if kind == "secret" else self.buf
         start = max(0, self.cur - 34)                         # keep the cursor inside the 36-character box
         line = shown[start:self.cur] + "|" + shown[self.cur:start + 35]
         Lcd.setTextColor(theme["FG"], theme["BG"])
         Lcd.drawString(line, 10, 48)
+        y = 74
         if self.error:
             Lcd.setTextColor(theme["ERROR"], theme["BG"])
-            Lcd.drawString(self.error, 5, 76)
+            Lcd.drawString(self.error, 5, y)
+            y += 13
+        Lcd.setTextColor(theme["ACCENT"], theme["BG"])          # what the name alone does not say
+        for line in help_lines[:2 if not self.error else 1]:
+            Lcd.drawString(line[:38], 5, y)
+            y += 13
         Lcd.setTextColor(theme["FG"], theme["BG"])
         Lcd.drawString("[ENTER] Save  [ESC] Cancel", 5, 104)
         Lcd.drawString("FN + arrows: cursor" + ("  and +/-" if kind == "int" else ""), 5, 118)

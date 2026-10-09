@@ -169,6 +169,8 @@ Squirrel! is designed to feel like yours. Colors, text sizes, layout positions, 
 - Routines — daily repeating reminders with completion tracking
 - Breathing Exercises — guided anxiety regulation
 - Metronome — background beat
+- Buzzer — optional, soldered-on signal for notifications, Pomodoro, the metronome and the cuckoo clock
+- RGB LED — color signals from the built-in LED: notifications, Pomodoro, the metronome, the cuckoo clock, breathing exercises
 - Daily Statistics — focus, routines, and to-do bars per day
 - Personalization — colors, layout, sounds all in one config file
 
@@ -177,8 +179,10 @@ Squirrel! is designed to feel like yours. Colors, text sizes, layout positions, 
 - Quick Capture shortcut — instant new entry from anywhere
 - Emotional tags on notes — one keypress context labeling after creation
 - Last-opened note breadcrumb — return to where you left off on boot
-- Automatic timestamps on notes using the RTC
+- Automatic timestamps on notes
 - USB drive mode — browse your SD card from a computer without removing it
+- Ultra power-saving mode — automatically switches off the features that use the most energy
+- Calmer screen — redraws less often, only when something has actually changed
 - **Port to programmable smartwatches** — Squirrel! on your wrist, no keyboard but always with you; touchscreen, vibration instead of sound, a micro web server for managing routines from your phone, and dedicated cooperation with the M5Cardputer
 
 ---
@@ -203,8 +207,6 @@ Squirrel! comes from a simple conviction: **if I can manage this, everyone shoul
 
 I am happy — reclaiming a piece of myself and my life, every single day. Not in spite of everything. Partly because of it. This project is one expression of that.
 
-> *"ADHD stays with me. But if I can manage it, everyone should have the same chance."*
-> — Ijon Tichy
 
 ---
 

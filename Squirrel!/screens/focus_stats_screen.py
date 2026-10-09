@@ -26,10 +26,12 @@ class FocusStatsScreen(BaseScreen):
         self._drawn = None
         self._notice = None
         self._notice_until = 0
+        self._week = None           # the past days, read from the file once per visit
 
     def on_enter(self, **kwargs):
         self._drawn = None
         self._notice = None
+        self._week = None
 
     def _snapshot(self):
         focus = self.app.focus
@@ -72,8 +74,12 @@ class FocusStatsScreen(BaseScreen):
         Lcd.drawString("goal %dh" % (focus.goal_seconds // 3600), 150, 26)
 
         # last 7 days, oldest on the left, today on the right
-        week = focus.week(7)
+        if self._week is None:
+            self._week = focus.week(7)        # the file is read here, once; today's bar comes from memory below
+        week = self._week
         for i, (_key, weekday, secs) in enumerate(week):
+            if i == len(week) - 1:
+                secs = today
             x = 8 + i * 32
             height = min(_BAR_MAX_H, secs * _BAR_MAX_H // focus.goal_seconds)
             if secs > 0 and height < 1:

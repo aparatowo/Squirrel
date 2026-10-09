@@ -1,0 +1,26 @@
+# Firmware repo (klonowane automatycznie przez build_firmware.py)
+vendor/
+
+# Artefakty budowania
+.build/
+dist/
+
+# MicroPython bytecode
+*.mpy
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Edytory
+.idea/
+.vscode/
+*.swp
+*~
+
+# System
+.DS_Store
+Thumbs.db

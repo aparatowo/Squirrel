@@ -13,7 +13,7 @@
 
 import time
 from machine import Pin
-from rtc_base import TimeProvider
+from hw.rtc_base import TimeProvider
 
 
 # DS1302 register addresses (write addresses; read = write | 0x01)

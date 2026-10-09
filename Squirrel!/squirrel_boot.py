@@ -7,7 +7,8 @@
 #
 # DEV MODE: create an empty file /flash/DEV (Thonny: new file on the device).  Then /flash/apps/Squirrel is put FIRST
 # on sys.path, so a .py file copied there replaces the frozen module of the same name - edit and test without
-# rebuilding the firmware.  Delete /flash/DEV to go back to the frozen code.  Never leave a .py with the name of a
+# rebuilding the firmware (a screens/ or hw/ folder there hides the WHOLE frozen package: copy it complete).
+# Delete /flash/DEV to go back to the frozen code.  Never leave a .py with the name of a
 # frozen module in /flash itself or next to main.py: it is found first and silently hides the frozen one
 # (sq_info.report() lists such files).
 
@@ -64,6 +65,16 @@ def run():
         log("[MAIN] Stopped by user")
     except Exception as e:
         log(f"[MAIN CRITICAL] {e}")
+        try:
+            from hw.buzzer import buzzer
+            buzzer.off()
+        except Exception:
+            pass
+        try:
+            from hw.led import led
+            led.off()
+        except Exception:
+            pass
         try:
             with open(boot_log.LOG_PATH, "a") as f:
                 sys.print_exception(e, f)

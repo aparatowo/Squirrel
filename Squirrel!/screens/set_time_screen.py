@@ -52,7 +52,7 @@ class SetTimeScreen(BaseScreen):
 
     def handle_input(self, action):
         if action == 'ESC':
-            self.app.set_screen("MENU", menu_name="SETTINGS")
+            self.app.set_screen("MENU", menu_name="TIME_DATE")
             return
 
         if action == 'LEFT':
@@ -84,7 +84,7 @@ class SetTimeScreen(BaseScreen):
         self.app.rtc.set_manual(dt)
         self.app.renderer.render_options("Time Set!")
         time.sleep(0.8)
-        self.app.set_screen("MENU", menu_name="SETTINGS")
+        self.app.set_screen("MENU", menu_name="TIME_DATE")
 
     # ------------------------------------------------------------------
     # Render

@@ -9,7 +9,28 @@ _COLOR_SETTINGS = (("BG", "COLOR_BG"), ("FG", "COLOR_FG"), ("ACCENT", "COLOR_ACC
                    ("KEY_SHIFT", "COLOR_KEY_SHIFT"), ("KEY_FN", "COLOR_KEY_FN"), ("KEY_OPT", "COLOR_KEY_OPT"))
 
 _V_CELLS = 16          # '#' characters in a vertical bar (8 px each: 128 px of the 135 px screen)
-_H_CELLS = 36          # ... in a horizontal bar (6 px each: the width of the menu header lines)
+_SCREEN_W = 240
+# The menu header lines and the horizontal bars are measured in pixels with the font in use (Lcd.textWidth), not counted
+# in characters: the firmware's own font and the .vlw font have different widths, and 36 characters fill the screen
+# with one but not with the other.
+
+
+def _text_width(text):
+    """Width of `text` in pixels with the current font and size (6 px per character if the display cannot say)."""
+    try:
+        width = Lcd.textWidth(text)
+        if width > 0:
+            return width
+    except Exception:
+        pass
+    return 6 * len(text)
+
+
+def _line_layout():
+    """(cells, cell width, x of the first cell): '#' characters that fill the screen width, centred."""
+    cell = max(1, _text_width("#"))
+    cells = max(1, _SCREEN_W // cell)
+    return cells, cell, (_SCREEN_W - cells * cell) // 2
 
 
 class UIRenderer:
@@ -53,11 +74,11 @@ class UIRenderer:
                 Lcd.drawString("#", positions[i][0], positions[i][1])
         self._bar_cache[bar_id] = list(cells)
 
-    def _paint_line(self, bar_id, cells, y):
+    def _paint_line(self, bar_id, cells, y, cell_w=6, x0=0):
         """A horizontal bar: a fresh one is drawn in runs of one colour, later only what changed."""
         old = self._bar_cache.get(bar_id)
-        if old is not None:
-            self._paint_bar(bar_id, cells, [(6 * i, y) for i in range(len(cells))])
+        if old is not None and len(old) == len(cells):
+            self._paint_bar(bar_id, cells, [(x0 + cell_w * i, y) for i in range(len(cells))])
             return
         Lcd.setTextSize(1)
         i = 0
@@ -66,7 +87,7 @@ class UIRenderer:
             while j < len(cells) and cells[j] == cells[i]:
                 j += 1
             Lcd.setTextColor(self._cell_color(cells[i]), self.theme["BG"])
-            Lcd.drawString("#" * (j - i), 6 * i, y)
+            Lcd.drawString("#" * (j - i), x0 + cell_w * i, y)
             i = j
         self._bar_cache[bar_id] = list(cells)
 
@@ -80,8 +101,10 @@ class UIRenderer:
         self._bars_kind = "clock"
 
     def _draw_menu_bars(self):
-        self._paint_line("T", self.bars.battery_cells(_H_CELLS), 0)
-        self._paint_line("B", self.bars.focus_cells(_H_CELLS), 24)
+        Lcd.setTextSize(1)
+        n, cell_w, x0 = _line_layout()
+        self._paint_line("T", self.bars.battery_cells(n), 0, cell_w, x0)
+        self._paint_line("B", self.bars.focus_cells(n), 24, cell_w, x0)
         self._bars_kind = "menu"
 
     def forget_bars(self):
@@ -171,16 +194,19 @@ class UIRenderer:
 
         total_items = len(items)
         pos_info = f"[{selected_index + 1}/{total_items}]"
-        header_text = title[:34].center(36)
+        title = title[:34]
+        title_x = max(0, (_SCREEN_W - _text_width(title)) // 2)          # centred in pixels, whatever the font
 
         if self.bars is not None and cfg.get("BARS_MENU"):
-            Lcd.drawString(header_text, 0, 12)
+            Lcd.drawString(title, title_x, 12)
             self._draw_menu_bars()                       # the two '#' lines show battery and focus
             Lcd.setTextColor(self.theme["FG"], self.theme["BG"])
         else:
-            Lcd.drawString("####################################", 0, 0)
-            Lcd.drawString(header_text, 0, 12)
-            Lcd.drawString("####################################", 0, 24)
+            n, cell_w, x0 = _line_layout()               # '#' lines as wide as the screen
+            line = "#" * n
+            Lcd.drawString(line, x0, 0)
+            Lcd.drawString(title, title_x, 12)
+            Lcd.drawString(line, x0, 24)
 
         y = 40
         visible_items = items[scroll_offset : scroll_offset + max_visible]

@@ -169,6 +169,8 @@ Squirrel! jest zaprojektowany tak, żeby poczuł się jak twój. Kolory, rozmiar
 - Rutyny — codzienne powtarzające się przypomnienia ze śledzeniem wykonania
 - Ćwiczenia oddechowe — prowadzona regulacja lęku
 - Metronom — rytm w tle
+- Brzęczyk — opcjonalny, dolutowany sygnał dla powiadomień, Pomodoro, metronomu i kukułki
+- Dioda RGB — sygnalizacja kolorem wbudowaną diodą: powiadomienia, Pomodoro, metronom, kukułka, ćwiczenia oddechowe
 - Statystyki dzienne — skupienie, rutyny, zadania na słupkach
 - Personalizacja — kolory, układ, dźwięki w jednym pliku konfiguracyjnym
 
@@ -177,8 +179,10 @@ Squirrel! jest zaprojektowany tak, żeby poczuł się jak twój. Kolory, rozmiar
 - Skrót Quick Capture — natychmiastowy nowy wpis skądkolwiek
 - Tagi emocjonalne na notatkach — jednym klawiszem po stworzeniu wpisu
 - Zapamiętywanie ostatnio otwartej notatki — wracasz tam, gdzie skończyłeś
-- Automatyczne znaczniki czasu na notatkach z RTC
+- Automatyczne znaczniki czasu na notatkach
 - Tryb dysku USB — przeglądanie karty SD z komputera bez wyjmowania
+- Tryb hiperoszczędny — automatyczne wyłączanie funkcji, które zużywają najwięcej energii
+- Spokojniejszy ekran — rzadsze przerysowywanie, tylko gdy coś się naprawdę zmienia
 - **Port na programowalne smartwatche** — Squirrel! na nadgarstku, bez klawiatury, ale zawsze przy Tobie; dotykowy ekran, wibracje zamiast dźwięków, mikro serwer www do zarządzania rutynami z telefonu oraz dedykowana współpraca z M5Cardputer
 
 ---
@@ -203,8 +207,6 @@ Squirrel! pochodzi z prostego przekonania: **jeśli ja mogę sobie z tym poradzi
 
 Jestem szczęśliwy — codziennie odzyskując kawałek siebie i swojego życia. Nie pomimo wszystkiego — po części właśnie dzięki temu. Ten projekt jest jednym z wyrazów tego stanu.
 
-> *„ADHD zostaje ze mną. Ale jeśli ja mogę sobie z tym poradzić, każdy powinien mieć taką samą szansę."*
-> — Ijon Tichy
 
 ---
 

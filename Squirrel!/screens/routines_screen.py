@@ -12,6 +12,7 @@
 from gfx import Lcd
 from line_editor import LineEditor
 from scheduler import DAYS, RoutineStore
+from appconfig import days_shown
 from screens.base_screen import BaseScreen
 
 _VISIBLE = 5
@@ -47,13 +48,13 @@ class RoutinesScreen(BaseScreen):
     def _list_rows(self):
         rows = ["+ [New Routine]"]
         for r in self.store.items:
-            days = RoutineStore.days_text(r["d"]) if r["on"] else "off    "
+            days = days_shown(r["d"]) if r["on"] else "off".ljust(13)
             rows.append("%02d:%02d %s %s" % (r["h"], r["m"], days, r["t"]))
         return rows
 
     def _form_rows(self):
         r = self.store.items[self.idx]
-        return ["Text: " + r["t"], "Time: %02d:%02d" % (r["h"], r["m"]), "Days: " + RoutineStore.days_text(r["d"]),
+        return ["Text: " + r["t"], "Time: %02d:%02d" % (r["h"], r["m"]), "Days: " + days_shown(r["d"]),
                 "Active: " + ("yes" if r["on"] else "no"), "Delete" + ("  (ENTER again)" if self._confirm else "")]
 
     @staticmethod

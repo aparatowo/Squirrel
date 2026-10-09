@@ -26,7 +26,7 @@ na urządzeniu i zwykle usuwają błędy „brak pamięci przy inicjalizacji”.
 python3 build_firmware.py --build-mpy-cross     # make w micropython/mpy-cross z repozytorium firmware
 python3 build_firmware.py --mpy                 # dist/mpy/ = to samo drzewo, ale .mpy
 ```
-Wgraj zawartość `dist/mpy/` do `/flash/apps/Squirrel/` (z podfolderem `screens/`) i usuń stare `.py` oraz stare `.mpy`
+Wgraj zawartość `dist/mpy/` do `/flash/apps/Squirrel/` (z podfolderami `screens/` i `hw/`) i usuń stare `.py` oraz stare `.mpy`
 (`.mpy` ma pierwszeństwo przed `.py` o tej samej nazwie). `device/main.py` jako `/flash/main.py` działa bez zmian.
 Ten `mpy-cross` powstaje **bez łatek** z `--setup`. Format jest ten sam, ale gdyby urządzenie zgłosiło `incompatible .mpy file`, trzeba pełnego `--setup`.
 To rozwiązanie przejściowe: kod nadal ląduje w RAM-ie, tylko bez narzutu kompilacji. Zamrożenie (pełny build) zdejmuje go z RAM-u zupełnie.
@@ -38,8 +38,8 @@ python3 build_firmware.py --flash-image squirrel-M5STACK_CardputerADV_Custom_Squ
 python3 build_firmware.py --flash-image <plik> --flash /dev/ttyACM0     # gdy trzeba wskazać port
 ```
 Przed wgraniem: zamknij Thonny, urządzenie musi być w trybie pobierania (przytrzymaj G0 przy podłączaniu USB). Obraz zapisuje cały flash od 0x0:
-ustawienia UIFlow w NVS (np. zapamiętane Wi-Fi) są zastępowane, a pliki wgrane na `/flash` mogą zniknąć, więc po wgraniu wgraj od nowa `/flash/main.py` (`device/main.py`)
-i `/flash/fonts/squirrel.vlw`. Ustawienia, notatki i reszta aplikacji są na karcie SD i zostają.
+ustawienia UIFlow w NVS (np. zapamiętane Wi-Fi) są zastępowane, a pliki wgrane na `/flash` mogą zniknąć, więc po wgraniu sprawdź, czy jest `/flash/main.py` (`device/main.py`).
+Font jest w obrazie (`/system/common/font/squirrel.vlw`), nie trzeba go wgrywać. Ustawienia, notatki i reszta aplikacji są na karcie SD i zostają.
 
 ## Co zostało przetestowane, a co nie
 - **Przetestowane (154 sprawdzenia):** zbieranie źródeł, układ pakietu `screens/` (także z płaskiego folderu), kontrola importów,
@@ -92,7 +92,7 @@ Narzędzie niczego nie zmienia w istniejących plikach repozytorium: dodaje pły
 | Plik na urządzeniu | Skąd | Po co |
 |---|---|---|
 | `/flash/main.py` | `device/main.py` | firmware czyta `main.py` z systemu plików (nie da się go zamrozić); ma 10 linii |
-| `/flash/fonts/squirrel.vlw` | `fonts/squirrel.vlw` | **opcjonalny**, tylko dla polskich liter: font czyta firmware jako plik |
+| `/system/common/font/squirrel.vlw` | `fonts/squirrel.vlw` albo `squirrel.vlw` | polskie litery; **wbudowany w obraz** przez narzędzie (partycja systemowa, zapisywana przy każdym wgraniu). Font wgrany ręcznie do `/flash/fonts/` też działa, ale ten z obrazu ma pierwszeństwo |
 | `/sd/Squirrel/…` | tworzy aplikacja | ustawienia (`config.txt`), `wifi.json`, notatki, To-Do, nagrania, statystyki. Skopiuj swoje stare, jeśli chcesz je zachować |
 
 **Nie wgrywaj ani nie zostawiaj:** `/flash/apps/Squirrel/*.py` i żadnych modułów `.py`/`.mpy` w `/flash/` (poza `main.py`).
@@ -109,13 +109,14 @@ font oraz skąd załadowano `nuts` (zamrożony: ścieżka bez `/` na początku).
 
 ## Tryb DEV (zmiana kodu bez przebudowy firmware)
 Utwórz pusty plik `/flash/DEV` (Thonny: nowy plik na urządzeniu) i wgraj poprawione `.py` do `/flash/apps/Squirrel/` (podfolder `screens/`
-dla ekranów). Od tej chwili te pliki mają pierwszeństwo przed zamrożonymi. Usuń `/flash/DEV`, żeby wrócić do kodu z firmware.
+dla ekranów, `hw/` dla modułów sprzętowych). Folder `screens/` albo `hw/` na urządzeniu zasłania CAŁY zamrożony pakiet o tej nazwie,
+więc wgrywaj go w całości, nie pojedyncze pliki. Od tej chwili te pliki mają pierwszeństwo przed zamrożonymi. Usuń `/flash/DEV`, żeby wrócić do kodu z firmware.
 Plik `.mpy` o tej samej nazwie co `.py` w tym samym folderze wygrywa z `.py` (też to, co było przyczyną błędu z `from_top`).
 
 ## Zmiany w aplikacji pod zamrożony kod
 - `squirrel_boot.py` – jedyne miejsce, które zna ścieżki i sposób uruchomienia (`run()`); `main.py` tylko go importuje
   (najpierw z firmware, a gdy go tam nie ma, z `/flash/apps/Squirrel`, więc ten sam `main.py` działa też bez zamrożenia).
-- Font szukany najpierw w `/flash/fonts/`; kalibrator zapisuje `/flash/keymap.json` (nie potrzeba katalogu `/flash/apps/Squirrel`).
+- Font szukany najpierw w `/system/common/font/` (z obrazu), potem w `/flash/fonts/`; kalibrator zapisuje `/flash/keymap.json` (nie potrzeba katalogu `/flash/apps/Squirrel`).
 - `POWER_UNLOAD_SCREENS`: kod zamrożony leży we flashu i `sys.modules.pop` go nie zwolni, a tylko obiekty ekranu – możesz tę opcję wyłączyć.
 
 ## Gdy coś nie działa

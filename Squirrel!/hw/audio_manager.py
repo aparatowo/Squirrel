@@ -18,9 +18,10 @@
 import os
 import struct
 import time
-from boot_log import log
+from boot_log import log, trace
 from appconfig import cfg
-from nuts import AUDIO_SAMPLE_RATE, AUDIO_BITS, AUDIO_STEREO
+from quiet_hours import quiet_guard
+from nuts import AUDIO_SAMPLE_RATE, AUDIO_BITS, AUDIO_STEREO, RECORD_MIN_MS
 
 # Chunk size: ~0.5s at 8000Hz, 16-bit mono = 8000 bytes
 # Mic.record() takes a bytearray sized in bytes (not samples)
@@ -113,7 +114,7 @@ class AudioManager:
             try:
                 self._Speaker.end()
                 self._speaker_on = False
-                log("[AUDIO] Speaker.end() before recording")
+                trace("[AUDIO] Speaker.end() before recording")
             except Exception as e:
                 log(f"[AUDIO] Speaker.end() failed: {e}")
             # Built-in input multiplier (Mic.config); 0 leaves the firmware default.
@@ -124,11 +125,11 @@ class AudioManager:
                     self._Mic.config(magnification=mag)
                 except Exception as e:
                     log(f"[AUDIO] Mic.config(magnification={mag}) failed: {e}")
-            log("[AUDIO] Mic.begin()")
+            trace("[AUDIO] Mic.begin()")
             self._Mic.begin()
-            log("[AUDIO] Mic.begin() returned")
+            trace("[AUDIO] Mic.begin() returned")
             try:
-                log(f"[AUDIO] Mic magnification in effect: {self._Mic.config('magnification')}")
+                trace(f"[AUDIO] Mic magnification in effect: {self._Mic.config('magnification')}")
             except Exception as e:
                 log(f"[AUDIO] Cannot read Mic magnification: {e}")
             # Write placeholder header — we'll patch it on stop
@@ -193,10 +194,12 @@ class AudioManager:
             self._rec_order.append(idx)
             pending += 1
 
-    def stop_recording(self):
-        """Stop recording, patch WAV header with real size, close file."""
+    def stop_recording(self) -> bool:
+        """Stop recording, patch WAV header with real size, close file.
+
+        Returns True when the take was kept.  One shorter than RECORD_MIN_MS is removed (an accidental press)."""
         if not self._rec_active:
-            return
+            return False
         self._rec_active = False
 
         # Keep every chunk the mic has already finished; the one in progress is dropped.
@@ -208,7 +211,7 @@ class AudioManager:
 
         try:
             if self._Mic:
-                log("[AUDIO] Mic.end()")
+                trace("[AUDIO] Mic.end()")
                 self._Mic.end()
         except Exception:
             pass
@@ -223,8 +226,18 @@ class AudioManager:
         except Exception as e:
             print(f"[AUDIO] Header patch error: {e}")
 
+        path = self._rec_filepath
         self._cleanup_rec()
+        length_ms = self._data_bytes * 1000 // (8000 * (AUDIO_BITS // 8) * (2 if AUDIO_STEREO else 1))
+        if length_ms < RECORD_MIN_MS:
+            try:
+                os.remove(path)
+                log(f"[AUDIO] Recording too short ({length_ms} ms) - not saved")
+            except OSError as e:
+                log(f"[AUDIO] Could not remove the too short {path}: {e}")
+            return False
         log(f"[AUDIO] Recording saved ({self._data_bytes} bytes PCM)")
+        return True
 
     def cancel_recording(self):
         """Stop the current take and throw it away (the file is removed).
@@ -234,7 +247,8 @@ class AudioManager:
         if not self._rec_active:
             return
         path = self._rec_filepath
-        self.stop_recording()
+        if not self.stop_recording():
+            return                                # too short: already removed
         try:
             os.remove(path)
             log(f"[AUDIO] Recording discarded: {path}")
@@ -286,7 +300,7 @@ class AudioManager:
             self._pb_bufs = [bytearray(CHUNK_BYTES) for _ in range(_PB_BUFFERS)]
             self._pb_seq = 0
             self._pb_restart(0)
-            log(f"[AUDIO] Streaming playback: {filepath} ({self._pb_duration_ms} ms)")
+            trace(f"[AUDIO] Streaming playback: {filepath} ({self._pb_duration_ms} ms)")
             return True
         except Exception as e:
             log(f"[AUDIO] Cannot play {filepath}: {e}")
@@ -350,10 +364,31 @@ class AudioManager:
 
     def _speaker_start(self):
         if not self._speaker_on:
-            log("[AUDIO] Speaker.begin() for playback")
+            trace("[AUDIO] Speaker.begin() for playback")
             self._Speaker.begin()
             self._speaker_on = True
         self._Speaker.setVolumePercentage(self._volume)
+
+    @property
+    def speaker_on(self):
+        """True once the speaker has been started (it stays on after a signal, see beep())."""
+        return self._speaker_on
+
+    def set_speaker(self, on):
+        """Start or end the speaker now - used by the LED tests to see whether a running speaker disturbs the LED.
+        Does nothing while recording or playing back."""
+        if self._rec_active or self._pb_state != 'idle' or not self._Speaker or on == self._speaker_on:
+            return self._speaker_on
+        try:
+            if on:
+                self._Speaker.begin()
+            else:
+                self._Speaker.end()
+            self._speaker_on = on
+            log(f"[AUDIO] Speaker {'begin' if on else 'end'} (LED test)")
+        except Exception as e:
+            log(f"[AUDIO] Speaker switch failed: {e}")
+        return self._speaker_on
 
     def _speaker_halt(self):
         """Silence the speaker and drop anything still queued."""
@@ -397,7 +432,7 @@ class AudioManager:
         self._pb_state = 'idle'
         self._pb_base_ms = self._pb_duration_ms
         self._pb_release()
-        log("[AUDIO] Playback finished")
+        trace("[AUDIO] Playback finished")
 
     def _playback_tick(self):
         now = time.ticks_ms()
@@ -463,8 +498,11 @@ class AudioManager:
             if not still or elapsed >= due + _PB_END_GRACE_MS:
                 self._pb_finish()
 
+    @quiet_guard("sound")
     def beep(self, pattern, volume=None) -> bool:
         """Play a short signal (see sound.py) at the notification volume (or `volume` percent).
+
+        Skipped during the silent hours of the sound (Settings -> Silent mode), unless called with force=True.
 
         Returns False, and stays silent, while a recording runs (it must not be disturbed, and the
         signal would be in it), while a recording is being played, and when the sound is switched off.
@@ -483,7 +521,7 @@ class AudioManager:
                 buf = sound.build(pattern)
                 self._beep_pattern = pattern
             if not self._speaker_on:
-                log("[AUDIO] Speaker.begin() for a signal")
+                trace("[AUDIO] Speaker.begin() for a signal")
                 self._Speaker.begin()
                 self._speaker_on = True
             self._Speaker.setVolumePercentage((cfg.get("NOTIFY_VOLUME") if volume is None else volume) / 100.0)
