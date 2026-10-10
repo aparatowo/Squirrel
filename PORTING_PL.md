@@ -1,6 +1,7 @@
 # Squirrel! — architektura portów (propozycja)
 
-Status: **etap 0 zaimplementowany** (niezacommitowany, do testu na urządzeniu), etapy 1–3 to nadal propozycja.
+Status (wydanie 1.2): **etap 0 i port T-Watch 2020 V3 zaimplementowane**; ten dokument to historia i uzasadnienie decyzji.
+Praktyczna instrukcja (instalacja na wybranym urządzeniu, nowy port, opis `port.toml`): [PORTY_PL.md](PORTY_PL.md).
 Cel: jeden kod aplikacji, wiele urządzeń. Pierwsze dwa porty to **Cardputer ADV**
 (obecny kod, traktowany od teraz jako port) i **LilyGo T-Watch 2020 V3**.
 
