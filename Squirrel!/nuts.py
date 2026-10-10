@@ -221,5 +221,8 @@ QUIET_LED_DAYS    = 0b1111111
 BATTERY_LOG = True              # energy log: a line every 10 minutes in /sd/Squirrel/battery.csv - data for developing the power
                                 # features; it stays on the card, nothing is sent anywhere
 POWER_SAVE = True               # slower CPU and a longer pause between loop passes while the screen is dimmed
-POWER_LIGHT_SLEEP = False       # experimental: light sleep while the screen is dimmed (the USB console drops)
+POWER_SLEEP = "off"             # "off"; "light" = light sleep while the screen is dimmed (experimental: the USB console
+                                # drops); "deep" (only a device with a clock alarm, the watch) = after POWER_DEEP_SLEEP_MIN
+                                # dimmed minutes it really sleeps; the button or the next alarm (routine, cuckoo) wakes it
+POWER_DEEP_SLEEP_MIN = 10       # minutes with the screen dimmed (and nothing running) before a deep sleep
 POWER_UNLOAD_SCREENS = True     # a rarely used screen is removed from memory when you leave it (more free heap, slower to open again)

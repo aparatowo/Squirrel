@@ -108,6 +108,13 @@ class FbLcd:
         """Where the layout area starts on the panel (the touch layer subtracts it)."""
         return self._oy
 
+    def sleep(self):
+        """The panel off and asleep (before a deep sleep; begin() wakes it again after the restart)."""
+        if self._spi is not None:
+            self.setBrightness(0)
+            self._cmd(0x28)                    # display off
+            self._cmd(0x10)                    # sleep in
+
     def _cmd(self, c, data=b""):
         self._cs(0)
         self._dc(0)

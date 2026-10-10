@@ -30,3 +30,10 @@ class FT6336:
 
     def reopen(self):
         self.i2c = self._open()
+
+    def hibernate(self):
+        """The lowest power mode (before a deep sleep); a reset (the board's begin) wakes it."""
+        try:
+            self.i2c.writeto_mem(_ADDR, 0xA5, b"\x03")
+        except OSError:
+            pass

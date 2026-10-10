@@ -75,6 +75,33 @@ class FocusTimer:
             self.state = "stopped"
             self._save()
 
+    # ---------------- over a deep sleep (deep_sleep.py) ----------------
+
+    def suspend(self):
+        """Before a deep sleep: save what was counted; returns what resume() needs (JSON-able), or None."""
+        if self.state == "running":
+            self._accumulate(time.ticks_ms())
+            self._save()
+            return {"state": "running", "at": time.time()}
+        if self.state == "paused":
+            return {"state": "paused"}
+        return None
+
+    def resume(self, saved):
+        """After a deep sleep: carry on; a running timer counts the time slept too (from the clock, up to a day)."""
+        if not saved:
+            return
+        now = time.ticks_ms()
+        if saved.get("state") == "running":
+            slept = min(86400, max(0, time.time() - saved.get("at", time.time())))
+            self.state = "running"
+            self._last_ms = now
+            self._frac_ms = slept * 1000
+            self._last_save_ms = now
+            self._accumulate(now)
+        elif saved.get("state") == "paused":
+            self.state = "paused"
+
     # ---------------- service tick ----------------
 
     def tick(self):

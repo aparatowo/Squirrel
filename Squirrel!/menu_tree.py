@@ -51,6 +51,7 @@ MENUS = {
         ("Time via WiFi", "screen", "TIME_SYNC"),
         ("Sync RTC (DS1302)", "action", "sync_rtc"),
         ("Set Time", "screen", "SET_TIME"),
+        ("Upcoming alarms", "screen", "ALARMS"),          # only where the clock has an alarm (features.toml: deep_sleep)
         # the settings of the Time group (UTC offset, summer time, sync at start-up)
         ("Time settings", "screen", ("PERSONALIZE", {"groups": ("Time",), "title": "Time settings",
                                                     "back": ("MENU", {"menu_name": "TIME_DATE"})})),

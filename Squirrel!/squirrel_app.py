@@ -63,6 +63,7 @@ _LAZY_SCREENS = {
     "FONT_TEST": ("screens.font_test_screen", "FontTestScreen", ()),
     "SILENT_MODE": ("screens.silent_mode_screen", "SilentModeScreen", ()),
     "LED_TESTS": ("screens.led_test_screen", "LedTestScreen", ()),
+    "ALARMS": ("screens.alarms_screen", "AlarmsScreen", ()),
 }
 # Of those, the ones used again and again stay in memory once they have been opened (compiling them anew at every visit
 # would be slow and would fragment the heap); the rest are given back when the user leaves them (POWER_UNLOAD_SCREENS).
@@ -171,6 +172,17 @@ class SquirrelApp:
         self._runner = None             # Pomodoro / Training and the metronome are created when first used
         self._metronome = None
 
+        # A device whose clock has an alarm sleeps for real (POWER_SLEEP = deep): the coming routines / cuckoo are the
+        # alarms that wake it (deep_sleep.py, alarms.py); what was going on before the sleep is put back here.
+        self.deep_sleep = None
+        if has("deep_sleep"):
+            from alarms import AlarmQueue
+            from deep_sleep import DeepSleep
+            self.alarms = AlarmQueue()
+            self.alarms.add_source(self.scheduler.events)
+            self.deep_sleep = self.services.add(DeepSleep(self, board, cfg, self.alarms, nuts.BASE_DIR + "/sleep.json"))
+            self.deep_sleep.on_boot()
+
         # Memory and energy: the GC threshold, the motion sensor off, slower CPU while the screen is dimmed
         try:
             import machine
@@ -178,7 +190,8 @@ class SquirrelApp:
             machine = None
         self.power = self.services.add(PowerManager(cfg, self.dimmer, self._power_busy, machine, self.keypad,
                                                     wake_pins=port_config.POWER_MGMT_WAKE_PINS,
-                                                    slow_hz=port_config.POWER_MGMT_SLOW_CPU_HZ))
+                                                    slow_hz=port_config.POWER_MGMT_SLOW_CPU_HZ,
+                                                    arm_wake=getattr(board, "arm_light_sleep_wake", None)))
         self.power.start(board.motion_off)
         # what the energy log times, now that every part exists (see hw/battery.py)
         self.battery_log.attach(slow=lambda: self.power.slow, led=lambda: led.backlight_floor() > 0,
@@ -195,6 +208,9 @@ class SquirrelApp:
         self.running = True
         log(f"[MEM] free heap after start-up: {collect()} bytes")        # collect() first: construction leaves garbage behind
         
+    def cfg_sleep_mode(self):
+        return cfg.get("POWER_SLEEP")
+
     def runner(self):
         """The Pomodoro / Training timer (a background service), created on first use."""
         if self._runner is None:
@@ -326,7 +342,9 @@ class SquirrelApp:
         """A button of the device pressed (its role: see the port's make_buttons())."""
         if role == "quick":
             self._on_quick_button()
-        elif role == "back":                   # a device without ESC key (the watch's side button): the same as ESC
+        elif role == "back":                   # a device without ESC key (the watch's side button): the same as ESC ...
+            if self.active_screen is self.screens["CLOCK"]:
+                return                         # ... except on the clock: there it only lights the screen up
             self.active_screen.handle_input("ESC")
             self._render_active()
 
@@ -440,6 +458,8 @@ class SquirrelApp:
         for role, button in self._button_list:
             if button.pressed():
                 self.dimmer.wake()     # a button lights the screen up AND acts (G0: the quick-recorder button)
+                if self.deep_sleep is not None:
+                    self.deep_sleep.user_active()
                 if self.overlay is None:
                     self._on_button(role)
         t1 = time.ticks_ms()
@@ -449,6 +469,8 @@ class SquirrelApp:
         # CTRL…) so the indicator re-renders even though action is None.
         action, modifier_changed = self.keypad.get_pressed_action()
         if action or modifier_changed:
+            if self.deep_sleep is not None:
+                self.deep_sleep.user_active()
             if self.dimmer.wake():     # the key that wakes a dimmed screen does nothing else
                 action, modifier_changed = None, False
         t2 = time.ticks_ms()

@@ -26,7 +26,12 @@ _VISIBLE = 5                     # rows the menu renderer shows
 _RESET_ALL = "Reset all to defaults"
 _ELSEWHERE = ("Time", "Network", "Cuckoo", "Silent")          # groups that are reached from other menus, not from the main list
 _SETTINGS_MENU = ("MENU", {"menu_name": "SETTINGS"})
-from port_config import HIDDEN_GROUPS                          # settings of features this device does not have
+from port_config import HIDDEN_GROUPS, HIDDEN_KEYS             # settings of features this device does not have
+
+
+def _keys_in(group):
+    """The settings of `group` this device has (features.toml can hide single ones: HIDDEN_KEYS)."""
+    return [k for k in cfg.keys_in(group) if k not in HIDDEN_KEYS]
 _INT_DIGITS = 6
 
 
@@ -82,14 +87,14 @@ class PersonalizeScreen(BaseScreen):
         self._notice_until = time.ticks_add(time.ticks_ms(), _NOTICE_MS)
 
     def _group_rows(self):
-        rows = ["%s (%d)" % (g, len(cfg.keys_in(g))) for g in self._groups]
+        rows = ["%s (%d)" % (g, len(_keys_in(g))) for g in self._groups]
         return rows if self._restricted else rows + [_RESET_ALL]
 
     def _leave(self):
         self.app.set_screen(self._back[0], **self._back[1])
 
     def _keys(self):
-        return cfg.keys_in(self._groups[self.g])
+        return _keys_in(self._groups[self.g])
 
     def _value_text(self, key):
         kind = cfg.describe(key)[0]
@@ -134,7 +139,7 @@ class PersonalizeScreen(BaseScreen):
         elif self.mode == "confirm_all":
             if action == 'ENTER':
                 for group in self._groups:               # only the settings listed here, not the ones kept in other menus
-                    for key in cfg.keys_in(group):
+                    for key in _keys_in(group):
                         cfg.reset(key)
                 self._notify("All settings reset")
                 self.mode = "groups"

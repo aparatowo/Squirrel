@@ -120,7 +120,8 @@ class BatteryLogger:
         self._next = time.ticks_add(now, self._interval)
         t = self._localtime()
         stamp = "%04d-%02d-%02d %02d:%02d" % (t[0], t[1], t[2], t[3], t[4]) if t[0] >= 2024 else "up%ds" % (now // 1000)
-        mode = "lightsleep" if self._cfg.get("POWER_LIGHT_SLEEP") else ("slowcpu" if self._cfg.get("POWER_SAVE") else "full")
+        sleep = self._cfg.get("POWER_SLEEP")
+        mode = (sleep + "sleep") if sleep != "off" else ("slowcpu" if self._cfg.get("POWER_SAVE") else "full")
         level = self._monitor.level()
         charging = self._monitor.charging
         timed = [ms // 1000 for ms in self._acc] + [0] * (5 - len(self._acc))

@@ -165,7 +165,7 @@ class Scheduler:
         self._last_check = -10000
         self._minute = None
         self._day = None
-        self._snoozed = []                   # [fire_at_ms, routine, snooze number]
+        self._snoozed = []                   # [fire_at_ms, routine, snooze number, fire_at (epoch seconds)]
 
     def tick(self):
         now = self._now_ms()
@@ -231,4 +231,40 @@ class Scheduler:
         if number >= nuts.ROUTINE_MAX_SNOOZES:
             return
         minutes = self._cfg.get("ROUTINE_SNOOZE_MIN")
-        self._snoozed.append([time.ticks_add(self._now_ms(), minutes * 60000), routine, number + 1])
+        self._snoozed.append([time.ticks_add(self._now_ms(), minutes * 60000), routine, number + 1, time.time() + minutes * 60])
+
+    # ---- the alarm queue (alarms.py) and the deep sleep (deep_sleep.py) ----
+
+    def events(self, now, until):
+        """[(epoch, label)] of what this scheduler will do between now and until: routines, the cuckoo, snoozes."""
+        out = [(e[3], "Snoozed: " + (e[1]["t"] or "Routine")) for e in self._snoozed if now < e[3] <= until]
+        t = time.localtime(now)
+        if t[0] < _MIN_YEAR:
+            return out
+        today = days_from_civil(t[0], t[1], t[2])
+        midnight = now - (t[3] * 3600 + t[4] * 60 + t[5])
+        for k in range(8):                                    # today and the next 7 days
+            weekday = weekday_from_days(today + k)
+            for routine in self.store.items:
+                if routine["on"] and routine["d"] >> weekday & 1:
+                    at = midnight + k * 86400 + routine["h"] * 3600 + routine["m"] * 60
+                    if now < at <= until:
+                        out.append((at, routine["t"] or "Routine"))
+        if self._cfg.get("CUCKOO_ENABLED"):
+            step = 900 if self._cfg.get("CUCKOO_QUARTERS") else 3600
+            at = now - (now - midnight) % step + step          # the next quarter / full hour
+            for _ in range(8):
+                if at > until:
+                    break
+                out.append((at, "Cuckoo" if (at - midnight) % 3600 == 0 else "Cuckoo (quarter)"))
+                at += step
+        return out
+
+    def export_snoozes(self):
+        """The snoozed routines as JSON-able data (kept over a deep sleep)."""
+        return [[e[3], e[1], e[2]] for e in self._snoozed]
+
+    def import_snoozes(self, items):
+        now_ms, now = self._now_ms(), time.time()
+        for at, routine, number in items:
+            self._snoozed.append([time.ticks_add(now_ms, max(0, at - now) * 1000), routine, number, at])

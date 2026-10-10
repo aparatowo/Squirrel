@@ -49,6 +49,10 @@ class UIRenderer:
         normal = cfg.get("COLOR_KEY_NORMAL")          # "text" = the colour of the text itself
         self.theme["KEY_NORMAL"] = self.theme["FG"] if normal == "text" else named_color(normal)
 
+    def detach(self):
+        """No longer follow the settings (a renderer used only for a moment: squirrel_boot's early clock)."""
+        cfg.off_change(self._on_setting_changed)
+
     def _on_setting_changed(self, key, value):
         if key.startswith("COLOR_"):
             self._apply_colors()
@@ -91,12 +95,15 @@ class UIRenderer:
         self._bar_cache[bar_id] = list(cells)
 
     def draw_bars_clock(self):
-        """Vertical bars at both sides of the clock: battery on the left, focus progress on the right."""
+        """Vertical bars at both sides of the clock: battery on the left, focus progress on the right (as tall as the
+        screen the clock draws on: 16 cells on the Cardputer, 30 on the watch's full panel)."""
         if self.bars is None or not cfg.get("BARS_CLOCK"):
             return
         x, y = cfg.get("BARS_OFFSET_X"), cfg.get("BARS_OFFSET_Y")
-        self._paint_bar("L", self.bars.battery_cells(_V_CELLS, from_top=True), [(x, y + 8 * i) for i in range(_V_CELLS)])
-        self._paint_bar("R", self.bars.focus_cells(_V_CELLS), [(234 - x, y + 8 * i) for i in range(_V_CELLS)])
+        w, h = Lcd.screen_size()
+        n = h // 8 if h > SCREEN_H else _V_CELLS
+        self._paint_bar("L", self.bars.battery_cells(n, from_top=True), [(x, y + 8 * i) for i in range(n)])
+        self._paint_bar("R", self.bars.focus_cells(n), [(w - 6 - x, y + 8 * i) for i in range(n)])
         self._bars_kind = "clock"
 
     def _draw_menu_bars(self):
@@ -152,8 +159,8 @@ class UIRenderer:
         if seg[5]: Lcd.fillRect(x + hw - t, y + hh, t, hh, color)
         if seg[6]: Lcd.fillRect(x, y + h - t, hw, t, color)
 
-    def draw_vector_clock(self, time_str, base_y=32, color=0xFFA500, offset_x=0, offset_y=0):
-        digit_w, digit_h, spacing, colon_w = 26, 50, 8, 14
+    def draw_vector_clock(self, time_str, base_y=32, color=0xFFA500, offset_x=0, offset_y=0,
+                          digit_w=26, digit_h=50, spacing=8, colon_w=14, thickness=5):
         total_w = (4 * digit_w) + (3 * spacing) + colon_w
         start_x = ((SCREEN_W - total_w) // 2) + offset_x
         y = base_y + offset_y
@@ -164,7 +171,7 @@ class UIRenderer:
                 self._draw_segment_digit(curr_x, y, ':', w=colon_w, h=digit_h, color=color)
                 curr_x += colon_w + spacing
             else:
-                self._draw_segment_digit(curr_x, y, char, w=digit_w, h=digit_h, thickness=5, color=color)
+                self._draw_segment_digit(curr_x, y, char, w=digit_w, h=digit_h, thickness=thickness, color=color)
                 curr_x += digit_w + spacing
 
     def render_clock(self, date_str="26-09-2026", time_str="12:00"):
@@ -185,6 +192,28 @@ class UIRenderer:
             cfg.get("CLOCK_FOOTER_TEXT"), y=98, size=self.fonts["CLOCK_FOOTER"],
             offset_x=cfg.get("CLOCK_FOOTER_OFFSET_X"), offset_y=cfg.get("CLOCK_FOOTER_OFFSET_Y")
         )
+
+    def render_clock_tall(self, date_str, time_str, weekday, status):
+        """The clock on a tall screen (the watch's 240 x 240): the date with the weekday, big digits, the footer text,
+        a line of status (focus today, battery) - the same settings (colours, offsets, footer) as render_clock."""
+        self.clear()
+        w, h = Lcd.screen_size()
+        fg = self.theme["FG"]
+        Lcd.setTextColor(fg, self.theme["BG"])
+        self._draw_centered_string(weekday + " " + date_str, y=h * 8 // 100, size=2,
+                                   offset_x=cfg.get("CLOCK_DATE_OFFSET_X"), offset_y=cfg.get("CLOCK_DATE_OFFSET_Y"))
+        digit_h = h * 40 // 100                                   # 96 px on the watch
+        self.draw_vector_clock(time_str, base_y=h * 22 // 100, color=fg,
+                               offset_x=cfg.get("CLOCK_TIME_OFFSET_X"), offset_y=cfg.get("CLOCK_TIME_OFFSET_Y"),
+                               digit_w=digit_h * 42 // 100, digit_h=digit_h, spacing=digit_h // 10,
+                               colon_w=digit_h // 6, thickness=max(5, digit_h // 11))
+        footer = cfg.get("CLOCK_FOOTER_TEXT")
+        size = 2 if 12 * len(footer) <= w - 24 else 1
+        self._draw_centered_string(footer, y=h * 70 // 100, size=size,
+                                   offset_x=cfg.get("CLOCK_FOOTER_OFFSET_X"), offset_y=cfg.get("CLOCK_FOOTER_OFFSET_Y"))
+        if status:
+            Lcd.setTextColor(self.theme["ACCENT"], self.theme["BG"])
+            self._draw_centered_string(status, y=h * 87 // 100, size=1)
 
     def render_menu(self, title, items, selected_index, scroll_offset, max_visible=5):
         self.clear()

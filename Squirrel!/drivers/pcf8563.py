@@ -3,6 +3,10 @@
 # Its VL bit (seconds register, bit 7) says the clock lost power at some point and the time is not to be trusted; it
 # stays set until the time is written.  read_valid() refuses such a time (the app then waits for a time to be set),
 # set_datetime() writes the time and so clears VL.
+#
+# The alarm (to the minute: minute, hour, day of the month - the weekday is not used): when it comes, the chip sets AF
+# and pulls its INT line low (GPIO37 on the watch) until AF is cleared - what wakes the ESP32 from a deep sleep.
+# set_alarm(dt) / set_alarm(None); alarm_fired() reads AF, clear_alarm_flag() releases the line.
 from hw.rtc_base import TimeProvider
 
 _ADDR = 0x51
@@ -45,6 +49,25 @@ class PCF8563TimeProvider(TimeProvider):
         if not 2025 <= dt[0] <= 2099 or not 1 <= dt[1] <= 12 or not 1 <= dt[2] <= 31:
             raise OSError("PCF8563: implausible time %r" % (dt[:6],))
         return dt
+
+    has_alarm = True
+
+    def set_alarm(self, dt):
+        """Arm the alarm for dt's day / hour / minute (seconds are ignored), or disarm it (None).  AF is cleared."""
+        if dt is None:
+            self.i2c.writeto_mem(_ADDR, 0x09, b"\x80\x80\x80\x80")       # every field disabled
+            self.i2c.writeto_mem(_ADDR, 0x01, b"\x00")                    # AIE off, AF cleared
+            return
+        self.i2c.writeto_mem(_ADDR, 0x09, bytes([_tobcd(dt[4]), _tobcd(dt[3]), _tobcd(dt[2]), 0x80]))
+        self.i2c.writeto_mem(_ADDR, 0x01, b"\x02")                        # AIE on, AF cleared
+
+    def alarm_fired(self):
+        return bool(self.i2c.readfrom_mem(_ADDR, 0x01, 1)[0] & 0x08)
+
+    def clear_alarm_flag(self):
+        """Release the INT line (AF = 0); the alarm stays as it is."""
+        c = self.i2c.readfrom_mem(_ADDR, 0x01, 1)[0]
+        self.i2c.writeto_mem(_ADDR, 0x01, bytes([c & ~0x08 & 0x1F]))
 
     def set_datetime(self, dt):
         year, month, mday, hour, minute, second, weekday = dt[:7]

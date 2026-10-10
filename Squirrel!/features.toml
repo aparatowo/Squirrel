@@ -3,7 +3,8 @@
 # A feature is built when the port has everything in `requires` (a section of port.toml, e.g. "audio_in", or a key
 # that must be true, e.g. "input.keyboard") and port.toml does not switch it off in [features].  For a feature that is
 # not built:  `modules` are left out of the firmware,  and the app hides  `menus` (menu ids of menu_tree.py, including
-# file lists), `screens` (screen names), `actions` (menu actions) and `settings` (groups of appconfig_schema.py).
+# file lists), `screens` (screen names), `actions` (menu actions), `settings` (groups of appconfig_schema.py) and
+# `keys` (single settings).
 # Everything not listed here works on every port.
 
 [text_edit]                                 # typing: notes, To-Do, Mind Dump, routine names, Wi-Fi passwords
@@ -12,6 +13,10 @@ modules  = ["screens/note_editor_screen.py", "screens/mind_dump_screen.py"]
 screens  = ["NOTE_EDITOR", "MIND_DUMP"]
 menus    = ["MIND"]
 settings = ["Keyboard"]
+
+[notes]                                     # text notes: written and edited on the device (asked on 2026-10-10: not on the watch)
+requires = ["input.keyboard"]
+menus    = ["NOTES_ROOT", "NOTES"]
 
 [key_calibration]
 requires = ["input.keyboard"]
@@ -41,6 +46,12 @@ modules  = ["screens/led_test_screen.py"]
 screens  = ["LED_TESTS"]
 menus    = ["LED_TEST", "LED_MODES"]
 settings = ["LED"]
+
+[deep_sleep]                                # sleeps for real; a hardware clock alarm or the button wakes it (the watch)
+requires = ["clock.alarm", "power_mgmt.deep_sleep"]
+modules  = ["alarms.py", "deep_sleep.py", "screens/alarms_screen.py"]
+screens  = ["ALARMS"]
+keys     = ["POWER_DEEP_SLEEP_MIN"]
 
 [buzzer]
 requires = ["signal.buzzer"]

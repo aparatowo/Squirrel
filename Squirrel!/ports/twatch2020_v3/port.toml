@@ -70,7 +70,8 @@ flash_root = ""                             # plain MicroPython mounts the flash
 [clock]
 driver = "pcf8563"                          # kept running by the battery; its VL flag must be cleared when the time is set
 bus    = "sys"
-int    = 37
+int    = 37                                 # low while an alarm is pending
+alarm  = true                               # to the minute: wakes the watch from a deep sleep
 
 [signal.buzzer]                             # the vibration motor, driven like the Cardputer's buzzer (on / off patterns)
 driver   = "pin_pulser"
@@ -86,8 +87,11 @@ addrs  = [0x19, 0x18]
 wifi = true
 
 [power_mgmt]
-wake_pins   = [35, 38]                      # the side button (AXP INT), touch INT - both active low
+wake_pins   = [35, 38]                      # light sleep: the side button (AXP INT), touch INT - both active low
 slow_cpu_hz = 80_000_000
+deep_sleep  = true                          # the ESP32 has two wake sources from a deep sleep (ext0, ext1):
+wake_button = 35                            #   the side button (AXP202 INT, low)
+wake_alarm  = 37                            #   the clock's alarm (PCF8563 INT, low)
 
 [features]
 wifi_ntp = false                            # the PCF8563 keeps the time: no Wi-Fi needed

@@ -64,6 +64,16 @@ class RTCManager:
         self._chip_name = chip_name
         self.last_sync_source = "soft"   # "soft" | chip_name | "manual"
 
+    def chip(self):
+        """The hardware clock, opened, if it has an alarm (deep_sleep.py writes the next one into it); else None."""
+        if self._chip is None:
+            return None
+        try:
+            chip = self._chip()
+        except Exception:
+            return None
+        return chip if getattr(chip, "has_alarm", False) else None
+
     def _open_chip(self):
         if self._chip is None:
             raise OSError("no hardware clock on this device")

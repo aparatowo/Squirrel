@@ -31,7 +31,7 @@ EXPECT = {
     'wifi_profiles.py': ['def choose_network', 'class WifiProfiles'],
     'drivers/gpio_button.py': ['class ButtonPoller'],
     'appconfig.py': ['class Config', 'cfg = Config()'],
-    'appconfig_schema.py': ['SETTINGS = (', 'FOCUS_DOT', 'BARS_CLOCK', 'SCREEN_DIM_CLOCK_SECONDS', 'SCREEN_DIM_OTHER_SECONDS', 'NOTIFY_VOLUME', 'COLOR_KEY_SHIFT', 'KEYBOARD_LAYOUT', 'FONT_ENABLED', 'POMODORO_WORK_MIN', 'CUCKOO_ENABLED', 'POWER_LIGHT_SLEEP', 'METRO_VOLUME', 'BATTERY_LOG'],
+    'appconfig_schema.py': ['SETTINGS = (', 'FOCUS_DOT', 'BARS_CLOCK', 'SCREEN_DIM_CLOCK_SECONDS', 'SCREEN_DIM_OTHER_SECONDS', 'NOTIFY_VOLUME', 'COLOR_KEY_SHIFT', 'KEYBOARD_LAYOUT', 'FONT_ENABLED', 'POMODORO_WORK_MIN', 'CUCKOO_ENABLED', 'POWER_SLEEP', 'METRO_VOLUME', 'BATTERY_LOG'],
     'drivers/sd_spi.py': ['def _mount_direct', 'self._args'],
     'note_editor.py': ['from appconfig import cfg', 'unique_title'],
     'todo_editor.py': ['from appconfig import cfg', 'unique_title', 'def toggle_done', 'def purge', 'def decorate'],

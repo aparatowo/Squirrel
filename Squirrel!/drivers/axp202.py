@@ -35,9 +35,17 @@ class AXP202:
             self._w(0x28, (self._r(0x28) & 0x0F) | 0xF0)          # LDO2 3.3 V (LilyGo's setting)
         self._w(0x12, self._r(0x12) | _LDO2)
         self._w(0x82, self._r(0x82) | 0xCC)                      # battery voltage + current, VBUS voltage + current
-        self._w(0x42, self._r(0x42) | 0x03)                      # IRQ: power key short / long press
+        # IRQs: only the power key (short / long press).  The INT line wakes the watch from a deep sleep, so nothing
+        # else may pull it (charging finished, USB plugged ...) - it would wake the watch again and again.
+        for reg, value in ((0x40, 0), (0x41, 0), (0x42, 0x03), (0x43, 0), (0x44, 0)):
+            self._w(reg, value)
+        self.clear_irqs()
+
+    def clear_irqs(self):
+        """Clear every pending interrupt flag: the INT line goes high again."""
         for reg in range(0x48, 0x4D):
             self._w(reg, 0xFF)                                   # write 1 = clear
+        self._pek = 0
 
     def audio_power(self, on):
         """The amplifier's supply: LDO4 at 3.3 V (LilyGo: off, set the voltage, on)."""

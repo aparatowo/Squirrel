@@ -5,12 +5,12 @@
 # given back.  PowerManager also collects every 30 s while the device is otherwise idle, and sets a GC threshold so
 # that the collector runs early and often in small steps instead of rarely and late.
 #
-# ENERGY (everything here is off by default or harmless; see POWER_SAVE / POWER_LIGHT_SLEEP):
+# ENERGY (everything here is off by default or harmless; see POWER_SAVE / POWER_SLEEP):
 #   * start(motion_off): the motion sensor is not used - the board switches it off (on the Cardputer the BMI270's
 #     accelerometer, gyroscope and temperature, drivers/bmi270.py).
 #   * while the screen is dimmed and nothing is going on: the CPU runs slower (the port's slow_cpu_hz, 80 MHz instead
 #     of 240 on the Cardputer), and the main loop pauses 50 ms instead of 20.
-#   * POWER_LIGHT_SLEEP (experimental): while the screen is dimmed and nothing is going on, the chip light-sleeps
+#   * POWER_SLEEP light / deep (experimental): while the screen is dimmed and nothing is going on, the chip light-sleeps
 #     for ~0.8 s at a time; the port's wake pins (Cardputer: G0 and the keyboard controller's INT line, GPIO 11) wake
 #     it at once.  The USB console (Thonny) disconnects in light sleep, hence it is off by default.
 # Wi-Fi and Bluetooth are already powered down by radio.py unless a network task runs.
@@ -34,9 +34,11 @@ def collect():
 
 
 class PowerManager:
-    def __init__(self, cfg, dimmer, busy, machine=None, keypad=None, now_ms=None, wake_pins=(), slow_hz=80_000_000):
+    def __init__(self, cfg, dimmer, busy, machine=None, keypad=None, now_ms=None, wake_pins=(), slow_hz=80_000_000,
+                 arm_wake=None):
         self._cfg = cfg
         self._wake_pins = wake_pins       # GPIOs that end a light sleep (active low)
+        self._arm_wake = arm_wake         # the board's own way to set the light-sleep wake sources (else: the pins)
         self._slow_hz = slow_hz
         self._dimmer = dimmer
         self._busy = busy                 # function: True while something needs the CPU at full speed
@@ -124,14 +126,21 @@ class PowerManager:
 
     def maybe_sleep(self):
         """Light-sleep for a moment if allowed.  Returns True if it did."""
-        if (self._mp is None or self._sleep_broken or not self._cfg.get("POWER_LIGHT_SLEEP")
+        if (self._mp is None or self._sleep_broken or self._cfg.get("POWER_SLEEP") == "off"
                 or not self._dimmer.dimmed or self._busy()):
             return False
         try:
+            if not self._armed and self._arm_wake is not None:
+                self._arm_wake()
+                self._armed = True
             if not self._armed:
                 for number in self._wake_pins:
-                    pin = self._mp.Pin(number, self._mp.Pin.IN, self._mp.Pin.PULL_UP)
-                    pin.irq(trigger=self._mp.Pin.IRQ_LOW_LEVEL, wake=self._mp.SLEEP)
+                    try:
+                        pin = self._mp.Pin(number, self._mp.Pin.IN, self._mp.Pin.PULL_UP)
+                    except (ValueError, OSError):           # GPIO34-39 of a classic ESP32 have no pull-ups (the
+                        pin = self._mp.Pin(number, self._mp.Pin.IN)    # watch's lines are pulled up on the board)
+                    Pin = self._mp.Pin           # UIFlow: IRQ_LOW_LEVEL; plain MicroPython (ESP32): WAKE_LOW
+                    pin.irq(trigger=getattr(Pin, "IRQ_LOW_LEVEL", None) or Pin.WAKE_LOW, wake=self._mp.SLEEP)
                 self._armed = True
             if self._keypad is not None:
                 self._keypad.acknowledge()

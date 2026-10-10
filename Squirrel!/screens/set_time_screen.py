@@ -94,6 +94,7 @@ class SetTimeScreen(BaseScreen):
         try:
             dt = self.app.rtc.get_datetime()
             self._values = [dt[0], dt[1], dt[2], dt[3], dt[4]]
+            self._entered = (dt[3], dt[4])
         except Exception:
             self._values = [2026, 1, 1, 0, 0]
         self._field = 0
@@ -137,8 +138,16 @@ class SetTimeScreen(BaseScreen):
     def _save(self):
         year, month, mday, hour, minute = self._values
         mday = min(mday, _days_in(year, month))
+        # The time of day: when the hour and the minute were left as they were on entering, the clock keeps its own
+        # time to the second (only the date changes, or nothing: Save as it was used to set the seconds to 0 - the clock
+        # went up to 59 s back, and a minute more if the screen stayed open); when they were set, seconds = 0.
+        now = self.app.rtc.get_datetime()
+        if (hour, minute) == getattr(self, "_entered", None):
+            hour, minute, second = now[3], now[4], now[5]
+        else:
+            second = 0
         # the weekday matters (routines by day of the week); it used to be saved as 0 = Monday whatever the date
-        dt = (year, month, mday, hour, minute, 0, weekday_from_days(days_from_civil(year, month, mday)), 0)
+        dt = (year, month, mday, hour, minute, second, weekday_from_days(days_from_civil(year, month, mday)), 0)
         self.app.rtc.set_manual(dt)
         self.app.renderer.render_options("Time Set!")
         time.sleep(0.8)

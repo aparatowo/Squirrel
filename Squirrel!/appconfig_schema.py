@@ -18,6 +18,10 @@
 BUZZER_MODES = ("auto", "click", "short", "double", "triple", "long", "alarm", "sos")
 MODES = ("off", "flash", "double", "triple", "long", "pulse", "alarm", "sos")
 
+# "deep" only where the device can wake from a deep sleep by a clock alarm (features.toml: deep_sleep)
+from features import has as _has
+SLEEP_MODES = ("off", "light", "deep") if _has("deep_sleep") else ("off", "light")
+
 SETTINGS = (
     # ---- Display ----
     ("COLOR_FG",      "color", "Display", "Main colour", None),
@@ -123,7 +127,8 @@ SETTINGS = (
     # ---- Power ----
     ("POWER_SAVE",        "bool", "Power", "Power save", None),
     ("BATTERY_LOG",       "bool", "Power", "Battery log", None),
-    ("POWER_LIGHT_SLEEP", "bool", "Power", "Light sleep", None),
+    ("POWER_SLEEP",       "choice", "Power", "Sleep mode", SLEEP_MODES),
+    ("POWER_DEEP_SLEEP_MIN", "int", "Power", "Deep sleep after", (1, 120, 1)),
     ("POWER_UNLOAD_SCREENS", "bool", "Power", "Free screens", None),
 )
 
@@ -186,6 +191,7 @@ HELP = {
     "LED_BREATHING":          "Green breathing in, blue out",
     "POWER_SAVE":             "Slower CPU while the screen is dimmed",
     "BATTERY_LOG":            "Energy data every 10 min in battery.csv\non the SD card; never sent anywhere",
-    "POWER_LIGHT_SLEEP":      "Experimental: sleeps while dimmed;\nthe USB console disconnects",
+    "POWER_SLEEP":            "light: sleeps while dimmed (the USB\nconsole disconnects); deep: after the\ntime below; the button / alarms wake",
+    "POWER_DEEP_SLEEP_MIN":   "Minutes dimmed before a deep sleep\n(not while Pomodoro / metronome run)",
     "POWER_UNLOAD_SCREENS":   "Rarely used screens leave memory\n(more free heap, slower to open)",
 }

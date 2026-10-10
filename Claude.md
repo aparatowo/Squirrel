@@ -103,6 +103,10 @@ Architektura i plan: `PORTING_PL.md`.  Etap 0 (refaktoryzacja, Cardputer jako po
 folderu `ports/twatch2020_v3/` ani sterowników (AXP202, ST7789, FT6336, PCF8563, BMA423) - etap 1.
 Sprzęt urządzenia: `ports/<port>/port.toml` -> `port_config.py`; płytka: `ports/<port>/board.py` (interfejsy w `hw/ports.py`).
 Funkcja zależna od sprzętu = wpis w `features.toml`; brakujący sprzęt ukrywa jej menu/ekrany/ustawienia i wycina moduły z buildu.
+Uśpienie: `POWER_SLEEP` off/light/deep. Deep (funkcja `deep_sleep`: `[clock] alarm` + `[power_mgmt] deep_sleep`) =
+`deep_sleep.py` (kiedy zasnąć, zapis/odtworzenie stanu: focus, drzemki rutyn) + `alarms.py` (kolejka zdarzeń: rutyny,
+kukułka, drzemki → najbliższe do alarmu RTC); budzi przycisk (ext0) albo alarm RTC (ext1). Wczesna tarcza po wybudzeniu:
+`squirrel_boot._early_clock` (płytka z `EARLY_CLOCK = True`). `.frozen` jest na początku `sys.path` (poza trybem DEV).
 Dotyk w warstwach: sterownik układu (`drivers/ft6336.py`: tylko `read_point()`) → `hw/touch_input.py` (gesty → akcje, `tap_xy`/
 `touch_xy`, przekształcenie z `[input]` portu) → `ui/touch.py` (widżety w mm). Nowy zegarek z innym dotykiem = nowy `read_point()`.
 

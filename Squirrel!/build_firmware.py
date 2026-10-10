@@ -81,7 +81,7 @@ PORTS_DIR = "ports"                  # ports/<name>/port.toml + board.py
 DEFAULT_PORT = "cardputer_adv"
 FEATURES_FILE = "features.toml"
 PORT_CONFIG = "port_config.py"       # generated from the port's port.toml; frozen with the app
-_NOT_HARDWARE = ("port", "features", "power_mgmt")    # sections of port.toml that are not a piece of hardware
+_NOT_HARDWARE = ("port", "features")    # sections of port.toml that are not a piece of hardware
 
 # never frozen: this tool, the launcher that lives on the flash, helper scripts
 EXCLUDE_FILES = {"build_firmware.py", "verify_device.py", "main.py", "main_flash.py", "setup.py", "conftest.py",
@@ -326,6 +326,7 @@ def render_port_config(name, app_dir=HERE):
         f"HIDDEN_SCREENS = {fs(hidden('screens'))}",
         f"HIDDEN_ACTIONS = {fs(hidden('actions'))}",
         f"HIDDEN_GROUPS = {fs(hidden('settings'))}",
+        f"HIDDEN_KEYS = {fs(hidden('keys'))}",
         f"",
     ]
     section = None
@@ -1504,6 +1505,19 @@ def cmd_build_mp(c, args):
     say(f"board definition {os.path.relpath(src, HERE)} + the sources -> {board}")
 
     esp32 = os.path.join(repo, "ports", "esp32")
+    # ESP-IDF keeps the sdkconfig it generated in the build folder and does not look at the board's defaults again: when
+    # they changed (sdkconfig.board, mpconfigboard.cmake), that sdkconfig goes, so that `make` generates it anew
+    build_dir = os.path.join(esp32, "build-" + os.path.basename(board))
+    digest = 0
+    for name in sorted(os.listdir(src)):
+        if name.startswith("sdkconfig") or name == "mpconfigboard.cmake":
+            with open(os.path.join(src, name), "rb") as f:
+                digest = zlib.crc32(f.read(), digest)
+    mark = os.path.join(build_dir, ".squirrel_board_config")
+    old = open(mark).read().strip() if os.path.isfile(mark) else None
+    if old != "%08x" % digest and os.path.isfile(os.path.join(build_dir, "sdkconfig")):
+        os.remove(os.path.join(build_dir, "sdkconfig"))
+        say("the board's sdkconfig defaults changed: sdkconfig is generated anew (a longer build)")
     log_path = os.path.join(STATE, "make.log")
     started = time.time()
     say(f"== make BOARD_DIR={board}   (the first build compiles all of ESP-IDF: several minutes)")
@@ -1513,7 +1527,9 @@ def cmd_build_mp(c, args):
         hints = diagnose(read_log(log_path))
         raise BuildError(f"the build failed (exit {code}); the whole output is in {log_path}"
                          + (("\n- " + "\n- ".join(hints)) if hints else ""))
-    image = os.path.join(esp32, "build-" + os.path.basename(board), "firmware.bin")
+    with open(mark, "w") as f:
+        f.write("%08x\n" % digest)
+    image = os.path.join(build_dir, "firmware.bin")
     if not os.path.isfile(image) or os.path.getmtime(image) < started:
         raise BuildError(f"the build finished but {image} is missing or old")
     kind = classify_image(image)

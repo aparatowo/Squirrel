@@ -4,3 +4,10 @@ CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-16MiB.csv"
 CONFIG_LWIP_LOCAL_HOSTNAME="squirrel-twatch"
+
+# A faster start - it matters after every wake from a deep sleep (the ESP32 starts from scratch):
+CONFIG_SPIRAM_MEMTEST=n                         # no test of the 8 MB PSRAM at every start (~0.5-1 s)
+CONFIG_BOOTLOADER_LOG_LEVEL_INFO=
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y              # the bootloader prints only problems (115200 baud is slow)
+CONFIG_BOOTLOADER_LOG_LEVEL=2
+CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=y # the image was validated at the cold start; not again on every wake

@@ -7,6 +7,7 @@ import port_config as P
 
 _buses = {}
 _axp = None
+EARLY_CLOCK = True              # squirrel_boot shows the time before the app is built (seconds after every wake)
 
 # gestures -> the actions the screens know (the Cardputer's keys)
 ACTIONS = {"tap": "ENTER", "swipe_up": "UP", "swipe_down": "DOWN", "swipe_right": "ESC", "swipe_left": "RIGHT",
@@ -101,6 +102,53 @@ def power_source():
 
 def begin_led(led, battery):
     return led.begin(battery=battery)          # no LED
+
+
+def arm_light_sleep_wake():
+    """Light sleep (POWER_SLEEP light / deep, while dimmed): the side button (ext0) or a touch (ext1) wakes the chip.
+    A classic ESP32 takes two such sources this way (Pin.irq(wake=...) runs out of them)."""
+    import esp32
+    from machine import Pin
+    esp32.wake_on_ext0(Pin(P.POWER_MGMT_WAKE_BUTTON, Pin.IN), esp32.WAKEUP_ALL_LOW)
+    esp32.wake_on_ext1((Pin(P.INPUT_INT, Pin.IN),), esp32.WAKEUP_ALL_LOW)
+
+
+def wake_reason():
+    """Why the ESP32 started: "alarm" (the clock's alarm), "button" (the side button) after a deep sleep, else None."""
+    import machine
+    if machine.reset_cause() != machine.DEEPSLEEP_RESET:
+        return None
+    r = machine.wake_reason()
+    if r == machine.EXT1_WAKE:
+        return "alarm"
+    if r == machine.EXT0_WAKE:
+        return "button"
+    return "other"
+
+
+def deep_sleep(alarm, touch=None):
+    """Sleep for real.  alarm: (year, month, day, hour, minute) for the clock's alarm, or None (only the button wakes).
+    The panel, its power and the amplifier go off, the touch controller hibernates.  Does not return: waking restarts
+    the ESP32 (wake_reason() then says why)."""
+    import esp32
+    import machine
+    from machine import Pin
+    from drivers.st7789_fb import lcd
+    clock = clock_chip()[0]()
+    clock.set_alarm(None if alarm is None else (alarm[0], alarm[1], alarm[2], alarm[3], alarm[4], 0, 0, 0))
+    lcd.sleep()
+    a = axp()
+    a.display_power(False)
+    a.audio_power(False)
+    if touch is not None:
+        touch.hibernate()
+    a.clear_irqs()
+    esp32.wake_on_ext0(Pin(P.POWER_MGMT_WAKE_BUTTON, Pin.IN), esp32.WAKEUP_ALL_LOW)
+    if alarm is not None:
+        esp32.wake_on_ext1((Pin(P.POWER_MGMT_WAKE_ALARM, Pin.IN),), esp32.WAKEUP_ALL_LOW)
+    else:
+        esp32.wake_on_ext1(None, esp32.WAKEUP_ALL_LOW)      # (light sleep had the touch line on it)
+    machine.deepsleep()
 
 
 def motion_off():
