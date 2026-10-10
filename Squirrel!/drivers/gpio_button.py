@@ -1,4 +1,4 @@
-# buttons.py - debounced polling of the hardware buttons wired straight to GPIOs
+# gpio_button.py - debounced polling of a button wired straight to a GPIO
 #
 # The Cardputer's G0 (BTN0) is active-low with a pull-up.  pressed() reports each
 # physical press exactly once - on the debounced falling edge - so holding the button

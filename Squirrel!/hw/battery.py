@@ -1,40 +1,21 @@
 # battery.py - battery level, read every now and then in the background
+#
+# Where the numbers come from is the port's: the board gives level(), charging() and millivolts() (on the Cardputer
+# drivers/m5_power.py; each returns None when it cannot tell).
 
 import time
 
 
-def _power_level():
-    try:
-        from M5 import Power
-        return Power.getBatteryLevel()
-    except Exception:
-        return None
-
-
-_PMIC_UNKNOWN, _PMIC_ADC = 0, 1      # M5 Power.getType(): no power chip that reports charging
-
-
-def _power_charging():
-    """True / False, or None when the device cannot tell.
-
-    M5Unified answers "charge unknown" on boards without a charger chip it can read - the Cardputer ADV is one (its
-    battery is only measured through the ADC) - and the MicroPython binding turns that into True.  Taken at face value
-    the device would always be "charging", so on such boards the answer is None (unknown) instead."""
-    try:
-        from M5 import Power
-        if Power.getType() in (_PMIC_UNKNOWN, _PMIC_ADC):
-            return None
-        return bool(Power.isCharging())
-    except Exception:
-        return None
+def _unknown():
+    return None
 
 
 class BatteryMonitor:
     """Service: polls the fuel gauge every `interval_ms`.  level() is None when it cannot be read."""
 
     def __init__(self, read=None, charging=None, interval_ms=30000):
-        self._read = read or _power_level
-        self._charging = charging or _power_charging
+        self._read = read or _unknown
+        self._charging = charging or _unknown
         self._interval = interval_ms
         self.level_pct = None
         self.charging = None             # True / False, or None: this device cannot tell
@@ -89,7 +70,7 @@ class BatteryLogger:
         self._interval = interval_ms
         self._now = now_ms or time.ticks_ms
         self._localtime = localtime or time.localtime
-        self._voltage = voltage or _power_millivolts
+        self._voltage = voltage or _unknown
         self._next = 0
         self._ready = False              # folder made and header written (checked once)
         self._probes = (lambda: dimmer.dimmed,)    # what is timed: functions returning True / False (see attach)
@@ -139,7 +120,8 @@ class BatteryLogger:
         self._next = time.ticks_add(now, self._interval)
         t = self._localtime()
         stamp = "%04d-%02d-%02d %02d:%02d" % (t[0], t[1], t[2], t[3], t[4]) if t[0] >= 2024 else "up%ds" % (now // 1000)
-        mode = "lightsleep" if self._cfg.get("POWER_LIGHT_SLEEP") else ("slowcpu" if self._cfg.get("POWER_SAVE") else "full")
+        sleep = self._cfg.get("POWER_SLEEP")
+        mode = (sleep + "sleep") if sleep != "off" else ("slowcpu" if self._cfg.get("POWER_SAVE") else "full")
         level = self._monitor.level()
         charging = self._monitor.charging
         timed = [ms // 1000 for ms in self._acc] + [0] * (5 - len(self._acc))
@@ -187,13 +169,3 @@ class BatteryLogger:
             with open(self._path, "w") as f:
                 f.write(HEADER + "\n")
         self._ready = True
-
-
-def _power_millivolts():
-    try:
-        from M5 import Power
-        value = Power.getBatteryVoltage()
-        return int(value) if isinstance(value, (int, float)) and value > 0 else None
-    except Exception:
-        return None
-

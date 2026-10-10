@@ -4,6 +4,13 @@ from gfx import Lcd
 from screens.base_screen import BaseScreen
 from appconfig import cfg
 from menu_tree import MENUS, COLLECTIONS, PARENTS
+from features import has
+from ui.touch import has_touch, TouchList
+
+# A touch screen (the watch): rows a finger can hit, on the whole panel; a tap on a row opens it, a tap on the title
+# goes back, a long press ticks a To-Do (ui/touch.py: TouchList).  The Cardputer's view is untouched.
+# what "+ [New Item]" of a file list needs; without it the row is not shown at all
+_ADD_NEEDS = {"TODO": "text_edit", "NOTES": "text_edit", "MIND": "text_edit", "RECORDS": "voice_notes"}
 
 # DEL presses needed after the warning appears (same as in the note viewer and the player)
 DELETE_CONFIRM_PRESSES = 3
@@ -21,7 +28,11 @@ class MenuScreen(BaseScreen):
         self.current_menu = "MAIN"
         self.selected_index = 0
         self.scroll_offset = 0
+        self._touch = has_touch()
         self.max_visible = 5
+        if self._touch:
+            self._list = TouchList()
+            self.max_visible = self._list.visible
         self._remember = {}             # menu id -> (selected_index, scroll_offset, label) as the user left it
         self._items_cache = None        # file lists are cached per visit
         self._items_cache_menu = None
@@ -45,6 +56,15 @@ class MenuScreen(BaseScreen):
             # Coming back from a screen: land on the entry we left from.
             self._open(menu_name, restore=not fresh)
 
+    @property
+    def full_height(self):
+        return self._touch
+
+    def _first(self):
+        """The first row that can be chosen: 1 in a file list whose "+ [New Item]" the device cannot do (no editor)."""
+        need = _ADD_NEEDS.get(self.current_menu)
+        return 1 if need is not None and not has(need) else 0
+
     def return_target(self):
         """Where the quick recorder should come back to: this very menu, on the same row."""
         self._remember_position()
@@ -66,6 +86,8 @@ class MenuScreen(BaseScreen):
                 index = items.index(label)                # the same file, moved by an added / removed one
             self.selected_index = index
             self._clamp_selection()
+        if self.selected_index < self._first():
+            self.selected_index = self.scroll_offset = self._first()
         apply = getattr(self.app, "_apply_screen_input_mode", None)        # OPT must arrive as a key in the To-Do list only
         if apply is not None and getattr(self.app, "active_screen", None) is self:
             apply()
@@ -166,19 +188,27 @@ class MenuScreen(BaseScreen):
         items = self._get_current_items()
         total_items = len(items)
 
+        first = self._first()
+        if self._touch and action in ('ENTER', 'OPT') and not self._touch_select(items):
+            return
+        if first and total_items <= first:
+            if action in ('LEFT', 'ESC'):
+                self._go_back()
+            return                                          # an empty list the device cannot add to
+
         if action == 'UP':
-            self.selected_index = (self.selected_index - 1) % total_items
+            self.selected_index = first + (self.selected_index - 1 - first) % (total_items - first)
             if self.selected_index < self.scroll_offset:
                 self.scroll_offset = self.selected_index
             elif self.selected_index == total_items - 1:
-                self.scroll_offset = max(0, total_items - self.max_visible)
+                self.scroll_offset = max(first, total_items - self.max_visible)
 
         elif action == 'DOWN':
-            self.selected_index = (self.selected_index + 1) % total_items
+            self.selected_index = first + (self.selected_index + 1 - first) % (total_items - first)
             if self.selected_index >= self.scroll_offset + self.max_visible:
                 self.scroll_offset = self.selected_index - self.max_visible + 1
-            elif self.selected_index == 0:
-                self.scroll_offset = 0
+            elif self.selected_index == first:
+                self.scroll_offset = first
 
         elif action == 'DEL':
             self._begin_delete(items)
@@ -197,6 +227,21 @@ class MenuScreen(BaseScreen):
                 self.handle_add_new_item()
             else:
                 self._open_collection_item(items)
+
+    def _touch_select(self, items):
+        """A tap / long press: on the title = back, on a row = choose it (then ENTER / OPT acts on it).  False when
+        it hit nothing."""
+        xy = getattr(self.app.keypad, "tap_xy", None)
+        if xy is None:
+            return False
+        index = self._list.hit(xy, self.scroll_offset, len(items))
+        if index == "back":
+            self._go_back()
+            return False
+        if index is None or index < self._first():
+            return False
+        self.selected_index = index
+        return True
 
     def _toggle_todo(self):
         from scheduler import valid_now, day_key
@@ -306,9 +351,38 @@ class MenuScreen(BaseScreen):
         else:
             title = COLLECTIONS[self.current_menu][0]
         items = self._get_current_items()
+        if self._touch:
+            return self._render_touch(renderer, title, items)
         renderer.render_menu(title, items, self.selected_index, self.scroll_offset, self.max_visible)
         if self.current_menu == "TODO" and self._delete_confirm is None:
             Lcd.setTextColor(renderer.theme["ACCENT"], renderer.theme["BG"])
             Lcd.drawString("OPT = done", 5, 124)
         if self._delete_confirm is not None:
             renderer.render_delete_confirm(self._delete_confirm, self._delete_target[1])
+
+    def _render_touch(self, renderer, title, items):
+        """Rows of ~6 mm on the whole panel, size-2 text; the title (tap = back) with the position in the list."""
+        renderer.clear()
+        theme = renderer.theme
+        w, h = Lcd.screen_size()
+        first = self._first()
+        shown = len(items) - first
+        lst = self._list
+        lst.draw_header(theme, title, "%d/%d" % (self.selected_index - first + 1, shown) if shown > self.max_visible else None)
+        if shown <= 0:
+            lst.draw_row(theme, 0, "(empty)", False)
+            return
+        if self.scroll_offset < first:
+            self.scroll_offset = first
+        for row in range(self.max_visible):
+            i = self.scroll_offset + row
+            if i >= len(items):
+                break
+            text = items[i]
+            if self.current_menu in MENUS and ". " in text:
+                text = text.split(". ", 1)[1]                 # no numbers: the row is tapped, not typed
+            lst.draw_row(theme, row, text, i == self.selected_index)
+        if self.current_menu == "TODO":
+            Lcd.setTextSize(1)
+            Lcd.setTextColor(theme["ACCENT"], theme["BG"])
+            Lcd.drawString("hold = done", w - 4 - 66, h - 10)

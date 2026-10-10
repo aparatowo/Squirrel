@@ -11,7 +11,7 @@
 # screen never blocks; it only redraws when the state or the second changes.
 
 import time
-from M5 import Lcd
+from gfx import Lcd
 from screens.base_screen import BaseScreen
 
 _SEEK_MS = 10000

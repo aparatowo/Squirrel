@@ -1,4 +1,7 @@
-# boot_log.py - tiny logger that mirrors messages to /flash/boot_log.txt
+# boot_log.py - tiny logger that mirrors messages to <flash>/boot_log.txt
+#
+# <flash> is where the internal flash's file system is mounted: port_config.STORAGE_FLASH_ROOT ("/flash" on the
+# Cardputer's UIFlow firmware, "" = the root on plain MicroPython).
 #
 # After a hardware reset there is no Thonny console, so this file is the only
 # way to see what happened during startup.  Each line starts with time.ticks_ms()
@@ -14,8 +17,9 @@
 
 import os
 import time
+from port_config import STORAGE_FLASH_ROOT as _FLASH
 
-LOG_PATH = "/flash/boot_log.txt"
+LOG_PATH = _FLASH + "/boot_log.txt"
 _KEEP_BYTES = 2000   # tail of previous boots kept when the file grows
 _MAX_BYTES = 6000    # when the file reaches this, the oldest lines are dropped (the newest _KEEP_BYTES stay): logging never goes silent
 _size = None         # bytes in the file as far as we know (None = not known yet: ask os.stat once)
@@ -24,7 +28,7 @@ _trace_to_file = False
 
 def _dev_mode():
     try:
-        os.stat("/flash/DEV")
+        os.stat(_FLASH + "/DEV")
         return True
     except OSError:
         return False

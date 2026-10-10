@@ -5,7 +5,7 @@
 # Redraws once a second while the timer runs (the seconds counter is live).
 
 import time
-from M5 import Lcd
+from gfx import Lcd
 from screens.base_screen import BaseScreen
 
 _DAY_NAMES = ("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")

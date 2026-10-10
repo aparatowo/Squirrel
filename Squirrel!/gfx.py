@@ -10,12 +10,20 @@
 #     a Polish note shows as readable plain letters instead of garbage.  Nothing is lost: the text
 #     itself is stored and edited with the real letters.
 #
-# All other calls go straight to M5.Lcd (the hot ones are bound once, so they cost nothing extra).
+# All other calls go straight to the real display (the hot ones are bound once, so they cost nothing extra).
+#
+# The real display is the port's (port_config.DISPLAY_DRIVER: drivers/<driver>.py gives `lcd`; on the Cardputer M5.Lcd).
+# Every display driver offers the M5.Lcd calls the app uses.  SCREEN_W / SCREEN_H: its size in pixels.
 
 import os
-from M5 import Lcd as _lcd
 import charmap
 from boot_log import log
+import port_config as _pc
+from port_config import DISPLAY_DRIVER, DISPLAY_WIDTH as SCREEN_W
+SCREEN_H = getattr(_pc, "DISPLAY_LAYOUT_HEIGHT", _pc.DISPLAY_HEIGHT)    # the height the screens are laid out for
+PANEL_H = _pc.DISPLAY_HEIGHT                                            # the whole panel (a full-height screen gets it)
+
+_lcd = __import__("drivers." + DISPLAY_DRIVER, None, None, ("lcd",)).lcd
 
 _DIRECT = ("setTextColor", "setTextSize", "fillRect", "drawRect", "fillScreen", "drawLine",
            "fillCircle", "drawCircle", "drawPixel", "setBrightness", "getBrightness")
@@ -32,6 +40,9 @@ def _exists(path):
 class Display:
     def __init__(self, lcd):
         self._lcd = lcd
+        # A display drawn through a frame buffer (drivers/st7789_fb.py) shows what was drawn only on flush(); it says so
+        # with _needs_flush.  M5.Lcd draws straight onto the panel: flush() does nothing there.
+        self._flush = lcd.flush if getattr(lcd, "_needs_flush", False) else None
         self.font_active = False
         self.font_path = None
         self.last_error = ""
@@ -40,6 +51,23 @@ class Display:
                 setattr(self, name, getattr(lcd, name))
             except Exception:
                 pass
+
+    def flush(self):
+        """Send what was drawn since the last flush to the panel (a frame-buffer display); call after a screen is drawn."""
+        if self._flush is not None:
+            self._flush()
+
+    def full_height(self, on):
+        """A screen made for the whole panel (full_height = True, e.g. touch screens) gets all of it; the others the
+        layout area (SCREEN_H, centred).  Only a display that can (drivers/st7789_fb.py); elsewhere nothing changes."""
+        if getattr(self._lcd, "_can_layout", False):
+            self._lcd.set_layout(PANEL_H if on else SCREEN_H)
+
+    def screen_size(self):
+        """(width, height) the current screen draws in."""
+        if getattr(self._lcd, "_can_layout", False):
+            return SCREEN_W, self._lcd.height()
+        return SCREEN_W, SCREEN_H
 
     def drawString(self, text, x, y, *rest):
         if not self.font_active:

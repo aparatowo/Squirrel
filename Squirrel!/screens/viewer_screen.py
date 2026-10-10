@@ -1,5 +1,6 @@
 # screens/viewer_screen.py
 from screens.base_screen import BaseScreen
+from features import has
 
 # Number of DEL presses required to confirm deletion
 DELETE_CONFIRM_PRESSES = 3
@@ -101,8 +102,8 @@ class ViewerScreen(BaseScreen):
             if self.scroll_offset < max_scroll:
                 self.scroll_offset += 1
 
-        elif action == 'ENTER':
-            # Open in editor — pass title (first line) and full content
+        elif action == 'ENTER' and has("text_edit"):
+            # Open in editor — pass title (first line) and full content (only where there is an editor: not on the watch)
             self.app.set_screen(
                 "NOTE_EDITOR",
                 title=self.title,

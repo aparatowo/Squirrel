@@ -68,6 +68,12 @@ def _ensure_parent(path):
         return False
 
 
+# Settings renamed or replaced, read from an older config.txt: old key -> (new key, value text)
+_LEGACY = {
+    "POWER_LIGHT_SLEEP": lambda v: ("POWER_SLEEP", "light" if v.strip().lower() == "true" else "off"),
+}
+
+
 class Config:
     def __init__(self):
         self._schema = {}          # key -> (kind, group, label, extra)
@@ -214,6 +220,10 @@ class Config:
     def on_change(self, callback):
         self._listeners.append(callback)
 
+    def off_change(self, callback):
+        if callback in self._listeners:
+            self._listeners.remove(callback)
+
     def _notify(self, key, value):
         for callback in self._listeners:
             try:
@@ -228,6 +238,8 @@ class Config:
 
         Returns 'loaded', 'created', 'unreadable' or 'unavailable' (no card / cannot write).
         """
+        if path == self._path and self._stamp is not None and _stamp(path) == self._stamp:
+            return "loaded"                # read already (squirrel_boot's early clock) and not changed since
         self._path = path
         tmp = path + ".tmp"
         if _stamp(path) is None and _stamp(tmp) is not None:      # a save was interrupted
@@ -327,6 +339,8 @@ class Config:
                 problems.append("Ignored line without '=': " + line[:30])
                 continue
             key = key.strip()
+            if key in _LEGACY:                      # a setting of an older version: becomes its newer form
+                key, value = _LEGACY[key](value)
             if key not in self._schema:
                 extra.append(line)
                 continue

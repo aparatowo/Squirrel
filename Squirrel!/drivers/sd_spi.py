@@ -1,4 +1,4 @@
-# sd_card.py - SD card lifecycle manager for Squirrel!
+# sd_spi.py - an SD card on SPI, mounted at /sd (the Cardputer's microSD slot)
 #
 # The card is mounted here with machine.SDCard + os.mount (the app owns the block device).
 #
@@ -11,16 +11,10 @@
 import os
 import time
 from boot_log import log
-from nuts import SD_SLOT, SD_WIDTH, SD_SCK, SD_MISO, SD_MOSI, SD_CS, SD_FREQ
 
 MOUNT_POINT = "/sd"
 _ATTEMPTS = 3
 _RETRY_DELAY_MS = 300
-
-
-def _sd_args():
-    return dict(slot=SD_SLOT, width=SD_WIDTH, sck=SD_SCK, miso=SD_MISO,
-                mosi=SD_MOSI, cs=SD_CS, freq=SD_FREQ)
 
 
 def _sd_usable():
@@ -35,7 +29,8 @@ def _sd_usable():
 class SDCardManager:
     """Owns the lifecycle of the microSD card."""
 
-    def __init__(self):
+    def __init__(self, slot, width, sck, miso, mosi, cs, freq):
+        self._args = dict(slot=slot, width=width, sck=sck, miso=miso, mosi=mosi, cs=cs, freq=freq)
         self.is_mounted = False
         self._sd = None        # what the firmware helper returned (None on this firmware); kept referenced
         self._card = None      # the machine.SDCard we created: the block device
@@ -64,7 +59,7 @@ class SDCardManager:
     def _mount_direct(self):
         try:
             import machine
-            card = machine.SDCard(**_sd_args())
+            card = machine.SDCard(**self._args)
         except Exception as e:
             log(f"[SD] machine.SDCard failed: {e}")
             return False
@@ -111,7 +106,7 @@ class SDCardManager:
 
         for attempt in range(1, _ATTEMPTS + 1):
             try:
-                self._sd = SDCard(**_sd_args())
+                self._sd = SDCard(**self._args)
             except Exception as e:
                 log(f"[SD] Attempt {attempt}: constructor raised: {e}")
 

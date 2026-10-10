@@ -3,16 +3,18 @@
 # Architecture:
 #   - SoftTimeProvider  : always active, uses ESP32 internal RTC (machine.RTC)
 #   - RTCManager        : wraps SoftTimeProvider; sync_from_hardware() briefly
-#                         connects to DS1302, copies its time to the soft RTC,
-#                         then lets the DS1302 go — no permanent connection needed.
+#                         connects to the hardware clock chip, copies its time to
+#                         the soft RTC, then lets the chip go — no permanent
+#                         connection needed.
 #
-# The DS1302 only needs to be physically connected during sync.
-# After sync the soft RTC keeps time until the next power cycle.
+# The hardware clock is the port's ([clock] in ports/<port>/port.toml): the board
+# gives RTCManager a factory that opens it (on the Cardputer a DS1302 on the EXT
+# header, drivers/ds1302.py), or none.  The chip only needs to be physically
+# connected during sync.  After sync the soft RTC keeps time until the next power cycle.
 
 import machine
 from boot_log import log
 from hw.rtc_base import TimeProvider
-from nuts import RTC_CLK_PIN, RTC_DAT_PIN, RTC_RST_PIN
 
 
 class SoftTimeProvider(TimeProvider):
@@ -54,9 +56,28 @@ class RTCManager:
         # msg : str  — display message for the UI
     """
 
-    def __init__(self):
+    def __init__(self, chip=None, chip_name="ds1302"):
+        """chip() -> a TimeProvider of the hardware clock (raises when it does not answer); None = the device has none.
+        chip_name names it in last_sync_source and in the messages ("ds1302" -> "DS1302")."""
         self._provider = SoftTimeProvider()
-        self.last_sync_source = "soft"   # "soft" | "ds1302"
+        self._chip = chip
+        self._chip_name = chip_name
+        self.last_sync_source = "soft"   # "soft" | chip_name | "manual"
+
+    def chip(self):
+        """The hardware clock, opened, if it has an alarm (deep_sleep.py writes the next one into it); else None."""
+        if self._chip is None:
+            return None
+        try:
+            chip = self._chip()
+        except Exception:
+            return None
+        return chip if getattr(chip, "has_alarm", False) else None
+
+    def _open_chip(self):
+        if self._chip is None:
+            raise OSError("no hardware clock on this device")
+        return self._chip()
 
     # ------------------------------------------------------------------
     # Public API — delegates to active provider
@@ -89,15 +110,14 @@ class RTCManager:
         anything else leaves the internal clock untouched.  Returns True if synced.
         """
         try:
-            from hw.rtc_ds1302 import DS1302TimeProvider
-            hw = DS1302TimeProvider(RTC_CLK_PIN, RTC_DAT_PIN, RTC_RST_PIN)
+            hw = self._open_chip()
             dt = hw.read_valid()
         except Exception as e:
             log(f"[RTC] Boot sync skipped: {e}")
             return False
         self._provider.set_datetime(dt)
-        self.last_sync_source = "ds1302"
-        log(f"[RTC] Boot sync from DS1302: {self.get_time_str()} {self.get_date_str()}")
+        self.last_sync_source = self._chip_name
+        log(f"[RTC] Boot sync from {self._chip_name.upper()}: {self.get_time_str()} {self.get_date_str()}")
         return True
 
     def sync_from_hardware(self) -> tuple:
@@ -111,11 +131,10 @@ class RTCManager:
             (False, "RTC not found: <reason>")    on failure
         """
         try:
-            from hw.rtc_ds1302 import DS1302TimeProvider
-            hw = DS1302TimeProvider(RTC_CLK_PIN, RTC_DAT_PIN, RTC_RST_PIN)
+            hw = self._open_chip()
             dt = hw.get_datetime()
             self._provider.set_datetime(dt)
-            self.last_sync_source = "ds1302"
+            self.last_sync_source = self._chip_name
 
             time_str = self._provider.get_time_str()
             date_str = self._provider.get_date_str()
@@ -141,9 +160,8 @@ class RTCManager:
 
         # Mirror to hardware RTC if available — non-fatal if not connected
         try:
-            from hw.rtc_ds1302 import DS1302TimeProvider
-            hw = DS1302TimeProvider(RTC_CLK_PIN, RTC_DAT_PIN, RTC_RST_PIN)
+            hw = self._open_chip()
             hw.set_datetime(dt)
-            print("[RTC] Time mirrored to DS1302")
+            print(f"[RTC] Time mirrored to {self._chip_name.upper()}")
         except Exception as e:
-            print(f"[RTC] DS1302 mirror skipped: {e}")
+            print(f"[RTC] {self._chip_name.upper()} mirror skipped: {e}")

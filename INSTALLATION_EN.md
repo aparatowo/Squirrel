@@ -77,7 +77,7 @@ When it finishes, you'll find a file called `squirrel_firmware.bin` (or similar 
 ### 4b. Flash the file
 
 ```bash
-python3 build_firmware.py --flash
+python3 build_firmware.py --flash /dev/ttyACM0
 ```
 
 > If the script asks for a port, type:
@@ -93,30 +93,23 @@ When done, unplug and replug the cable (or press the reset button on the device)
 
 ---
 
-## Step 5 — Upload remaining files using Thonny
+## Step 5 — Preparing the device (automatic)
 
-> The firmware contains frozen modules, but a few files **must be uploaded manually** using Thonny.
+Nothing has to be uploaded by hand. The whole app is **frozen** into the firmware, and `build_firmware.py --flash PORT`
+prepares the device by itself after flashing:
 
-### Files to upload (from `apps/` folder in the project → `/flash/apps/Squirrel/` on device):
+1. writes `/flash/main.py` (from `Squirrel!/device/main.py`; 5 lines that start the app from the firmware);
+2. renames UIFlow's `/flash/boot.py` to `/flash/boot.py.uiflow` when it cannot run with this firmware;
+3. sets UIFlow's boot option to "run `main.py`".
 
-| File | Where on device |
-|---|---|
-| `main.py` | `/flash/apps/Squirrel/main.py` |
-| `nuts.py` (config) | `/flash/apps/Squirrel/nuts.py` |
-| `screens/` folder (whole) | `/flash/apps/Squirrel/screens/` |
-| `hw/` folder (whole) | `/flash/apps/Squirrel/hw/` |
+If you flashed without naming the port (or earlier), do it separately (close Thonny - it holds the port):
 
-> ℹ️ All other modules are already **frozen** into the firmware — no need to upload them separately.
+```bash
+python3 build_firmware.py --setup-device /dev/ttyACM0
+```
 
-### How to upload using Thonny:
-
-1. Open **Thonny**.
-2. Go to **Tools → Options → Interpreter**.
-3. Select **MicroPython (ESP32)** and the correct COM/USB port.
-4. Click **OK** and wait until Thonny connects (you'll see `>>>` at the bottom).
-5. In the left panel (files on your computer), find the file you want to upload.
-6. **Right-click the file → Upload to /** and choose the correct folder.
-7. Repeat for each file / folder from the list above.
+> ⚠️ **Do not upload** the app's `.py` files to `/flash/apps/Squirrel/` or `/flash/` - they would hide the code frozen in the
+> firmware.  The exception is DEV mode (see `Squirrel!/BUILD.md`).
 
 ---
 
@@ -131,7 +124,7 @@ You don't need to do anything manually.
 
 ## All done! 🎉
 
-Restart the Cardputer. Squirrel! should appear in the UIFlow2 menu.
+Restart the Cardputer - Squirrel! starts at once (no UIFlow2 menu).
 
 ---
 
@@ -142,7 +135,7 @@ Restart the Cardputer. Squirrel! should appear in the UIFlow2 menu.
 | Black screen after flashing | Check the USB-C cable, try a different port on your computer |
 | Thonny can't see the device | Make sure the device is on and not in flash mode |
 | `port not found` error | Check the port in Device Manager (Windows) or `ls /dev/tty*` (Linux/Mac) |
-| App doesn't start | Make sure `main.py` and `nuts.py` are on the device at `/flash/apps/Squirrel/` |
+| App doesn't start | Run `python3 build_firmware.py --setup-device /dev/ttyACM0`; in Thonny: `import sq_info; sq_info.report()` |
 | Notes not saving | Check that the microSD card is inserted and formatted as FAT32 |
 
 ---

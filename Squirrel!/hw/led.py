@@ -1,9 +1,9 @@
 # led.py - the RGB LED built into the Cardputer ADV (one WS2812 on G21)
 #
-# Hardware (nuts.py): LED_INSTALLED says whether to use it at all.  LED_PIN is written directly with machine.bitstream
-# (what the neopixel modules do inside; this firmware has no `neopixel` module).  M5.Led is NOT used: here M5Unified is
+# Hardware: the port says whether there is one and where ([signal.led] in ports/<port>/port.toml); the board hands
+# begin() the pin, the drivers to try (drivers/ws2812.py) and the limits below.  M5.Led is NOT used: here M5Unified is
 # built with M5UNIFIED_RMT_VERSION 1, for which its LED bus has no code at all - every M5.Led call is silently ignored,
-# while getCount() still says 1.  It stays only as a last resort when machine.bitstream is missing.
+# while getCount() still says 1.  It stays only as a last resort (the board's `fallback`) when both drivers fail.
 #
 # Power: the LED gets its supply through the LCD back-light's switched (PWM) supply.  Below a back-light of about 200 it
 # resets after a flash; at 0 it is dead (measured - this, not the data, was why it "flashed once and went dark").  While
@@ -31,7 +31,6 @@
 # quiet_hours.quiet_guard("led"), so force=True lights it anyway.  Breathing is started by hand and always lights.
 
 import time
-import nuts
 from boot_log import log
 from appconfig import cfg
 from quiet_hours import quiet_guard, is_quiet
@@ -72,68 +71,21 @@ SEND_MODES = (
     ("refresh 2s", (250, 750), 2000),         # ... and again every 2 s while lit: a corrupted frame lasts <= 2 s
 )
 SEND_MODE = 1                   # the one in use (an index into SEND_MODES)
-_RMT_CHANNEL = 0                # machine.bitstream uses its own (esp32.RMT.bitstream_channel(), 3 here)
 _LEAD_IN_MS = 80                # a signal starting from dark waits this long: the back-light is raised first and the
                                 # LED, which gets its power through it, needs a moment before it takes data
 _QUIET_CHECK_MS = 5000          # how often the charging light asks whether the quiet hours have begun
 
 
-class _WS2812Rmt:
-    """One WS2812 on a GPIO, sent through an esp32.RMT channel that is configured once and stays on the pin."""
-    name = "RMT"
-    _ZERO = (4, 8)                               # 100 ns ticks: 400 ns high, 800 ns low
-    _ONE = (8, 4)                                # 800 ns high, 400 ns low
-
-    def __init__(self, pin_no):
-        import esp32
-        from machine import Pin
-        Pin(pin_no, Pin.OUT, value=0)
-        self._rmt = esp32.RMT(_RMT_CHANNEL, pin=Pin(pin_no), clock_div=8, idle_level=False)    # 80 MHz / 8 = 10 MHz
-
-    def show(self, rgb):
-        pulses = []
-        for byte in (rgb >> 8 & 0xFF, rgb >> 16 & 0xFF, rgb & 0xFF):     # a WS2812 takes green, red, blue
-            for bit in range(7, -1, -1):
-                pulses.extend(self._ONE if byte >> bit & 1 else self._ZERO)
-        self._rmt.wait_done(timeout=10)
-        self._rmt.write_pulses(pulses, True)
-
-    def release(self):
-        try:
-            self._rmt.deinit()
-        except Exception:
-            pass
 
 
-class _WS2812:
-    """One WS2812 on a GPIO, written with machine.bitstream (the neopixel modules do the same) - the fallback."""
-    name = "bitstream"
-    TIMING = (400, 850, 800, 450)                # ns: 0 high, 0 low, 1 high, 1 low (800 kHz)
-
-    def __init__(self, pin_no):
-        from machine import Pin, bitstream
-        self._pin = Pin(pin_no, Pin.OUT, value=0)    # low between frames: bitstream gives the pin back to GPIO each time
-        self._bitstream = bitstream
-        self._buf = bytearray(3)
-
-    def show(self, rgb):
-        self._buf[0] = rgb >> 8 & 0xFF            # a WS2812 takes green, red, blue
-        self._buf[1] = rgb >> 16 & 0xFF
-        self._buf[2] = rgb & 0xFF
-        self._bitstream(self._pin, 0, self.TIMING, self._buf)
-
-    def release(self):
-        pass
-
-
-_DRIVERS = (_WS2812Rmt, _WS2812)
+_max_sum = 765                  # the most R + G + B the LED may get (the port's max_sum, set by Led.begin())
 
 
 def _fit(r, g, b):
-    """r, g, b dimmed in proportion so that r + g + b stays within nuts.LED_MAX_SUM (more current than the LED's supply
-    can give makes it reset and go dark); returned as 0xRRGGBB."""
+    """r, g, b dimmed in proportion so that r + g + b stays within the port's max_sum (more current than the LED's
+    supply can give makes it reset and go dark); returned as 0xRRGGBB."""
     total = r + g + b
-    limit = getattr(nuts, "LED_MAX_SUM", 765)
+    limit = _max_sum
     if total > limit:
         r, g, b = r * limit // total, g * limit // total, b * limit // total
     return r << 16 | g << 8 | b
@@ -141,7 +93,7 @@ def _fit(r, g, b):
 
 class Led:
     def __init__(self):
-        self._hw = None             # a _WS2812, or (last resort) M5.Led
+        self._hw = None             # a drivers.ws2812 object, or (last resort) M5.Led
         self._np = False
         self._battery = None        # BatteryMonitor (level_pct, charging)
         self._pattern = None        # (segments, 0xRRGGBB, start ms)
@@ -152,7 +104,10 @@ class Led:
         self._test = None           # function -> raw 0xRRGGBB: the LED tests (Experimental), above everything else
         self.send_mode = SEND_MODE  # index into SEND_MODES; the LED tests switch it
         self.frames = 0             # frames sent since start-up (shown by the LED tests)
-        self.min_backlight = getattr(nuts, "LED_MIN_BACKLIGHT", 0)    # the floor asked for; the LED tests switch it
+        self._floor = 0             # the port's min_backlight (set by begin())
+        self.min_backlight = 0      # the floor asked for; the LED tests switch it
+        self._pin = None
+        self._drivers = ()          # the driver classes to try, in order (begin(), use_driver())
         self._quiet = False         # the LED's quiet hours, as of the last check
         self._quiet_at = 0
         self.problem = ""
@@ -162,7 +117,7 @@ class Led:
         return self._hw is not None
 
     def backlight_floor(self):
-        """The lowest LCD back-light the LED needs right now: nuts.LED_MIN_BACKLIGHT while it has something to show
+        """The lowest LCD back-light the LED needs right now: the port's min_backlight while it has something to show
         (lit, a signal or a test running, the breathing light on, a change still being confirmed), else 0.  With every
         LED feature off it is always 0: the back-light then does exactly what the screen settings say."""
         if self._hw is None:
@@ -186,26 +141,33 @@ class Led:
     def status(self):
         """One short line for the screen: "ready" or why it cannot be used."""
         if self._hw is not None:
-            return ("ready, G%d %s" % (nuts.LED_PIN, self._hw.name)) if self._np else "M5.Led (may not work)"
+            return ("ready, G%d %s" % (self._pin, self._hw.name)) if self._np else "M5.Led (may not work)"
         return self.problem or "not started"
 
-    def begin(self, battery=None):
-        """Find the LED and switch it off.  Call once, after M5.begin()."""
+    def begin(self, battery=None, pin=None, drivers=(), fallback=None, min_backlight=0, max_sum=765):
+        """Find the LED and switch it off.  Call once, after the board's begin().
+
+        pin None = the device has no LED.  drivers: classes taking the pin number, tried in order (drivers/ws2812.py);
+        fallback() -> an M5.Led-like object, the last resort; min_backlight / max_sum: see [signal.led] in port.toml."""
+        global _max_sum
         self._battery = battery
-        if not getattr(nuts, "LED_INSTALLED", False):
-            self.problem = "No LED (nuts.py)"
+        if pin is None:
+            self.problem = "No LED (port.toml)"
             return False
-        for driver in _DRIVERS:
+        self._pin = pin
+        self._drivers = drivers
+        self._floor = self.min_backlight = min_backlight
+        _max_sum = max_sum
+        for driver in drivers:
             try:
-                self._hw = driver(nuts.LED_PIN)
+                self._hw = driver(pin)
                 self._np = True
                 break
             except Exception as e:
-                log(f"[LED] {driver.name} on G{nuts.LED_PIN} unavailable: {e}")
-        if self._hw is None:
+                log(f"[LED] {driver.name} on G{pin} unavailable: {e}")
+        if self._hw is None and fallback is not None:
             try:
-                import M5
-                hw = M5.Led
+                hw = fallback()
                 if hw.getCount() > 0:
                     hw.setBrightness(255)            # the brightness is applied here, to each colour
                     self._hw = hw
@@ -216,7 +178,7 @@ class Led:
             return False
         self._shown = None                           # force the first write: the LED may hold a colour from before
         self._write(0)
-        log(f"[LED] ready ({'WS2812 on G%d via %s' % (nuts.LED_PIN, self._hw.name) if self._np else 'M5.Led - may do nothing, see led.py'})")
+        log(f"[LED] ready ({'WS2812 on G%d via %s' % (pin, self._hw.name) if self._np else 'M5.Led - may do nothing, see led.py'})")
         return True
 
     # ---------------------------------------------------------------- what to show
@@ -258,10 +220,10 @@ class Led:
         """Switch to the driver called `name` ("RMT" / "bitstream") - for the LED tests.  Returns the name in use."""
         if not self._np or self._hw.name == name:
             return self._hw.name if self._hw is not None else ""
-        for driver in _DRIVERS:
+        for driver in self._drivers:
             if driver.name == name:
                 try:
-                    new = driver(nuts.LED_PIN)
+                    new = driver(self._pin)
                 except Exception as e:
                     log(f"[LED] cannot switch to {name}: {e}")
                     break
@@ -276,7 +238,7 @@ class Led:
         self._test = provider
         if provider is None:
             self.send_mode = SEND_MODE
-            self.min_backlight = getattr(nuts, "LED_MIN_BACKLIGHT", 0)
+            self.min_backlight = self._floor
         self.tick()
 
     def demo(self, feature):
@@ -354,7 +316,7 @@ class Led:
 
     @staticmethod
     def _scale(color, level):
-        """0xRRGGBB at `level` percent and LED_BRIGHTNESS percent, within the LED's power budget (nuts.LED_MAX_SUM).
+        """0xRRGGBB at `level` percent and LED_BRIGHTNESS percent, within the LED's power budget (the port's max_sum).
         The level is squared: the eye sees a fade as even."""
         if not color or level <= 0:
             return 0

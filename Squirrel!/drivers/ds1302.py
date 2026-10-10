@@ -1,10 +1,10 @@
-# rtc_ds1302.py — DS1302 hardware RTC adapter
+# ds1302.py — DS1302 hardware RTC adapter
 #
 # Implements TimeProvider using the DS1302 chip connected over a
 # 3-wire serial bus (CLK / DAT / RST).  Pure MicroPython bit-bang
 # driver — no external library required.
 #
-# Wiring (Cardputer):
+# Wiring: the pins are given by the port ([clock] in ports/<port>/port.toml); on the Cardputer
 #   DS1302 CLK  ->  GPIO 6
 #   DS1302 DAT  ->  GPIO 4
 #   DS1302 RST  ->  GPIO 3

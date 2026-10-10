@@ -1,9 +1,10 @@
 # buzzer.py - an extra buzzer on a GPIO, driven through an NPN transistor
 #
-# Hardware (nuts.py): BUZZER_INSTALLED says whether one is soldered on at all, BUZZER_PIN which GPIO drives the
-# transistor's base, BUZZER_PWM_FREQ 0 for an active buzzer (it beeps by itself: plain on / off) or the tone in Hz
-# for a passive one (driven with PWM).  The pin is held LOW whenever the buzzer is silent - HIGH = the transistor
-# conducts = sound.  A pin of the keyboard's I2C bus is refused: driving it would stop the keyboard.
+# Hardware: the port says whether one is soldered on at all and where ([signal.buzzer] in ports/<port>/port.toml):
+# the pin that drives the transistor's base, pwm_freq 0 for an active buzzer (it beeps by itself: plain on / off) or
+# the tone in Hz for a passive one (driven with PWM).  The pin is switched by drivers/pin_pulser.py and held LOW
+# whenever the buzzer is silent - HIGH = the transistor conducts = sound.  A pin of the I2C bus (the board's
+# `reserved` pins) is refused: driving it would stop the keyboard.
 #
 # Which features may use the buzzer is a list of on/off settings (group "Buzzer", all off by default), each with
 # a mode (<feature>_MODE): one of MODE_NAMES, or "auto" = the mode the feature passes itself (see nuts.py).
@@ -14,7 +15,6 @@
 # A signal is played by tick() (a background service), so a long one never stops the program.
 
 import time
-import nuts
 from boot_log import log
 from appconfig import cfg
 from quiet_hours import quiet_guard
@@ -49,13 +49,9 @@ AUTO_DEMO = {
     "BUZZER_CUCKOO": "double",
 }
 
-_I2C_PINS = (nuts.I2C_SDA_PIN, nuts.I2C_SCL_PIN)
-
-
 class Buzzer:
     def __init__(self):
-        self._pin = None
-        self._pwm = None
+        self._pin = None        # the PinPulser, once begin() has taken the pin
         self._steps = []        # [(on ms, off ms)] still to play
         self._on = False
         self._until = 0
@@ -69,35 +65,33 @@ class Buzzer:
     def status(self):
         """One short line for the screen: "ready, G13" or why it cannot be used."""
         if self._pin is not None:
-            return "ready, G%d" % nuts.BUZZER_PIN
+            return "ready, G%d" % self._pin.pin_no
         return self.problem or "not started"
 
     @property
     def busy(self):
         return self._on or bool(self._steps)
 
-    def begin(self, quiet=None):
-        """Take the pin and hold it LOW.  Call once, as early as possible."""
+    def begin(self, quiet=None, pin=None, pwm_freq=0, reserved=(), pulser=None):
+        """Take the pin and hold it LOW.  Call once, as early as possible.
+
+        pin None = the device has no buzzer.  pulser: the class that drives the pin (drivers/pin_pulser.py), given by
+        the board; reserved: pins it must never drive (the I2C bus)."""
         self._quiet = quiet
-        if not getattr(nuts, "BUZZER_INSTALLED", False):
-            self.problem = "No buzzer (nuts.py)"
+        if pin is None or pulser is None:
+            self.problem = "No buzzer (port.toml)"
             return False
-        number = nuts.BUZZER_PIN
-        if number in _I2C_PINS:
+        number = pin
+        if number in reserved:
             self.problem = "G%d is the keyboard bus" % number
             log(f"[BUZZER] G{number} is a pin of the keyboard's I2C bus - not used, move the buzzer to a free GPIO")
             return False
         try:
-            from machine import Pin
-            self._pin = Pin(number, Pin.OUT, value=0)
-            self._pin.value(0)
-            if nuts.BUZZER_PWM_FREQ:
-                from machine import PWM
-                self._pwm = PWM(self._pin, freq=nuts.BUZZER_PWM_FREQ, duty_u16=0)
-            log(f"[BUZZER] ready on G{number} ({'PWM %d Hz' % nuts.BUZZER_PWM_FREQ if self._pwm else 'on/off'})")
+            self._pin = pulser(number, pwm_freq)
+            log(f"[BUZZER] ready on G{number} ({'PWM %d Hz' % pwm_freq if self._pin.pwm else 'on/off'})")
             return True
         except Exception as e:
-            self._pin = self._pwm = None
+            self._pin = None
             self.problem = "Pin error"
             log(f"[BUZZER] cannot use G{number}: {e}")
             return False
@@ -168,10 +162,8 @@ class Buzzer:
     def _set(self, on):
         self._on = on
         try:
-            if self._pwm is not None:
-                self._pwm.duty_u16(32768 if on else 0)
-            elif self._pin is not None:
-                self._pin.value(1 if on else 0)
+            if self._pin is not None:
+                self._pin.set(on)
         except Exception as e:
             log(f"[BUZZER] {e}")
 

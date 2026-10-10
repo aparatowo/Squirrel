@@ -1,0 +1,97 @@
+# port.toml - the M5Stack Cardputer ADV: what hardware it has, where it is wired, which features to build.
+#
+# Read ONLY on the PC, by build_firmware.py: it checks the file against features.toml and writes port_config.py
+# (constants for the device, frozen into the firmware).  Every key becomes a constant named after its path:
+#   [storage] sck = 40           ->  STORAGE_SCK = 40
+#   [i2c.sys] sda = 8            ->  I2C_SYS_SDA = 8
+#   [signal.led] pin = 21        ->  SIGNAL_LED_PIN = 21
+# A section is a piece of hardware the device has; `installed = false` in it says it is not there (the section is
+# then kept only as a note of the wiring).  After editing:  python3 build_firmware.py --gen-port-config
+
+[port]
+name     = "cardputer_adv"
+title    = "M5Stack Cardputer ADV"
+mcu      = "esp32s3"
+firmware = "cardputer-adv-micropython"      # the firmware recipe of build_firmware.py (UIFlow 2, module M5)
+board    = "M5STACK_CardputerADV_Custom"    # its base board
+idf      = "v5.4.2"                         # 5.5.x: the ES8311 microphone returns silence
+machine  = "Cardputer-ADV"                  # part of sys.implementation._machine: --setup-device refuses any other device
+
+[display]
+driver = "m5_display"                       # M5.Lcd, through gfx.py
+width  = 240
+height = 135
+fonts  = "vlw"
+
+[i2c.sys]                                   # the keyboard and the motion sensor
+id   = 0
+sda  = 8
+scl  = 9
+freq = 400_000
+
+[input]
+driver   = "tca8418_keypad"
+keyboard = true                             # a real keyboard: text can be typed
+bus      = "sys"
+addr     = 0x34
+int      = 11                               # the controller's INT line (wakes the chip from light sleep)
+
+[buttons.quick]                             # G0: the quick recorder; held at start-up it skips the font
+driver = "gpio_button"
+pin    = 0
+
+[storage]
+driver    = "sd_spi"                        # machine.SDCard, or the UIFlow helper hardware.SDCard
+removable = true
+slot  = 3
+width = 1
+sck   = 40
+miso  = 39
+mosi  = 14
+cs    = 12
+freq  = 1_000_000
+base_dir = "/sd/Squirrel"
+flash_root = "/flash"                       # where the internal flash's file system is mounted (UIFlow: /flash)
+
+[clock]                                     # an optional DS1302 on the EXT header; read once at start-up
+driver = "ds1302"
+clk = 6                                     # serial clock
+dat = 4                                     # bidirectional data
+rst = 3                                     # reset / chip enable (active HIGH)
+
+[power]
+driver = "m5_power"                         # M5.Power: battery level through the ADC, charging unknown
+
+[audio_out]
+driver = "m5_audio"                         # M5.Speaker
+
+[audio_in]
+driver = "m5_audio"                         # M5.Mic (ES8311)
+
+[signal.led]                                # the built-in WS2812
+driver = "ws2812"
+pin = 21
+min_backlight = 255                         # the LED is powered through the LCD back-light's switched (PWM) supply:
+                                            # flashes work at a back-light of 200 or more, it resets after a flash at
+                                            # 185 and below, is dead at 0, and smooth fades need 255 (no PWM at all).
+                                            # While the LED shows something the back-light is kept at least this bright.
+max_sum = 228                               # the most R + G + B the LED may get: its supply cannot take more current
+                                            # (white 76/76/76 steady, green 255 sometimes, white 255 never)
+
+[signal.buzzer]                             # an extra buzzer on the EXT header, switched by an NPN transistor
+driver    = "pin_pulser"
+installed = true                            # false = there is none: the pin is never touched
+pin       = 13                              # free on the header: G5, G13, G15 (G8 / G9 are the I2C bus)
+pwm_freq  = 0                               # 0 = active buzzer (plain on / off); a passive one needs a tone in Hz
+
+[motion]                                    # BMI270: not used yet - switched off at start-up to save power
+driver = "bmi270"
+bus    = "sys"
+addrs  = [0x69, 0x68]
+
+[radio]
+wifi = true
+
+[power_mgmt]
+wake_pins   = [0, 11]                       # light sleep ends on G0 or a key (the keyboard controller's INT)
+slow_cpu_hz = 80_000_000                    # the CPU while the screen is dimmed and nothing is going on
