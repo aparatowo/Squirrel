@@ -13,10 +13,12 @@ modules  = ["screens/note_editor_screen.py", "screens/mind_dump_screen.py"]
 screens  = ["NOTE_EDITOR", "MIND_DUMP"]
 menus    = ["MIND"]
 settings = ["Keyboard"]
+keys     = ["TODO_MAX_CHARS", "TODO_TITLE_MAX_LEN", "MIND_DUMP_MAX_CHARS"]
 
 [notes]                                     # text notes: written and edited on the device (asked on 2026-10-10: not on the watch)
 requires = ["input.keyboard"]
 menus    = ["NOTES_ROOT", "NOTES"]
+keys     = ["NOTE_TITLE_MAX_LEN", "NOTE_BODY_MAX_CHARS"]
 
 [key_calibration]
 requires = ["input.keyboard"]

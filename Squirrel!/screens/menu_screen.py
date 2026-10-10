@@ -5,12 +5,10 @@ from screens.base_screen import BaseScreen
 from appconfig import cfg
 from menu_tree import MENUS, COLLECTIONS, PARENTS
 from features import has
-from ui.touch import has_touch, mm, MIN_TARGET_MM
+from ui.touch import has_touch, TouchList
 
 # A touch screen (the watch): rows a finger can hit, on the whole panel; a tap on a row opens it, a tap on the title
-# goes back, a long press ticks a To-Do.  The Cardputer's view is untouched.
-_T_HEADER = 30
-_T_ROW = max(mm(MIN_TARGET_MM), 24)
+# goes back, a long press ticks a To-Do (ui/touch.py: TouchList).  The Cardputer's view is untouched.
 # what "+ [New Item]" of a file list needs; without it the row is not shown at all
 _ADD_NEEDS = {"TODO": "text_edit", "NOTES": "text_edit", "MIND": "text_edit", "RECORDS": "voice_notes"}
 
@@ -33,8 +31,8 @@ class MenuScreen(BaseScreen):
         self._touch = has_touch()
         self.max_visible = 5
         if self._touch:
-            from gfx import PANEL_H
-            self.max_visible = max(1, (PANEL_H - _T_HEADER) // _T_ROW)
+            self._list = TouchList()
+            self.max_visible = self._list.visible
         self._remember = {}             # menu id -> (selected_index, scroll_offset, label) as the user left it
         self._items_cache = None        # file lists are cached per visit
         self._items_cache_menu = None
@@ -236,11 +234,11 @@ class MenuScreen(BaseScreen):
         xy = getattr(self.app.keypad, "tap_xy", None)
         if xy is None:
             return False
-        if xy[1] < _T_HEADER:
+        index = self._list.hit(xy, self.scroll_offset, len(items))
+        if index == "back":
             self._go_back()
             return False
-        index = self.scroll_offset + (xy[1] - _T_HEADER) // _T_ROW
-        if index >= len(items) or index < self._first():
+        if index is None or index < self._first():
             return False
         self.selected_index = index
         return True
@@ -369,18 +367,10 @@ class MenuScreen(BaseScreen):
         w, h = Lcd.screen_size()
         first = self._first()
         shown = len(items) - first
-        Lcd.setTextSize(2)
-        Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("<", 4, 7)
-        Lcd.drawString(title[:14], 4 + 18, 7)
-        if shown > self.max_visible:
-            pos = "%d/%d" % (self.selected_index - first + 1, shown)
-            Lcd.setTextSize(1)
-            Lcd.drawString(pos, w - 4 - 6 * len(pos), 11)
-        Lcd.drawLine(0, _T_HEADER - 2, w - 1, _T_HEADER - 2, theme["FG"])
+        lst = self._list
+        lst.draw_header(theme, title, "%d/%d" % (self.selected_index - first + 1, shown) if shown > self.max_visible else None)
         if shown <= 0:
-            Lcd.setTextSize(2)
-            Lcd.drawString("(empty)", 4, _T_HEADER + (_T_ROW - 16) // 2)
+            lst.draw_row(theme, 0, "(empty)", False)
             return
         if self.scroll_offset < first:
             self.scroll_offset = first
@@ -388,16 +378,10 @@ class MenuScreen(BaseScreen):
             i = self.scroll_offset + row
             if i >= len(items):
                 break
-            y = _T_HEADER + row * _T_ROW
             text = items[i]
             if self.current_menu in MENUS and ". " in text:
                 text = text.split(". ", 1)[1]                 # no numbers: the row is tapped, not typed
-            selected = i == self.selected_index
-            if selected:
-                Lcd.fillRect(0, y + 1, w, _T_ROW - 2, theme["PANEL_BG"])
-            Lcd.setTextColor(theme["ACCENT"] if selected else theme["FG"], theme["PANEL_BG"] if selected else theme["BG"])
-            Lcd.setTextSize(2)
-            Lcd.drawString(text[:(w - 8) // 12], 4, y + (_T_ROW - 16) // 2)
+            lst.draw_row(theme, row, text, i == self.selected_index)
         if self.current_menu == "TODO":
             Lcd.setTextSize(1)
             Lcd.setTextColor(theme["ACCENT"], theme["BG"])

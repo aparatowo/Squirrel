@@ -108,3 +108,82 @@ class TouchPanel:
         """Draw every widget; those for which highlight(widget) is true in the accent colour."""
         for widget, _cb, _rep in self._items:
             widget.draw(theme, bool(highlight and highlight(widget)))
+
+
+class TouchList:
+    """A list on the whole panel: a title (tap = back) and rows of at least MIN_TARGET_MM (tap = choose).  The screen
+    keeps the highlight and the first row shown; UP / DOWN (swipes) move the highlight, move() keeps it in view.
+
+        lst = TouchList()
+        hit = lst.hit(keypad.tap_xy, top, count)     # "back", a row index or None
+        lst.draw_header(theme, title, "3/9")
+        lst.draw_row(theme, row, text, selected, sub="on")   # sub: a second line (the value of a setting)
+    """
+    HEADER = 30
+
+    def __init__(self):
+        from gfx import PANEL_H
+        self.row_h = max(mm(MIN_TARGET_MM), 24)
+        self.visible = max(1, (PANEL_H - self.HEADER) // self.row_h)
+
+    def y_of(self, row):
+        return self.HEADER + row * self.row_h
+
+    def hit(self, xy, top, count):
+        if xy is None:
+            return None
+        if xy[1] < self.HEADER:
+            return "back"
+        index = top + (xy[1] - self.HEADER) // self.row_h
+        return index if 0 <= index < count else None
+
+    def move(self, index, top, count, delta):
+        """The highlight one row on (with wrap-around), kept among the visible rows.  Returns (index, top)."""
+        if count == 0:
+            return 0, 0
+        index = (index + delta) % count
+        if index < top:
+            top = index
+        elif index >= top + self.visible:
+            top = index - self.visible + 1
+        return index, max(0, min(top, count - self.visible))
+
+    def draw_header(self, theme, title, pos=None):
+        w = Lcd.screen_size()[0]
+        Lcd.setTextSize(2)
+        Lcd.setTextColor(theme["FG"], theme["BG"])
+        Lcd.drawString("<", 4, 7)
+        room = (w - 26 - (6 * len(pos) + 6 if pos else 0)) // 12
+        Lcd.drawString(title[:room], 22, 7)
+        if pos:
+            Lcd.setTextSize(1)
+            Lcd.drawString(pos, w - 4 - 6 * len(pos), 11)
+        Lcd.drawLine(0, self.HEADER - 2, w - 1, self.HEADER - 2, theme["FG"])
+
+    def draw_row(self, theme, row, text, selected, sub=None, sub_color="ACCENT"):
+        """One row: size-2 text, centred in the row, or with `sub` a second line under it, right-aligned."""
+        w = Lcd.screen_size()[0]
+        y, h = self.y_of(row), self.row_h
+        bg = theme["PANEL_BG"] if selected else theme["BG"]
+        if selected:
+            Lcd.fillRect(0, y + 1, w, h - 2, bg)
+        Lcd.setTextSize(2)
+        Lcd.setTextColor(theme["ACCENT"] if selected else theme["FG"], bg)
+        cols = (w - 8) // 12
+        if sub is None:
+            Lcd.drawString(text[:cols], 4, y + (h - 16) // 2)
+            return
+        gap = (h - 32) // 3
+        Lcd.drawString(text[:cols], 4, y + gap)
+        sub = sub[:cols]
+        Lcd.setTextColor(theme[sub_color], bg)
+        Lcd.drawString(sub, w - 4 - 12 * len(sub), y + 2 * gap + 16)
+
+    def notice(self, theme, text):
+        """A message over the bottom of the list (what was saved ...)."""
+        w, h = Lcd.screen_size()
+        Lcd.fillRect(0, h - 28, w, 28, theme["WARNING"])
+        Lcd.setTextSize(2)
+        Lcd.setTextColor(theme["BG"], theme["WARNING"])
+        text = text[:(w - 8) // 12]
+        Lcd.drawString(text, (w - 12 * len(text)) // 2, h - 22)

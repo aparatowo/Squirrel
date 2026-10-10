@@ -11,6 +11,11 @@
 #            ENTER applies, ESC cancels.
 # Every change takes effect at once and is saved to config.txt (see appconfig.py).
 #
+# A touch screen (the watch) gets its own view on the whole panel (ui/touch.py): rows to tap, the title goes back (as
+# does a swipe right or the side button), swipes up / down scroll.  A tap on an on/off setting switches it, a long press
+# on a setting puts its default back; options are picked from a list; numbers, times and days have buttons (+ / -,
+# held: faster).  Text cannot be typed without a keyboard: it is only shown (config.txt changes it).
+#
 # Opened from Settings -> Personalize it lists the groups of settings, except the ones that have their own
 # place in the menus (Time -> "Time and date", Network -> "Connections").  Those menus open this screen
 # restricted to that one group: PersonalizeScreen.on_enter(groups=("Time",), title=..., back=(screen, kwargs)).
@@ -20,6 +25,7 @@ from gfx import Lcd
 from screens.base_screen import BaseScreen
 from appconfig import cfg
 from nuts import PALETTE, named_color
+from ui.touch import has_touch, TouchList, TouchPanel, Button
 
 _NOTICE_MS = 2500
 _VISIBLE = 5                     # rows the menu renderer shows
@@ -42,6 +48,10 @@ class PersonalizeScreen(BaseScreen):
         self._restricted = False
         self._title = "Personalize"
         self._back = _SETTINGS_MENU
+        self._touch = has_touch()
+        if self._touch:
+            self._list = TouchList()
+            self._panel = TouchPanel()
         self._reset_state()
 
     def _reset_state(self):
@@ -57,6 +67,7 @@ class PersonalizeScreen(BaseScreen):
         self.buf = ""
         self.cur = 0
         self.error = ""
+        self.val = 0                 # touch: the value being changed (int / time / days)
         self._notice = None
         self._notice_until = 0
 
@@ -132,6 +143,8 @@ class PersonalizeScreen(BaseScreen):
     def handle_input(self, action):
         if not action:
             return
+        if self._touch:
+            return self._touch_input(action)
         if self.mode == "edit":
             self._edit_input(action)
         elif self.mode == "pick":
@@ -312,9 +325,13 @@ class PersonalizeScreen(BaseScreen):
     # ------------------------------------------------------------------ drawing
 
     def needs_refresh(self):
+        if self._touch and self.mode in ("edit", "confirm_all") and self._panel.tick(self.app.keypad):
+            return True
         return self._notice is not None and time.ticks_diff(time.ticks_ms(), self._notice_until) >= 0
 
     def render(self, renderer):
+        if self._touch:
+            return self._touch_render(renderer)
         if self.mode == "edit":
             self._render_edit(renderer)
         elif self.mode == "confirm_all":
@@ -392,3 +409,245 @@ class PersonalizeScreen(BaseScreen):
         Lcd.setTextColor(theme["FG"], theme["BG"])
         Lcd.drawString("[ENTER] Save  [ESC] Cancel", 5, 104)
         Lcd.drawString("FN + arrows: cursor" + ("  and +/-" if kind == "int" else ""), 5, 118)
+
+    # ------------------------------------------------------------------ touch (the watch)
+
+    @property
+    def full_height(self):
+        return self._touch
+
+    def _list_state(self):
+        """(rows, highlighted, first shown) of the list on screen."""
+        if self.mode == "pick":
+            return len(self.options), self.p, self.p_top
+        if self.mode == "items":
+            return len(self._keys()), self.i, self.i_top
+        return len(self._groups) + (0 if self._restricted else 1), self.g, self.g_top
+
+    def _set_list_state(self, index, top):
+        if self.mode == "pick":
+            self.p, self.p_top = index, top
+        elif self.mode == "items":
+            self.i, self.i_top = index, top
+        else:
+            self.g, self.g_top = index, top
+
+    def _touch_back(self):
+        if self.mode in ("pick", "edit"):
+            self.mode = "items"
+        elif self.mode == "confirm_all":
+            self.mode = "groups"
+        elif self.mode == "items" and not (self._restricted and len(self._groups) == 1):
+            self.mode = "groups"
+        else:
+            self._leave()
+
+    def _touch_input(self, action):
+        keypad = self.app.keypad
+        xy = getattr(keypad, "tap_xy", None)
+        if self.mode in ("edit", "confirm_all"):
+            if self._panel.handle(action, keypad):
+                return
+            if action in ('ESC', 'LEFT') or (action == 'ENTER' and xy is not None and xy[1] < TouchList.HEADER):
+                self._touch_back()
+            return
+        count, index, top = self._list_state()
+        if action in ('UP', 'DOWN'):
+            self._set_list_state(*self._list.move(index, top, count, -1 if action == 'UP' else 1))
+        elif action in ('ENTER', 'OPT'):
+            hit = index if xy is None else self._list.hit(xy, top, count)
+            if hit == "back":
+                self._touch_back()
+            elif hit is not None and hit < count:
+                self._set_list_state(hit, top)
+                self._touch_choose(hit, action == 'OPT')
+        elif action == 'RIGHT' and count:
+            self._touch_choose(index, False)
+        elif action in ('ESC', 'LEFT'):
+            self._touch_back()
+
+    def _touch_choose(self, index, long_press):
+        if self.mode == "groups":
+            if index == len(self._groups):
+                self.mode = "confirm_all"
+                self._build_confirm()
+            elif not long_press:
+                self.mode = "items"
+                self.i = self.i_top = 0
+            return
+        if self.mode == "pick":
+            if not long_press:
+                value = self.options[index][1]
+                cfg.set(self.key, value)
+                self._notify(self._after_pick(self.key, value))
+                self.mode = "items"
+            return
+        key = self._keys()[index]
+        kind = cfg.describe(key)[0]
+        if long_press:
+            self._notify("Default: " + self._touch_value(key) if cfg.reset(key) else "Already default")
+        elif kind == "bool":
+            value = not cfg.get(key)
+            cfg.set(key, value)
+            self._notify(self._after_pick(key, value))
+        elif kind in ("choice", "color"):
+            self._open_setting(key)
+            self.p_top = max(0, min(self.p - 1, len(self.options) - self._list.visible))
+        elif kind in ("int", "time", "days"):
+            self.key = key
+            self.val = cfg.get(key)
+            self.mode = "edit"
+            self._build_editor(kind)
+        else:
+            self._notify("Set in config.txt")                   # text: no keyboard to type it
+
+    def _touch_value(self, key):
+        kind = cfg.describe(key)[0]
+        if kind in ("time", "days"):
+            return cfg.text_of(key)
+        return self._value_text(key)
+
+    # ---- the editor of a number / a time / days, and the reset question
+
+    def _build_editor(self, kind):
+        from gfx import SCREEN_W as w, PANEL_H as h
+        panel = self._panel
+        panel.clear()
+        half = (w - 24) // 2
+        left, right = 8, 16 + half
+        self._day_buttons = []
+        if kind == "int":
+            step = cfg.describe(self.key)[3][2]
+            panel.add(Button(left, 100, half, 60, "-"), lambda: self._step(-step), repeat=True)
+            panel.add(Button(right, 100, half, 60, "+"), lambda: self._step(step), repeat=True)
+        elif kind == "time":                                    # hours on the left, minutes on the right
+            panel.add(Button(left, 36, half, 50, "+"), lambda: self._step(60), repeat=True)
+            panel.add(Button(right, 36, half, 50, "+"), lambda: self._step(1), repeat=True)
+            panel.add(Button(left, 134, half, 50, "-"), lambda: self._step(-60), repeat=True)
+            panel.add(Button(right, 134, half, 50, "-"), lambda: self._step(-1), repeat=True)
+        else:                                                   # days: one toggle per day, in two rows
+            bw = (w - 16 - 3 * 4) // 4
+            for d, name in enumerate(("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")):
+                x, y = 8 + (d % 4) * (bw + 4), 40 + (d // 4) * 64
+                self._day_buttons.append(panel.add(Button(x, y, bw, 56, name), lambda d=d: self._toggle_day(d)))
+        bh = 46 if kind == "time" else 52
+        panel.add(Button(left, h - bh - 6, half, bh, "Default"), self._to_default)
+        panel.add(Button(right, h - bh - 6, half, bh, "Save", "ACCENT"), self._touch_save)
+
+    def _step(self, delta):
+        kind, _group, _label, extra = cfg.describe(self.key)
+        if kind == "time":
+            self.val = (self.val + delta) % 1440
+        else:
+            self.val = cfg.validate(self.key, self.val + delta)
+
+    def _toggle_day(self, d):
+        self.val ^= 1 << d
+
+    def _to_default(self):
+        self.val = cfg.default(self.key)
+
+    def _touch_save(self):
+        cfg.set(self.key, self.val)
+        if self.key == "LED_BRIGHTNESS":
+            from hw.led import led
+            led.demo(self.key)
+        self._notify("Saved")
+        self.mode = "items"
+
+    def _build_confirm(self):
+        from gfx import SCREEN_W as w, PANEL_H as h
+        half = (w - 24) // 2
+        self._panel.clear()
+        self._panel.add(Button(8, h - 64, half, 56, "Cancel"), self._touch_back)
+        self._panel.add(Button(16 + half, h - 64, half, 56, "Reset", "ERROR"), self._reset_all)
+
+    def _reset_all(self):
+        for group in self._groups:
+            for key in _keys_in(group):
+                cfg.reset(key)
+        self._notify("All reset")
+        self.mode = "groups"
+
+    # ---- drawing
+
+    def _touch_render(self, renderer):
+        renderer.clear()
+        theme = renderer.theme
+        lst = self._list
+        if self.mode == "edit":
+            self._render_touch_editor(theme)
+            return
+        if self.mode == "confirm_all":
+            w = Lcd.screen_size()[0]
+            lst.draw_header(theme, "Reset all")
+            Lcd.setTextSize(2)
+            Lcd.setTextColor(theme["ERROR"], theme["BG"])
+            Lcd.drawString("Reset ALL", 8, 60)
+            Lcd.drawString("settings?", 8, 84)
+            Lcd.setTextSize(1)
+            Lcd.setTextColor(theme["FG"], theme["BG"])
+            Lcd.drawString("Every setting goes back", 8, 120)
+            Lcd.drawString("to its default value.", 8, 132)
+            self._panel.draw(theme)
+            return
+        count, index, top = self._list_state()
+        pos = "%d/%d" % (index + 1, count) if count > lst.visible else None
+        if self.mode == "pick":
+            lst.draw_header(theme, cfg.describe(self.key)[2], pos)
+            colour = cfg.describe(self.key)[0] == "color"
+            w = Lcd.screen_size()[0]
+            for row in range(min(lst.visible, count - top)):
+                text, value = self.options[top + row]
+                lst.draw_row(theme, row, text, top + row == index)
+                if colour:
+                    Lcd.fillRect(w - 44, lst.y_of(row) + lst.row_h // 2 - 8, 36, 16, named_color(value))
+        elif self.mode == "items":
+            title = self._title if (self._restricted and len(self._groups) == 1) else self._groups[self.g]
+            if title == "Buzzer":
+                from hw.buzzer import buzzer
+                title = "Buzzer: " + buzzer.status()
+            elif title == "LED":
+                from hw.led import led
+                title = "LED: " + led.status()
+            lst.draw_header(theme, title, pos)
+            keys = self._keys()
+            for row in range(min(lst.visible, count - top)):
+                key = keys[top + row]
+                value = self._touch_value(key) + ("" if cfg.is_default(key) else "*")
+                lst.draw_row(theme, row, cfg.describe(key)[2], top + row == index, sub=value)
+        else:
+            lst.draw_header(theme, self._title, pos)
+            names = self._groups if self._restricted else self._groups + ["Reset all"]
+            for row in range(min(lst.visible, count - top)):
+                lst.draw_row(theme, row, names[top + row], top + row == index)
+        if self._notice is not None:
+            if time.ticks_diff(time.ticks_ms(), self._notice_until) < 0:
+                lst.notice(theme, self._notice)
+            else:
+                self._notice = None
+
+    def _render_touch_editor(self, theme):
+        kind, _group, label, extra = cfg.describe(self.key)
+        w = Lcd.screen_size()[0]
+        self._list.draw_header(theme, label)
+        Lcd.setTextColor(theme["FG"], theme["BG"])
+        if kind == "int":
+            text = str(self.val)
+            Lcd.setTextSize(4)
+            Lcd.drawString(text, (w - 24 * len(text)) // 2, 44)
+            hint = "%d to %d, default %s" % (extra[0], extra[1], cfg.default(self.key))
+            Lcd.setTextSize(1)
+            Lcd.setTextColor(theme["ACCENT"], theme["BG"])
+            Lcd.drawString(hint, (w - 6 * len(hint)) // 2, 84)
+            self._panel.draw(theme)
+        elif kind == "time":
+            Lcd.setTextSize(4)
+            half = (w - 24) // 2
+            for x, number in ((8, self.val // 60), (16 + half, self.val % 60)):
+                Lcd.drawString("%02d" % number, x + (half - 48) // 2, 94)
+            Lcd.drawString(":", (w - 24) // 2, 94)
+            self._panel.draw(theme)
+        else:
+            days = self._day_buttons
+            self._panel.draw(theme, lambda b: b in days and bool(self.val >> days.index(b) & 1))

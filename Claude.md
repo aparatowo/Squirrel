@@ -30,7 +30,8 @@ hw/                    # logika sprzętu niezależna od urządzenia (import: fro
   battery.py, power.py, radio.py
   buzzer.py, led.py    #   tryby, ustawienia, cisza; pin/sterownik daje płytka
 ui/                    # interfejs niezależny od urządzenia: touch.py = widżety dotykowe (przyciski, stepper, przytrzymanie),
-                       #   rozmiary w mm z [display] ppi; ekran dotykowy: full_height = True, panel = TouchPanel()
+                       #   rozmiary w mm z [display] ppi; ekran dotykowy: full_height = True, panel = TouchPanel(),
+                       #   listy = TouchList (nagłówek „<” cofa, wiersze ≥ 6 mm; menu, Personalizacja)
 tools/sim/             # symulator: aplikacja pod MicroPython unix z atrapami sprzętu; porównanie dwóch wersji
 device/                # main.py = launcher /flash/main.py (wgrywa go build_firmware.py --flash / --setup-device)
 fonts/                 # squirrel.vlw (polskie znaki)
