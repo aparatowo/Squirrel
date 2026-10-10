@@ -30,7 +30,7 @@ hw/                    # logika sprzętu niezależna od urządzenia (import: fro
   battery.py, power.py, radio.py
   buzzer.py, led.py    #   tryby, ustawienia, cisza; pin/sterownik daje płytka
 tools/sim/             # symulator: aplikacja pod MicroPython unix z atrapami sprzętu; porównanie dwóch wersji
-device/                # pliki wgrywane przez Thonny: main.py, fonts/
+device/                # main.py = launcher /flash/main.py (wgrywa go build_firmware.py --flash / --setup-device)
 fonts/                 # squirrel.vlw (polskie znaki)
 vendor/                # cardputer-adv-micropython (klonowane przez build_firmware.py)
 build_firmware.py      # buduje .bin z zamrożonym kodem aplikacji

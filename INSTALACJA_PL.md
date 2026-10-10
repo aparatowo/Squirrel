@@ -77,7 +77,7 @@ Po zakończeniu w folderze `apps/` pojawi się plik `squirrel_firmware.bin` (lub
 ### 4b. Wgraj plik
 
 ```bash
-python3 build_firmware.py --flash
+python3 build_firmware.py --flash /dev/ttyACM0
 ```
 
 > Jeśli skrypt pyta o port, wpisz:
@@ -93,30 +93,23 @@ Po zakończeniu odłącz i podłącz ponownie kabel (lub naciśnij przycisk rese
 
 ---
 
-## Krok 5 — Wgraj pozostałe pliki przez Thonny
+## Krok 5 — Przygotowanie urządzenia (automatycznie)
 
-> Firmware zawiera zamrożone moduły, ale kilka plików **musisz wgrać ręcznie** przez Thonny.
+Nic nie trzeba wgrywać ręcznie. Cała aplikacja jest **zamrożona** w firmware, a `build_firmware.py --flash PORT` po wgraniu
+sam przygotowuje urządzenie:
 
-### Pliki do wgrania (folder `apps/` w projekcie → `/flash/apps/Squirrel/` na urządzeniu):
+1. wgrywa `/flash/main.py` (z `Squirrel!/device/main.py`; 5 linii, uruchamia aplikację z firmware);
+2. zmienia nazwę UIFlow-owego `/flash/boot.py` na `/flash/boot.py.uiflow`, jeśli nie może on działać z tym firmware;
+3. ustawia opcję startu UIFlow na „uruchom `main.py`”.
 
-| Plik | Gdzie na urządzeniu |
-|---|---|
-| `main.py` | `/flash/apps/Squirrel/main.py` |
-| `nuts.py` (konfiguracja) | `/flash/apps/Squirrel/nuts.py` |
-| Folder `screens/` (cały) | `/flash/apps/Squirrel/screens/` |
-| Folder `hw/` (cały) | `/flash/apps/Squirrel/hw/` |
+Jeśli wgrywałeś bez podania portu (albo wcześniej), zrób to osobno (zamknij Thonny — trzyma port):
 
-> ℹ️ Pozostałe moduły są już **zamrożone** w firmware — nie trzeba ich wgrywać osobno.
+```bash
+python3 build_firmware.py --setup-device /dev/ttyACM0
+```
 
-### Jak wgrać przez Thonny:
-
-1. Otwórz **Thonny**.
-2. Przejdź do **Narzędzia → Opcje → Interpreter**.
-3. Wybierz **MicroPython (ESP32)** i właściwy port COM/USB.
-4. Kliknij **OK** i poczekaj, aż Thonny się połączy (na dole pojawi się `>>>`).
-5. W lewym panelu (pliki na komputerze) znajdź plik, który chcesz wgrać.
-6. Kliknij plik **prawym przyciskiem myszy → Prześlij do /** i wskaż właściwy folder.
-7. Powtórz dla każdego pliku / folderu z listy powyżej.
+> ⚠️ **Nie wgrywaj** plików `.py` aplikacji do `/flash/apps/Squirrel/` ani do `/flash/` — przesłoniłyby kod zamrożony w firmware.
+> Wyjątek: tryb DEV (patrz `Squirrel!/BUILD.md`).
 
 ---
 
@@ -131,7 +124,7 @@ Nic nie musisz robić ręcznie.
 
 ## Gotowe! 🎉
 
-Uruchom ponownie Cardputer. Squirrel! powinien się pojawić w menu UIFlow2.
+Uruchom ponownie Cardputer — Squirrel! startuje od razu (bez menu UIFlow2).
 
 ---
 
@@ -142,7 +135,7 @@ Uruchom ponownie Cardputer. Squirrel! powinien się pojawić w menu UIFlow2.
 | Ekran czarny po wgraniu | Sprawdź kabel USB-C, spróbuj innego portu w komputerze |
 | Thonny nie widzi urządzenia | Sprawdź, czy urządzenie jest włączone i nie jest w trybie flash |
 | Błąd `port not found` | Sprawdź port w Menedżerze urządzeń (Windows) lub `ls /dev/tty*` (Linux/Mac) |
-| Aplikacja nie startuje | Sprawdź, czy `main.py` i `nuts.py` są na urządzeniu w `/flash/apps/Squirrel/` |
+| Aplikacja nie startuje | Uruchom `python3 build_firmware.py --setup-device /dev/ttyACM0`; w Thonny: `import sq_info; sq_info.report()` |
 | Notatki nie zapisują się | Sprawdź, czy karta microSD jest włożona i sformatowana jako FAT32 |
 
 ---
