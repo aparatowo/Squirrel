@@ -330,6 +330,7 @@ class UIRenderer:
         Lcd.setTextColor(self.theme["BG"], self.theme["WARNING"])
         Lcd.setTextSize(self.fonts["ALERT"])
         Lcd.drawString(text, 35, 55)
+        Lcd.flush()                    # shown at once: the callers pause right after it
 
     def render_alert(self, text):
         Lcd.fillRect(20, 40, 200, 45, self.theme["BG"])
@@ -337,6 +338,7 @@ class UIRenderer:
         Lcd.setTextColor(self.theme["ERROR"], self.theme["BG"])
         Lcd.setTextSize(self.fonts["ALERT"])
         Lcd.drawString(text, 35, 55)
+        Lcd.flush()
 
     def render_delete_confirm(self, presses_left, name=None):
         """Overlay asking the user to press DEL N more times to confirm deletion.

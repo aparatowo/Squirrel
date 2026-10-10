@@ -49,7 +49,7 @@ EXPECT = {
     'hw/rtc_provider.py': ['def sync_on_boot', 'def _open_chip'],
     'hw/audio_manager.py': ['def playback_state', 'def cancel_recording', 'from appconfig import cfg', 'def beep', 'volume=None', 'backend=None'],
     'storage_manager.py': ['def delete_path', 'def unique_title', 'def file_stem', 'def _real_title', 'from charmap import ascii_name', 'def stems'],
-    'nuts.py': ['AUDIO_MIC_MAGNIFICATION', 'CONFIG_FILE', 'def named_color', 'FOCUS_DOT', 'BARS_CLOCK', 'WIFI_PROFILES_FILE', 'NOTIFY_VOLUME', 'KEYBOARD_LAYOUT', 'FONT_FILES', 'COLOR_KEY_OPT', 'LIGHTGREEN', 'TODO_KEEP_DAYS', 'MIND_DUMP_MAX_CHARS', 'POWER_SAVE', 'ROUTINES_FILE', 'TRAINING_FILE', '/flash/fonts/squirrel.vlw', 'STORAGE_BASE_DIR', 'BATTERY_LOG'],
+    'nuts.py': ['AUDIO_MIC_MAGNIFICATION', 'CONFIG_FILE', 'def named_color', 'FOCUS_DOT', 'BARS_CLOCK', 'WIFI_PROFILES_FILE', 'NOTIFY_VOLUME', 'KEYBOARD_LAYOUT', 'FONT_FILES', 'COLOR_KEY_OPT', 'LIGHTGREEN', 'TODO_KEEP_DAYS', 'MIND_DUMP_MAX_CHARS', 'POWER_SAVE', 'ROUTINES_FILE', 'TRAINING_FILE', '/fonts/squirrel.vlw', 'STORAGE_BASE_DIR', 'BATTERY_LOG'],
     'screens/menu_screen.py': ['from menu_tree import', 'def return_target', 'def _begin_delete', 'reload_config', 'test_notification', 'isinstance(arg, tuple)', 'NOTE_EDITOR', '_toggle_todo', 'modifiers_as_keys'],
     'screens/clock_screen.py': ["FOCUS_KEY = 'OPT'", 'modifiers_as_keys = True', 'shows_focus_dot', 'shows_bars'],
     'screens/mind_dump_screen.py': ['class MindDumpScreen', 'MIND_DUMP_MAX_CHARS', 'unique_title'],

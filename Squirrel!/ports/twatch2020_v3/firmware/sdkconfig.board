@@ -1,0 +1,6 @@
+# LilyGo T-Watch 2020 V3: the whole 16 MB of flash (app ~2 MB, file system ~14 MB: partitions-16MiB.csv of the port)
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-16MiB.csv"
+CONFIG_LWIP_LOCAL_HOSTNAME="squirrel-twatch"

@@ -18,7 +18,9 @@
 import os
 import charmap
 from boot_log import log
-from port_config import DISPLAY_DRIVER, DISPLAY_WIDTH as SCREEN_W, DISPLAY_HEIGHT as SCREEN_H
+import port_config as _pc
+from port_config import DISPLAY_DRIVER, DISPLAY_WIDTH as SCREEN_W
+SCREEN_H = getattr(_pc, "DISPLAY_LAYOUT_HEIGHT", _pc.DISPLAY_HEIGHT)    # the height the screens are laid out for
 
 _lcd = __import__("drivers." + DISPLAY_DRIVER, None, None, ("lcd",)).lcd
 
@@ -37,6 +39,9 @@ def _exists(path):
 class Display:
     def __init__(self, lcd):
         self._lcd = lcd
+        # A display drawn through a frame buffer (drivers/st7789_fb.py) shows what was drawn only on flush(); it says so
+        # with _needs_flush.  M5.Lcd draws straight onto the panel: flush() does nothing there.
+        self._flush = lcd.flush if getattr(lcd, "_needs_flush", False) else None
         self.font_active = False
         self.font_path = None
         self.last_error = ""
@@ -45,6 +50,11 @@ class Display:
                 setattr(self, name, getattr(lcd, name))
             except Exception:
                 pass
+
+    def flush(self):
+        """Send what was drawn since the last flush to the panel (a frame-buffer display); call after a screen is drawn."""
+        if self._flush is not None:
+            self._flush()
 
     def drawString(self, text, x, y, *rest):
         if not self.font_active:

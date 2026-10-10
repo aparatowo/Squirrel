@@ -57,7 +57,12 @@ DIST = os.path.join(HERE, "dist")
 DEFAULT_REPO = os.path.join(HERE, "vendor", "cardputer-adv-micropython")
 FIRMWARE_REPO_URL = "https://github.com/TheRealHaoLiu/cardputer-adv-micropython"
 DEFAULT_BASE_BOARD = "M5STACK_CardputerADV_Custom"
-FIRMWARE_RECIPE = "cardputer-adv-micropython"    # the only base firmware this tool can build on so far (port.toml: [port] firmware)
+FIRMWARE_RECIPE = "cardputer-adv-micropython"    # UIFlow 2 fork (M5Stack), the Cardputer (port.toml: [port] firmware)
+MP_RECIPE = "micropython-esp32"                  # plain MicroPython, ESP32 port, with the port's own board definition
+RECIPES = (FIRMWARE_RECIPE, MP_RECIPE)
+MP_REPO = os.path.join(HERE, "vendor", "micropython")
+MP_URL = "https://github.com/micropython/micropython.git"
+MP_TAG = "v1.25.0"                               # the same MicroPython as the Cardputer's firmware
 BOARD_SUFFIX = "_Squirrel"
 GENERATED_MARK = ".squirrel_generated"
 FONT_NAME = "squirrel.vlw"
@@ -248,6 +253,30 @@ def port_drivers(port):
     return names
 
 
+def driver_closure(names, app_dir=HERE):
+    """The driver modules `names` and every drivers/ module they import (a font, a shared helper), transitively."""
+    out, todo = set(), list(names)
+    while todo:
+        name = todo.pop()
+        if name in out:
+            continue
+        out.add(name)
+        path = os.path.join(app_dir, "drivers", name + ".py")
+        try:
+            with open(path, encoding="utf-8") as f:
+                tree = ast.parse(f.read(), path)
+        except (OSError, SyntaxError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "drivers":
+                todo += [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("drivers."):
+                todo.append(node.module.split(".")[1])
+            elif isinstance(node, ast.Import):
+                todo += [a.name.split(".")[1] for a in node.names if a.name.startswith("drivers.")]
+    return out
+
+
 def check_port(port, app_dir=HERE):
     """Errors in port.toml that would only show on the device."""
     name = port["port"]["name"]
@@ -316,7 +345,7 @@ def port_excludes(name, app_dir=HERE):
     registry = load_toml(os.path.join(app_dir, FEATURES_FILE))
     _on, off = resolve_features(port, registry)
     out = {m for f in off for m in registry[f].get("modules", ())}
-    used = port_drivers(port)
+    used = driver_closure(port_drivers(port), app_dir)
     folder = os.path.join(app_dir, "drivers")
     if os.path.isdir(folder):
         out |= {"drivers/" + n for n in os.listdir(folder)
@@ -649,7 +678,8 @@ def board_type(makefile_path, board):
 
 
 def find_mpy_cross(repo):
-    for rel in (("micropython", "mpy-cross", "build", "mpy-cross"), ("micropython", "mpy-cross", "mpy-cross")):
+    for rel in (("micropython", "mpy-cross", "build", "mpy-cross"), ("micropython", "mpy-cross", "mpy-cross"),
+                ("mpy-cross", "build", "mpy-cross")):            # the last one: plain MicroPython (MP_RECIPE)
         p = os.path.join(repo, *rel)
         if os.path.isfile(p) and os.access(p, os.X_OK):
             return p
@@ -670,7 +700,8 @@ def compile_check(mpy_cross, stage_dir, keep_dir=None):
             rel = os.path.relpath(src, stage_dir)
             out = os.path.join(work, rel[:-3] + ".mpy")
             os.makedirs(os.path.dirname(out), exist_ok=True)
-            res = subprocess.run([mpy_cross, "-o", out, "-s", rel, src], capture_output=True, text=True)
+            # -march: ESP32 and ESP32-S3 are both xtensawin; without it @micropython.viper / .native code does not compile
+            res = subprocess.run([mpy_cross, "-march=xtensawin", "-o", out, "-s", rel, src], capture_output=True, text=True)
             if res.returncode != 0:
                 errors.append(f"{rel}: {(res.stderr or res.stdout).strip()[:300]}")
             elif os.path.exists(out):
@@ -897,6 +928,8 @@ def classify_image(path):
         return "other"
     if len(head) >= 0x8002 and head[0] == 0xE9 and head[0x8000:0x8002] == b"\xaa\x50":
         return "complete"
+    if len(head) >= 0x7002 and head[0] == 0xE9 and head[0x7000:0x7002] == b"\xaa\x50":
+        return "complete@0x1000"                       # classic ESP32: bootloader at 0x1000, partition table at 0x8000
     return "partial" if head[:1] == b"\xe9" else "other"
 
 
@@ -929,12 +962,18 @@ def load_config(args):
     if os.path.isfile(p):
         with open(p, encoding="utf-8") as f:
             cfg = json.load(f)
-    repo = args.repo or os.environ.get("SQUIRREL_FW_REPO") or cfg.get("repo") or DEFAULT_REPO
-    update = getattr(args, "update_repo", False)
-    ensure_repo(repo, update=update)
     port = args.port or cfg.get("port") or DEFAULT_PORT
-    info = load_port(port).get("port", {})
+    whole = load_port(port)
+    info = whole.get("port", {})
+    update = getattr(args, "update_repo", False)
+    if info.get("firmware") == MP_RECIPE:
+        repo = args.repo or cfg.get("mp_repo") or MP_REPO
+        ensure_mp_repo(repo, update=update)
+    else:
+        repo = args.repo or os.environ.get("SQUIRREL_FW_REPO") or cfg.get("repo") or DEFAULT_REPO
+        ensure_repo(repo, update=update)
     return dict(recipe=info.get("firmware"), machine=info.get("machine"), repo=repo, idf=args.idf or cfg.get("idf"),
+                flash_root=whole.get("storage", {}).get("flash_root", "/flash"), lines_low=bool(info.get("reset_lines_low")),
                 base=args.base_board or cfg.get("base_board") or info.get("board") or DEFAULT_BASE_BOARD, port=port,
                 exclude=tuple(cfg.get("exclude", [])) + tuple(args.exclude or ()), prefer=args.prefer or cfg.get("prefer"))
 
@@ -1007,6 +1046,18 @@ def cmd_check(args):
         say("  " + str(e))
         problems += 1
         staged = {}
+    if c["recipe"] == MP_RECIPE:
+        repo = c["repo"]
+        say(f"micropython: {repo}  (git {git_short(repo) or '?'}, wanted {MP_TAG})")
+        for patch in port_patches(c["port"]):
+            done = subprocess.call(["git", "-C", repo, "apply", "--reverse", "--check", patch], stderr=subprocess.DEVNULL) == 0
+            say(f"  patch {os.path.basename(patch)}: " + ("applied" if done else "not applied yet (a build applies it)"))
+        say("mpy-cross  : " + (find_mpy_cross(repo) or "not built yet (a build or --setup builds it)"))
+        found = [(p, idf_version(p)) for p in idf_candidates(repo, c["idf"])]
+        good = [p for p, v in found if idf_ok(v)]
+        say("ESP-IDF    : " + (good[0] if good else "no 5.4.x found - python3 build_firmware.py --install-idf"))
+        say("\n" + ("everything needed is in place" if good and not problems else "see above"))
+        return 0 if good and not problems else 1
     try:
         repo = locate_repo(c["repo"])
         say(f"firmware   : {repo}  (git {git_short(repo) or '?'})")
@@ -1051,6 +1102,11 @@ def cmd_check(args):
 
 def cmd_setup(args):
     c = load_config(args)
+    if c["recipe"] == MP_RECIPE:
+        idf, version = choose_idf(c["repo"], c["idf"], allow_any=False)
+        prepare_mp_repo(c["repo"], c["port"], idf)
+        say("setup done")
+        return 0
     repo = locate_repo(c["repo"])
     idf, version = choose_idf(repo, c["idf"], allow_any=False)
     if not shutil.which("quilt"):
@@ -1122,7 +1178,7 @@ def cmd_stage_only(args):
     files = stage(staged, stage_dir, build_id, HERE)
     say(f"staged {len(files)} modules + sq_info.py in {stage_dir}")
     try:
-        mc = find_mpy_cross(locate_repo(c["repo"]))
+        mc = find_mpy_cross(c["repo"] if c["recipe"] == MP_RECIPE else locate_repo(c["repo"]))
     except BuildError:
         mc = shutil.which("mpy-cross")
     if not mc:
@@ -1233,9 +1289,8 @@ def font_into_image(repo):
 
 
 def require_recipe(c):
-    if c["recipe"] != FIRMWARE_RECIPE:
-        raise BuildError(f"port {c['port']} is built on the firmware {c['recipe']!r}; this tool can build only on {FIRMWARE_RECIPE!r} so far.\n"
-                         f"  --gen-port-config and --stage-only work for every port.")
+    if c["recipe"] not in RECIPES:
+        raise BuildError(f"port {c['port']} is built on the firmware {c['recipe']!r}; this tool knows {', '.join(RECIPES)}.")
 
 
 def cmd_gen_port_config(args):
@@ -1266,6 +1321,8 @@ def port_config_stale(port=DEFAULT_PORT):
 def cmd_build(args):
     c = load_config(args)
     require_recipe(c)
+    if c["recipe"] == MP_RECIPE:
+        return cmd_build_mp(c, args)
     repo = locate_repo(c["repo"])
     new_board = c["base"] + BOARD_SUFFIX
     staged = prepare_sources(HERE, exclude=c["exclude"], prefer=c["prefer"], port=c["port"])
@@ -1356,7 +1413,7 @@ def cmd_build(args):
         say("This is NOT a complete image (no partition table at 0x8000): do not write it at 0x0.\n"
             "Flash through the firmware's own target:  cd m5stack && make BOARD=" + new_board + " flash")
     if args.flash:
-        return flash(target, best[2], args.flash, idf, prepare=not args.no_device_setup, machine=c["machine"])
+        return flash(target, best[2], args.flash, idf, prepare=not args.no_device_setup, machine=c["machine"], c=c)
     return 0
 
 
@@ -1377,6 +1434,118 @@ def wait_for_port(port, seconds=15):
             return True
         time.sleep(0.5)
     return os.path.exists(port)
+
+
+# ----------------------------------------------------------------------------------------------- plain MicroPython (MP_RECIPE)
+
+def ensure_mp_repo(repo, update=False):
+    """Clone MicroPython MP_TAG into `repo` the first time (shallow, ~60 MB)."""
+    if os.path.isdir(os.path.join(repo, "ports", "esp32")):
+        return
+    os.makedirs(os.path.dirname(repo), exist_ok=True)
+    say(f"cloning MicroPython {MP_TAG} into {repo} (first time only) ...")
+    if subprocess.call(["git", "clone", "--depth", "1", "--branch", MP_TAG, MP_URL, repo]) != 0:
+        raise BuildError(f"git clone of {MP_URL} ({MP_TAG}) failed - check the network, or give the folder with --repo")
+
+
+def port_patches(port):
+    folder = os.path.join(HERE, PORTS_DIR, port, load_port(port)["port"].get("board", "firmware"), "patches")
+    return sorted(glob.glob(os.path.join(folder, "*.patch")))
+
+
+def prepare_mp_repo(repo, port, idf):
+    """Once per clone, each step only when needed: the ESP32 port's submodules, the port's patches (git apply),
+    mpy-cross."""
+    esp32 = os.path.join(repo, "ports", "esp32")
+    if not os.listdir(os.path.join(repo, "lib", "berkeley-db-1.xx")):
+        say("== make submodules (ESP32 port)")
+        if bash(idf_prefix(idf) + "make submodules", cwd=esp32) != 0:
+            raise BuildError("`make submodules` in ports/esp32 failed (network?)")
+    for patch in port_patches(port):
+        name = os.path.basename(patch)
+        if subprocess.call(["git", "-C", repo, "apply", "--reverse", "--check", patch], stderr=subprocess.DEVNULL) == 0:
+            continue                                      # applied already
+        if subprocess.call(["git", "-C", repo, "apply", "--check", patch]) != 0:
+            raise BuildError(f"the patch {name} does not apply to {repo} - is it MicroPython {MP_TAG}?")
+        subprocess.check_call(["git", "-C", repo, "apply", patch])
+        say(f"  patch applied: {name}")
+    if not find_mpy_cross(repo):
+        say("== make mpy-cross")
+        if subprocess.call(["make", "-C", os.path.join(repo, "mpy-cross"), "-j8"]) != 0:
+            raise BuildError("building mpy-cross failed (needs gcc and make)")
+
+
+def cmd_build_mp(c, args):
+    """Build the firmware of a MP_RECIPE port: the port's board definition (ports/<port>/<board>/) with the staged
+    sources frozen into it, `make BOARD_DIR=...` in MicroPython's ESP32 port; the image (bootloader + partition table +
+    app) is flashed at 0x1000."""
+    repo, port = c["repo"], c["port"]
+    idf, version = choose_idf(repo, c["idf"], allow_any=args.allow_any_idf)
+    say(f"ESP-IDF {version or '?'} at {idf}")
+    prepare_mp_repo(repo, port, idf)
+    staged = prepare_sources(HERE, exclude=c["exclude"], prefer=c["prefer"], port=port)
+    build_id = time.strftime("%Y%m%d-%H%M")
+    stage_dir = os.path.join(STATE, "stage")
+    files = stage(staged, stage_dir, build_id, HERE)
+    mc = find_mpy_cross(repo)
+    errors, total = compile_check(mc, stage_dir)
+    for e in errors:
+        say("  ERROR: " + e)
+    if errors:
+        raise BuildError("fix the files above first: they do not compile with MicroPython's mpy-cross")
+    say(f"mpy-cross: all {len(files)} modules compile ({total} bytes of bytecode)")
+
+    src = os.path.join(HERE, PORTS_DIR, port, c["base"])
+    board = os.path.join(STATE, "board-" + port)                 # MicroPython names the build after this folder
+    if os.path.isdir(board):
+        shutil.rmtree(board)
+    shutil.copytree(src, board, ignore=shutil.ignore_patterns("patches"))
+    shutil.copytree(stage_dir, os.path.join(board, "squirrel"))
+    say(f"board definition {os.path.relpath(src, HERE)} + the sources -> {board}")
+
+    esp32 = os.path.join(repo, "ports", "esp32")
+    log_path = os.path.join(STATE, "make.log")
+    started = time.time()
+    say(f"== make BOARD_DIR={board}   (the first build compiles all of ESP-IDF: several minutes)")
+    # BUILD must not be given on the command line: it reaches MicroPython's inner make and breaks the build
+    code = bash(idf_prefix(idf) + f'set -o pipefail; make BOARD_DIR="{board}" -j8 2>&1 | tee "{log_path}"', cwd=esp32)
+    if code != 0:
+        hints = diagnose(read_log(log_path))
+        raise BuildError(f"the build failed (exit {code}); the whole output is in {log_path}"
+                         + (("\n- " + "\n- ".join(hints)) if hints else ""))
+    image = os.path.join(esp32, "build-" + os.path.basename(board), "firmware.bin")
+    if not os.path.isfile(image) or os.path.getmtime(image) < started:
+        raise BuildError(f"the build finished but {image} is missing or old")
+    kind = classify_image(image)
+    os.makedirs(DIST, exist_ok=True)
+    name = f"squirrel-{port}-{git_short(repo) or MP_TAG}-{build_id}.bin"
+    target = os.path.join(DIST, name)
+    shutil.copyfile(image, target)
+    with open(target[:-4] + ".txt", "w", encoding="utf-8") as f:
+        f.write(f"build {build_id}\nport {port}\nmicropython {MP_TAG} ({git_short(repo)})\nesp-idf {version}\nimage kind {kind}\n"
+                + "".join(f"{p}  {s}  {cc:08x}\n" for p, s, cc in files))
+    say(f"\n==> {target}  ({os.path.getsize(target)} bytes, {kind} image)")
+    if args.flash:
+        return flash(target, kind, args.flash, idf, prepare=not args.no_device_setup, machine=c["machine"], c=c)
+    say("flash:  esptool.py --chip esp32 -b 921600 write_flash -z 0x1000 " + name + "   (or: build_firmware.py --port " + port + " --flash PORT)")
+    return 0
+
+
+def flash_esp32(image, port, idf, prepare, c):
+    """Flash a classic-ESP32 image at 0x1000 (a board with a USB-serial chip: esptool resets it into the bootloader
+    through DTR / RTS) and prepare the device."""
+    if not port:
+        raise BuildError("name the port: --flash PORT")
+    say(f"== flashing {image} to {port} (at 0x1000; the file system is not touched)")
+    code = bash(idf_prefix(idf) + f'python -m esptool --chip esp32 -p "{port}" -b 921600 write_flash -z 0x1000 "{image}"')
+    if code != 0:
+        raise BuildError("flashing failed. Close Thonny (it holds the port); if the port is refused: sudo usermod -aG dialout $USER")
+    if not prepare:
+        say(f"flashed. --no-device-setup: later  python3 build_firmware.py --port {c['port'] if c else '...'} --setup-device {port}")
+        return 0
+    say("flashed. Waiting for the device to start ...")
+    time.sleep(4)
+    return setup_device(port, c["machine"], **device_options(c))
 
 
 # ----------------------------------------------------------------------------------------------- preparing the device
@@ -1404,7 +1573,7 @@ if WANT not in _m:
 else:
     print("MACHINE|" + _m)
     try:
-        with open("/flash/main.py", "rb") as f:
+        with open(ROOT + "/main.py", "rb") as f:
             _old = f.read()
     except OSError:
         _old = None
@@ -1412,12 +1581,14 @@ else:
         print("MAIN|ok")
     else:
         if _old is not None:
-            with open("/flash/main.py.old", "wb") as f:
+            with open(ROOT + "/main.py.old", "wb") as f:
                 f.write(_old)
-        with open("/flash/main.py", "wb") as f:
+        with open(ROOT + "/main.py", "wb") as f:
             f.write(LAUNCHER)
         print("MAIN|" + ("replaced" if _old is not None else "written"))
-    if _ex("/flash/boot.py"):
+    if not UIFLOW:
+        pass
+    elif _ex("/flash/boot.py"):
         with open("/flash/boot.py") as f:
             _uses = "startup" in f.read()
         _has = False
@@ -1437,6 +1608,8 @@ else:
     else:
         print("BOOT|none")
     try:
+        if not UIFLOW:
+            raise StopIteration
         import esp32
         _n = esp32.NVS("uiflow")
         try:
@@ -1449,6 +1622,8 @@ else:
             print("OPTION|set|%s" % _v)
         else:
             print("OPTION|ok")
+    except StopIteration:
+        pass
     except Exception as e:
         print("OPTION|error|%s" % e)
 """
@@ -1608,17 +1783,25 @@ _STEP_TEXT = {
 }
 
 
-def setup_device(port, machine):
-    """Prepare the device on `port` for Squirrel! (see _DEVICE_SETUP) and restart it.  Returns 0."""
+def device_options(c):
+    """setup_device()'s keyword arguments for the port of config `c`."""
+    return dict(flash_root=c["flash_root"], uiflow=c["recipe"] == FIRMWARE_RECIPE, lines_low=c["lines_low"])
+
+
+def setup_device(port, machine, flash_root="/flash", uiflow=True, lines_low=False):
+    """Prepare the device on `port` for Squirrel! (see _DEVICE_SETUP) and restart it.  Returns 0.
+
+    flash_root: where the device mounts its internal flash ("/flash" on UIFlow, "" on plain MicroPython);
+    uiflow: also the two UIFlow steps (boot.py, boot option); lines_low: see RawRepl."""
     with open(os.path.join(HERE, DEVICE_MAIN), "rb") as f:
         launcher = f.read()
     if not machine:
         raise BuildError("the port's port.toml has no [port] machine - without it the device cannot be recognised, so it is not touched")
     say(f"== preparing the device on {port} for Squirrel!")
-    repl = RawRepl(port)
+    repl = RawRepl(port, lines_low=lines_low)
     try:
         repl.enter()
-        printed = repl.run(f"WANT = {machine!r}\nLAUNCHER = {launcher!r}\n" + _DEVICE_SETUP)
+        printed = repl.run(f"WANT = {machine!r}\nLAUNCHER = {launcher!r}\nROOT = {flash_root!r}\nUIFLOW = {uiflow!r}\n" + _DEVICE_SETUP)
         lines = [l.strip().split("|") for l in printed.splitlines() if "|" in l]
         if lines and lines[0][0] == "WRONG":
             repl.write(b"\x02")
@@ -1629,7 +1812,7 @@ def setup_device(port, machine):
             if key == "MACHINE":
                 say(f"  device: {what}")
             elif key in _STEP_TEXT:
-                say("  " + _STEP_TEXT[key][what])
+                say("  " + _STEP_TEXT[key][what].replace("/flash/", (flash_root or "") + "/"))
                 changed |= what not in ("ok", "none")
             elif key == "OPTION":
                 if what == "set":
@@ -1652,10 +1835,15 @@ def cmd_setup_device(args):
     if not os.path.exists(port):
         raise BuildError(f"{port} does not exist (ls /dev/ttyACM*)")
     name = args.port or DEFAULT_PORT
-    return setup_device(port, load_port(name).get("port", {}).get("machine"))
+    whole = load_port(name)
+    info = whole.get("port", {})
+    return setup_device(port, info.get("machine"), flash_root=whole.get("storage", {}).get("flash_root", "/flash"),
+                        uiflow=info.get("firmware") == FIRMWARE_RECIPE, lines_low=bool(info.get("reset_lines_low")))
 
 
-def flash(image, kind, port, idf, prepare=True, machine=None):
+def flash(image, kind, port, idf, prepare=True, machine=None, c=None):
+    if kind == "complete@0x1000":
+        return flash_esp32(image, port, idf, prepare, c)
     if kind != "complete":
         raise BuildError("refusing to flash: this is not a complete image (see above)")
     say(FLASH_WARNING)
@@ -1686,7 +1874,7 @@ def flash(image, kind, port, idf, prepare=True, machine=None):
     if not wait_for_port(port, 20):
         raise BuildError(f"{port} did not come back after flashing - run  python3 build_firmware.py --setup-device PORT  once it is there")
     time.sleep(3)                                      # the firmware's own start-up, before the REPL answers
-    return setup_device(port, machine)
+    return setup_device(port, machine, **(device_options(c) if c else {}))
 
 
 def cmd_flash_image(args):
@@ -1699,9 +1887,9 @@ def cmd_flash_image(args):
     path = os.path.abspath(path)
     kind = classify_image(path)
     say(f"image {path}: {os.path.getsize(path)} bytes, {kind}")
-    repo = locate_repo(c["repo"])
+    repo = c["repo"] if c["recipe"] == MP_RECIPE else locate_repo(c["repo"])
     idf, _version = choose_idf(repo, c["idf"], allow_any=True)
-    return flash(path, kind, args.flash, idf, prepare=not args.no_device_setup, machine=c["machine"])
+    return flash(path, kind, args.flash, idf, prepare=not args.no_device_setup, machine=c["machine"], c=c)
 
 
 def main(argv=None):

@@ -1,6 +1,7 @@
 # squirrel_boot.py - starts Squirrel!  (the one place that knows about paths and about how the app is launched)
 #
-# /flash/main.py only does `import squirrel_boot; squirrel_boot.run()`.
+# /flash/main.py only does `import squirrel_boot; squirrel_boot.run()`.  (Paths here are the Cardputer's: on a port
+# with plain MicroPython the flash is the root, so /flash/DEV is /DEV - port_config.STORAGE_FLASH_ROOT.)
 #   * In a FROZEN build this module is part of the firmware, together with the whole app: nothing but main.py
 #     (and the optional font) has to be on the flash.
 #   * In a plain-files setup it is found in /flash/apps/Squirrel (main.py adds that folder to sys.path).
@@ -14,9 +15,10 @@
 # (sq_info.report() lists such files).
 
 import sys
+from port_config import STORAGE_FLASH_ROOT as _FLASH      # "/flash" on UIFlow, "" (the root) on plain MicroPython
 
-DEV_MARKER = "/flash/DEV"
-DEV_PATH = "/flash/apps/Squirrel"
+DEV_MARKER = _FLASH + "/DEV"
+DEV_PATH = _FLASH + "/apps/Squirrel"
 
 
 def dev_mode():

@@ -3,11 +3,15 @@ from uos import *
 import uos as _o
 import sim_state as _s
 
-_ROOTS = ("/sd", "/flash", "/system")
+_ROOTS = ("/sd", "/flash", "/system",
+          "/Squirrel", "/apps", "/fonts")                  # plain MicroPython (the watch): the flash is the root
+_FILES = ("/boot_log.txt", "/DEV", "/main.py", "/boot.py")
 
 
 def _p(p):
     if isinstance(p, str):
+        if p in _FILES:
+            return _s.root + p
         for r in _ROOTS:
             if p == r or p.startswith(r + "/"):
                 return _s.root + p

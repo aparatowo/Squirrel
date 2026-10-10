@@ -7,6 +7,16 @@ A 10-pixel bitmap rendering of **DejaVu Sans Mono** (Bitstream Vera glyphs, Deja
 its notice to travel with every copy of the font: `fonts/LICENSE-DejaVu.txt`. Keep that file next to `squirrel.vlw` wherever the font goes
 (a release archive, a copy on the SD card, a firmware image's file system). The font may not be sold by itself.
 
+## Font data: `Squirrel!/drivers/glcdfont.py` (the T-Watch port)
+The 'classic' 5x7 font of the **Adafruit GFX Library** (`glcdfont.c`, https://github.com/adafruit/Adafruit-GFX-Library),
+Copyright (c) 2012 Adafruit Industries, under the BSD licence. The licence text is kept at the top of `glcdfont.py`; it must stay
+there in every copy (source or a firmware image built from it).
+
+## MicroPython for the T-Watch port (not included in this repository)
+`build_firmware.py` clones MicroPython (MIT) into `vendor/micropython` and applies `ports/twatch2020_v3/firmware/patches/` to it;
+the board definition in `ports/twatch2020_v3/firmware/` is Squirrel!'s own. The firmware built from them contains MicroPython,
+ESP-IDF (Apache-2.0) and their components under their own licences — the same caution as below applies to a published image.
+
 ## Tools that make the font (not distributed with the app)
 `tools/make_vlw.py` uses Pillow (HPND licence) and, if present, fontTools (MIT). They are installed by the user and not included in this repository.
 

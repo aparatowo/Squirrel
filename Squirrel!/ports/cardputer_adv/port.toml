@@ -51,6 +51,7 @@ mosi  = 14
 cs    = 12
 freq  = 1_000_000
 base_dir = "/sd/Squirrel"
+flash_root = "/flash"                       # where the internal flash's file system is mounted (UIFlow: /flash)
 
 [clock]                                     # an optional DS1302 on the EXT header; read once at start-up
 driver = "ds1302"

@@ -309,6 +309,7 @@ class SquirrelApp:
         self._bars_at = now
         if self.overlay is None and not self.dimmer.dimmed:
             self.renderer.refresh_bars()
+            Lcd.flush()
 
     def _return_target(self, screen):
         """(screen name, kwargs) that brings the user back to `screen` afterwards."""
@@ -324,6 +325,9 @@ class SquirrelApp:
         """A button of the device pressed (its role: see the port's make_buttons())."""
         if role == "quick":
             self._on_quick_button()
+        elif role == "back":                   # a device without ESC key (the watch's side button): the same as ESC
+            self.active_screen.handle_input("ESC")
+            self._render_active()
 
     def _on_quick_button(self):
         """The quick button (G0 on the Cardputer) pressed.  The recorder screen toggles start/stop itself; from the
@@ -354,6 +358,7 @@ class SquirrelApp:
         self.renderer.forget_bars()
         if self.overlay is not None:
             self.overlay.render(self.renderer)
+            Lcd.flush()
             return
         self.active_screen.render(self.renderer)
         # The focus dot is optional (Personalize) and never on the main screen
@@ -361,6 +366,7 @@ class SquirrelApp:
             self.renderer.draw_focus_indicator(self.focus.indicator())
         if getattr(self.active_screen, "shows_bars", False):
             self.renderer.draw_bars_clock()
+        Lcd.flush()                    # a frame-buffer display (the watch) shows it now; M5.Lcd: nothing to do
 
     def run(self):
         """Main application event loop.

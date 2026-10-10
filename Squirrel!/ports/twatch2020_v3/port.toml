@@ -1,0 +1,88 @@
+# port.toml - the LilyGo T-Watch 2020 V3: its hardware, wiring and features (read on the PC by build_firmware.py,
+# which writes port_config.py from it; see ports/cardputer_adv/port.toml for the conventions).
+# Every value below was confirmed on the watch on 2026-10-10 (tools/hwtest/README_PL.md, "Wyniki").
+
+[port]
+name     = "twatch2020_v3"
+title    = "LilyGo T-Watch 2020 V3"
+mcu      = "esp32"                          # ESP32-D0WDQ6-V3, 16 MB flash, 8 MB PSRAM
+firmware = "micropython-esp32"              # plain MicroPython v1.25.0 (vendor/micropython), no UIFlow / module M5
+board    = "firmware"                       # the board definition: ports/twatch2020_v3/firmware/ (BOARD_DIR)
+idf      = "v5.4.2"
+machine  = "T-Watch 2020 V3"                # part of sys.implementation._machine (mpconfigboard.h)
+reset_lines_low = true                      # USB-serial chip (CH9102) with an auto-reset circuit: drop DTR / RTS
+
+[display]
+driver = "st7789_fb"                        # framebuf + viper, only the changed rectangle is sent
+width  = 240
+height = 240
+layout_height = 135                         # the screens are still laid out for the Cardputer's 240 x 135: shown centred
+madctl = 0xC0                               # rotated 180 degrees ...
+row_offset = 80                             # ... the panel's RAM has 320 rows
+spi_id   = 2
+sck      = 18
+mosi     = 19                               # routed through the GPIO matrix: 26.67 MHz at most (40 MHz panics)
+cs       = 5
+dc       = 27
+baud     = 26_666_666
+backlight = 15                              # PWM
+fonts  = "bitmap"
+
+[i2c.sys]                                   # AXP202, BMA423, PCF8563
+id   = 0
+sda  = 21
+scl  = 22
+freq = 400_000
+
+[i2c.touch]
+id   = 1
+sda  = 23
+scl  = 32
+freq = 400_000
+
+[power]
+driver = "axp202"                           # battery level / voltage / charging, the side button, the supplies
+bus    = "sys"
+irq    = 35                                 # pending IRQs hold it low: cleared at start-up
+
+[input]
+driver   = "ft6336_touch"                   # taps and swipes -> UP / DOWN / ENTER / ESC (ports/twatch2020_v3/gestures.py)
+keyboard = false
+bus      = "touch"
+addr     = 0x38
+int      = 38
+rst      = 14                               # pulsed low before use
+
+[buttons.back]                              # the side button (AXP202 power key): short press = back / wake
+driver = "axp_pek"
+
+[storage]
+driver    = "flash_storage"
+removable = false
+base_dir  = "/Squirrel"                     # on the internal flash (~14 MB file system)
+flash_root = ""                             # plain MicroPython mounts the flash at the root
+
+[clock]
+driver = "pcf8563"                          # kept running by the battery; its VL flag must be cleared when the time is set
+bus    = "sys"
+int    = 37
+
+[signal.buzzer]                             # the vibration motor, driven like the Cardputer's buzzer (on / off patterns)
+driver   = "pin_pulser"
+pin      = 4
+pwm_freq = 0
+
+[motion]                                    # BMA423: not used yet - switched off at start-up
+driver = "bma423"
+bus    = "sys"
+addrs  = [0x19, 0x18]
+
+[radio]
+wifi = true
+
+[power_mgmt]
+wake_pins   = [35, 38]                      # the side button (AXP INT), touch INT - both active low
+slow_cpu_hz = 80_000_000
+
+[features]
+wifi_ntp = false                            # the PCF8563 keeps the time: no Wi-Fi needed

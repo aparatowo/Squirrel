@@ -150,7 +150,8 @@ FONT_ENABLED = False            # draw with the .vlw font (Polish letters).  Swi
 # The font is read by the firmware as a FILE, so it cannot be frozen like a module.  build_firmware.py puts it into the
 # image's system file system instead (/system/common/font/, written by every flash, so it is always the font of the
 # build).  The other places are only a fallback for a firmware without it (a font uploaded by hand).  The first found wins.
-FONT_FILES = ("/system/common/font/squirrel.vlw", "/flash/fonts/squirrel.vlw", "/flash/apps/Squirrel/fonts/squirrel.vlw",
+from port_config import STORAGE_FLASH_ROOT as _FLASH       # /flash on the Cardputer
+FONT_FILES = ("/system/common/font/squirrel.vlw", _FLASH + "/fonts/squirrel.vlw", _FLASH + "/apps/Squirrel/fonts/squirrel.vlw",
               "/sd/Squirrel/fonts/squirrel.vlw")
 
 # ---- Notes and To-Do ----
