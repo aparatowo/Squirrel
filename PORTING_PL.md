@@ -256,7 +256,9 @@ motion_gestures = false                     # eksperymentalne, domyślnie wyłą
 
 ### 3.4 Przykład: `ports/twatch2020_v3/port.toml`
 
-Piny według dokumentacji LilyGo dla V3 — **do weryfikacji ze schematem przed pierwszym uruchomieniem**.
+Piny i zasilanie **potwierdzone testami na zegarku 2026-10-10** (`Squirrel!/tools/hwtest/README_PL.md`, sekcja „Wyniki”).
+Poprawki względem pierwszej wersji tej propozycji: audio zasila **LDO4 = 3,3 V** (nie LDO3), dotyk ma reset na GPIO14,
+SPI ekranu najwyżej 26,67 MHz, obraz obrócony o 180° (MADCTL 0xC0, przesunięcie 80 wierszy).
 
 ```toml
 [port]
@@ -285,14 +287,15 @@ freq = 400_000
 driver = "axp202"
 bus = "sys"
 irq = 35
-rails = { display = "ldo2", audio = "ldo3" }   # ekran nie zadziała, dopóki LDO2 nie zostanie włączone
+rails = { display = "ldo2", audio = "ldo4" }   # LDO2: ekran; LDO4 = 3,3 V: wzmacniacz (LDO3 nieużywane w V3)
 
 [display]
 driver = "st7789_display"
 width  = 240
 height = 240
-rotation = 2
-spi = { id = 2, sck = 18, mosi = 19, cs = 5, dc = 27, baud = 40_000_000 }
+madctl = 0xC0                               # obrót 180 stopni ...
+row_offset = 80                             # ... pamięć panelu ma 320 wierszy
+spi = { id = 2, sck = 18, mosi = 19, cs = 5, dc = 27, baud = 26_666_666 }   # więcej nie przez macierz GPIO
 backlight = { pin = 15, pwm = true }
 fonts = "bitmap"                            # czcionki skonwertowane z TTF, z polskimi znakami
 
@@ -301,6 +304,7 @@ driver = "ft6336_touch"
 bus = "touch"
 addr = 0x38
 int = 38
+rst = 14                                    # impuls resetu przed użyciem
 gestures = "gestures"                       # ports/twatch2020_v3/gestures.py
 
 [buttons]
@@ -323,6 +327,7 @@ bck = 26
 ws = 25
 dout = 33
 rail = "audio"
+stereo = true                               # MAX98357A gra jeden kanał / mieszankę
 
 [audio_in]
 driver = "pdm_mic"                          # wymaga obsługi PDM (patrz §6) - na razie wyłączone
@@ -526,8 +531,9 @@ gesty są opcjonalną funkcją `motion_gestures`, włączaną w `port.toml`.
 
 1. **Mikrofon PDM na T-Watch V3.** `machine.I2S` w upstream MicroPython obsługuje tylko
    standardowy tryb I2S, nie PDM. Nagrywanie wymaga modułu C albo łatki na firmware — stąd
-   „później”. Do tego nagrania na wewnętrznym flashu: 16 kHz / 16 bit to ~32 KB/s, czyli
-   ~2 minuty na 4 MB. Realnie: krótkie notatki (≤ 30 s, 8 kHz), jeśli w ogóle.
+   „później”. Miejsce na flashu (16 MB, ~13 MiB na system plików po firmware ~2,5 MiB): WAV 16 bit mono
+   16 kHz (32 KB/s) to **~7 min** łącznie, 8 kHz (jak Cardputer) ~14 min; z kompresją IMA ADPCM 4:1 ~28 / ~56 min
+   (koder w C albo `viper` — czysty Python za wolny).
 2. **Pliki konfiguracyjne akcelerometrów.** BMA423 i BMI270 wymagają wgrania do układu
    kilkukilobajtowego bloba, zanim zadziałają funkcje typu licznik kroków / wykrywanie ruchu.
    Sterowniki MicroPython istnieją (porty z bibliotek LilyGo i Boscha); trzeba sprawdzić

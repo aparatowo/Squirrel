@@ -1457,7 +1457,9 @@ else:
 class RawRepl:
     """MicroPython's raw REPL over a serial port, with the standard library only (termios: Linux / macOS)."""
 
-    def __init__(self, port):
+    def __init__(self, port, lines_low=False):
+        """lines_low: drop DTR and RTS after opening - a board with the classic auto-reset circuit on a USB-serial chip
+        (the T-Watch: CH9102) is otherwise held in reset.  Not for native USB (the Cardputer's S3), where it is not needed."""
         import termios
         import tty
         self.fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
@@ -1466,6 +1468,10 @@ class RawRepl:
         attrs = termios.tcgetattr(self.fd)
         attrs[4] = attrs[5] = termios.B115200
         termios.tcsetattr(self.fd, termios.TCSANOW, attrs)
+        if lines_low:
+            import fcntl
+            import struct
+            fcntl.ioctl(self.fd, termios.TIOCMBIC, struct.pack("I", termios.TIOCM_DTR | termios.TIOCM_RTS))
 
     def close(self):
         try:
@@ -1474,9 +1480,66 @@ class RawRepl:
             pass
 
     def write(self, data):
-        for i in range(0, len(data), 256):          # small pieces: the device's USB buffer is not large
-            os.write(self.fd, data[i:i + 256])
-            time.sleep(0.01)
+        """Write everything, waiting while the port's buffer is full (a UART at 115200 is slower than we write)."""
+        import select
+        view = memoryview(data)
+        while view:
+            try:
+                n = os.write(self.fd, view[:256])
+                view = view[n:]
+            except BlockingIOError:
+                select.select([], [self.fd], [], 1)
+
+    def _read_n(self, n, seconds=5):
+        import select
+        end = time.time() + seconds
+        while len(self._buf) < n:
+            if time.time() >= end:
+                raise BuildError(f"the device stopped answering (raw-paste, got {self._buf!r})")
+            if select.select([self.fd], [], [], 0.1)[0]:
+                try:
+                    self._buf += os.read(self.fd, 4096)
+                except OSError:
+                    pass
+        out, self._buf = self._buf[:n], self._buf[n:]
+        return out
+
+    def submit(self, code):
+        """Send `code` to the raw REPL for execution; afterwards its output, Ctrl-D, its error text, Ctrl-D follow.
+
+        Uses MicroPython's raw-paste mode (the device paces us: no byte is lost on a slow UART, the way mpremote does it);
+        a firmware without it gets the code in one piece and answers "OK" first."""
+        data = code.encode()
+        self.write(b"\x05A\x01")
+        try:
+            answer = self._read_n(2)
+        except BuildError:
+            answer = b""
+        if answer != b"R\x01":                     # no raw-paste mode: start the raw REPL afresh, send in one piece
+            self.enter()
+            self.write(data + b"\x04")
+            self.read_until(b"OK", 10)
+            return
+        window = self._read_n(2)
+        window = window[0] | window[1] << 8
+        left, i = window, 0
+        import select
+        while i < len(data):
+            while left == 0 or select.select([self.fd], [], [], 0)[0]:
+                c = self._read_n(1, 10)
+                if c == b"\x01":
+                    left += window
+                elif c == b"\x04":                  # the device ended the paste early (an error while receiving)
+                    self.write(b"\x04")
+                    return
+                else:
+                    raise BuildError(f"unexpected {c!r} from the device during raw-paste")
+            chunk = data[i:i + left]
+            self.write(chunk)
+            left -= len(chunk)
+            i += len(chunk)
+        self.write(b"\x04")
+        self.read_until(b"\x04", 10)               # the device's "end of data" acknowledgement
 
     def _drain(self):
         """Forget what the device printed so far (the app's output, the Ctrl-C traceback)."""
@@ -1522,8 +1585,7 @@ class RawRepl:
 
     def run(self, code):
         """Execute `code`; returns what it printed.  Raises with the device's traceback if it failed."""
-        self.write(code.encode() + b"\x04")
-        self.read_until(b"OK", 5)
+        self.submit(code)
         out = self.read_until(b"\x04", 20)
         err = self.read_until(b"\x04", 5)
         printed, failed = out[:-1].decode(errors="replace"), err[:-1].decode(errors="replace").strip()
