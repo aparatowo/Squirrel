@@ -21,6 +21,7 @@ from boot_log import log
 import port_config as _pc
 from port_config import DISPLAY_DRIVER, DISPLAY_WIDTH as SCREEN_W
 SCREEN_H = getattr(_pc, "DISPLAY_LAYOUT_HEIGHT", _pc.DISPLAY_HEIGHT)    # the height the screens are laid out for
+PANEL_H = _pc.DISPLAY_HEIGHT                                            # the whole panel (a full-height screen gets it)
 
 _lcd = __import__("drivers." + DISPLAY_DRIVER, None, None, ("lcd",)).lcd
 
@@ -55,6 +56,18 @@ class Display:
         """Send what was drawn since the last flush to the panel (a frame-buffer display); call after a screen is drawn."""
         if self._flush is not None:
             self._flush()
+
+    def full_height(self, on):
+        """A screen made for the whole panel (full_height = True, e.g. touch screens) gets all of it; the others the
+        layout area (SCREEN_H, centred).  Only a display that can (drivers/st7789_fb.py); elsewhere nothing changes."""
+        if getattr(self._lcd, "_can_layout", False):
+            self._lcd.set_layout(PANEL_H if on else SCREEN_H)
+
+    def screen_size(self):
+        """(width, height) the current screen draws in."""
+        if getattr(self._lcd, "_can_layout", False):
+            return SCREEN_W, self._lcd.height()
+        return SCREEN_W, SCREEN_H
 
     def drawString(self, text, x, y, *rest):
         if not self.font_active:

@@ -67,8 +67,14 @@ def _touch_reset():
 
 
 def make_input():
-    from drivers.ft6336_touch import FT6336Touch
-    return FT6336Touch(lambda: open_i2c(P.INPUT_BUS), ACTIONS, reset=_touch_reset)
+    """The touch screen: the FT6336 chip under the common touch layer (gestures, coordinates of the layout area)."""
+    from drivers.ft6336 import FT6336
+    from drivers.st7789_fb import lcd
+    from hw.touch_input import TouchInput
+    chip = FT6336(lambda: open_i2c(P.INPUT_BUS), reset=_touch_reset)
+    return TouchInput(chip, ACTIONS, size=(P.DISPLAY_WIDTH, P.DISPLAY_HEIGHT), px_per_mm=P.DISPLAY_PPI / 25.4,
+                      swap_xy=P.INPUT_SWAP_XY, mirror_x=P.INPUT_MIRROR_X, mirror_y=P.INPUT_MIRROR_Y,
+                      origin=lcd.layout_origin)
 
 
 def make_buttons():

@@ -66,6 +66,7 @@ def _gather(dst: ptr8, src: ptr8, bw2: int, x2: int, w2: int, y0: int, rows: int
 class FbLcd:
     font_active = False                    # gfx.py: no .vlw fonts here (setFont raises)
     _needs_flush = True                    # gfx.py: what is drawn shows on flush() only
+    _can_layout = True                     # gfx.py: the layout area can change (a touch screen may use the full height)
 
     def __init__(self):
         self.buf = bytearray(W * H * 2)
@@ -102,6 +103,10 @@ class FbLcd:
         """The app lays its screens out on W x height, shown centred vertically on the panel."""
         self._lh = min(H, height)
         self._oy = (H - self._lh) // 2
+
+    def layout_origin(self):
+        """Where the layout area starts on the panel (the touch layer subtracts it)."""
+        return self._oy
 
     def _cmd(self, c, data=b""):
         self._cs(0)

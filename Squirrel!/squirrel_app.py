@@ -263,6 +263,7 @@ class SquirrelApp:
             # Przełączamy faktyczny aktywny ekran pętli run()
             previous = self.active_screen
             self.active_screen = self.screens[screen_name]
+            Lcd.full_height(bool(getattr(self.active_screen, "full_height", False)))     # touch screens: the whole panel
             if screen_name == "CLOCK" and previous is not self.active_screen:
                 collect()                  # back to the clock = the device is about to idle: tidy the heap now, not in the middle of a task
             for old_name, old in list(self.screens.items()):

@@ -29,6 +29,8 @@ hw/                    # logika sprzętu niezależna od urządzenia (import: fro
   audio_manager.py     #   nagrywanie/odtwarzanie przez obiekty Mic/Speaker portu
   battery.py, power.py, radio.py
   buzzer.py, led.py    #   tryby, ustawienia, cisza; pin/sterownik daje płytka
+ui/                    # interfejs niezależny od urządzenia: touch.py = widżety dotykowe (przyciski, stepper, przytrzymanie),
+                       #   rozmiary w mm z [display] ppi; ekran dotykowy: full_height = True, panel = TouchPanel()
 tools/sim/             # symulator: aplikacja pod MicroPython unix z atrapami sprzętu; porównanie dwóch wersji
 device/                # main.py = launcher /flash/main.py (wgrywa go build_firmware.py --flash / --setup-device)
 fonts/                 # squirrel.vlw (polskie znaki)
@@ -101,6 +103,8 @@ Architektura i plan: `PORTING_PL.md`.  Etap 0 (refaktoryzacja, Cardputer jako po
 folderu `ports/twatch2020_v3/` ani sterowników (AXP202, ST7789, FT6336, PCF8563, BMA423) - etap 1.
 Sprzęt urządzenia: `ports/<port>/port.toml` -> `port_config.py`; płytka: `ports/<port>/board.py` (interfejsy w `hw/ports.py`).
 Funkcja zależna od sprzętu = wpis w `features.toml`; brakujący sprzęt ukrywa jej menu/ekrany/ustawienia i wycina moduły z buildu.
+Dotyk w warstwach: sterownik układu (`drivers/ft6336.py`: tylko `read_point()`) → `hw/touch_input.py` (gesty → akcje, `tap_xy`/
+`touch_xy`, przekształcenie z `[input]` portu) → `ui/touch.py` (widżety w mm). Nowy zegarek z innym dotykiem = nowy `read_point()`.
 
 ## Planowane funkcje
 

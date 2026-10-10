@@ -27,6 +27,7 @@ dc       = 27
 baud     = 26_666_666
 backlight = 15                              # PWM
 fonts  = "bitmap"
+ppi    = 220                                # 1.54" 240 x 240: touch targets and gestures are sized in millimetres
 
 [i2c.sys]                                   # AXP202, BMA423, PCF8563
 id   = 0
@@ -46,8 +47,12 @@ bus    = "sys"
 irq    = 35                                 # pending IRQs hold it low: cleared at start-up
 
 [input]
-driver   = "ft6336_touch"                   # taps and swipes -> UP / DOWN / ENTER / ESC (ports/twatch2020_v3/gestures.py)
+driver   = "ft6336"                         # the chip; gestures -> actions: hw/touch_input.py (the same for every touch chip)
 keyboard = false
+touch    = true
+swap_xy  = false                            # the chip's coordinates -> the picture's (measured: they match already)
+mirror_x = false
+mirror_y = false
 bus      = "touch"
 addr     = 0x38
 int      = 38

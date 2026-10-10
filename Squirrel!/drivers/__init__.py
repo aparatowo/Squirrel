@@ -6,7 +6,7 @@
 #   bmi270          the BMI270 motion sensor (only switched off so far)
 #   ds1302          the DS1302 clock chip (3-wire bus)
 #   flash_storage   the app's folder on the internal flash (no SD card)
-#   ft6336_touch    an FT6336U touch controller: gestures -> the actions a keyboard gives
+#   ft6336          the FT6336U touch controller: read_point() only (gestures: hw/touch_input.py)
 #   glcdfont        the classic 5x7 font of Adafruit GFX (M5GFX's default font) - used by st7789_fb
 #   gpio_button     a button wired straight to a GPIO
 #   m5_audio        M5.Mic / M5.Speaker of the UIFlow 2 firmware

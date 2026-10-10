@@ -43,6 +43,8 @@ class Input:
     modifiers_as_keys = False      # set by the app: Aa / OPT / FN / CTRL / ALT arrive as actions, not as modifiers
     display_modifier = None        # None | "SHIFT" | "FN" | "CTRL" | "OPT" | "ALT": the mark shown while typing
     last_key_code = 0              # the raw code of the last key (the key calibration screen)
+    # A touch screen also has (in the coordinates the screens draw in; absent on a keyboard):
+    #   touch_xy  the point while a finger is down, else None;   tap_xy  the point of the last tap / long press
 
     def get_pressed_action(self):
         """(action or None, modifier_changed) - called on every pass of the main loop; must not block."""
