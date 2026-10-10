@@ -126,3 +126,36 @@ PARENTS = {
     "MIND": "NOTES_ROOT",
     "RECORDS": "NOTES_ROOT",
 }
+
+
+# ---- what the device cannot do is not shown (features.toml -> port_config.HIDDEN_*) ----
+# Entries are dropped here, once, so every index the menu screen works with is already that of the visible list.
+def _visible(entry, hidden):
+    kind, arg = entry[1], entry[2]
+    if kind == "menu":
+        return arg not in hidden.HIDDEN_MENUS
+    if kind == "action":
+        return arg not in hidden.HIDDEN_ACTIONS
+    if kind == "screen":
+        name, kwargs = (arg[0], arg[1]) if isinstance(arg, tuple) else (arg, {})
+        groups = kwargs.get("groups")
+        if groups and all(g in hidden.HIDDEN_GROUPS for g in groups):
+            return False                            # a settings screen with nothing left to set
+        return name not in hidden.HIDDEN_SCREENS
+    return True
+
+
+def _filter(menus, hidden):
+    if not (hidden.HIDDEN_MENUS or hidden.HIDDEN_SCREENS or hidden.HIDDEN_ACTIONS or hidden.HIDDEN_GROUPS):
+        return menus                                # the device has every feature
+    out = {k: (title, [e for e in entries if _visible(e, hidden)]) for k, (title, entries) in menus.items()}
+    empty = [k for k, (_t, entries) in out.items() if not entries]
+    while empty:                                    # a menu left without entries goes from its parent too
+        out = {k: (title, [e for e in entries if not (e[1] == "menu" and e[2] in empty)])
+               for k, (title, entries) in out.items() if k not in empty}
+        empty = [k for k, (_t, entries) in out.items() if not entries]
+    return out
+
+
+import port_config as _port
+MENUS = _filter(MENUS, _port)

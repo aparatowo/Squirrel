@@ -88,16 +88,40 @@ usunięty, jeśli poprzedni build zrobiono innym ESP-IDF (stary cache CMake zatr
 Narzędzie niczego nie zmienia w istniejących plikach repozytorium: dodaje płytkę `M5STACK_CardputerADV_Custom_Squirrel`
 (kopia bazowej + jedna linia `freeze(...)` w jej `manifest.py`) i wpisuje ją do `.git/info/exclude`. `--clean` ją usuwa.
 
+## Porty (urządzenia)
+Każde urządzenie to folder `ports/<nazwa>/`: `port.toml` (jaki ma sprzęt, gdzie podłączony, które funkcje budować) i `board.py`
+(składa sterowniki z `drivers/` dla aplikacji). Domyślny port to `cardputer_adv`; inny wybiera `--port` albo `"port"` w `build_config.json`.
+```
+python3 build_firmware.py --port cardputer_adv            # = bez --port
+python3 build_firmware.py --gen-port-config               # po zmianie port.toml / features.toml: odśwież port_config.py obok źródeł
+python3 build_firmware.py --stage-only --port <nazwa>     # sprawdź inny port (działa dla każdego, także bez jego firmware)
+```
+Build generuje własny `port_config.py` z `port.toml` i pomija: moduły funkcji, których port nie ma (`features.toml`), sterowniki,
+których jego `port.toml` nie wymienia, oraz foldery innych portów. Kopia `port_config.py` obok źródeł jest dla trybu DEV / zwykłych
+plików i dla symulatora (`tools/sim/`); `--check` mówi, gdy jest nieaktualna. Pełny build potrafi na razie tylko firmware
+`cardputer-adv-micropython` (UIFlow 2) – port na innym firmware (T-Watch) da się na razie zbudować do etapu `--stage-only`.
+Więcej: `../PORTING_PL.md`.
+
 ## Co musi być na urządzeniu (wgrywane Thonnym, niezależnie od firmware)
 | Plik na urządzeniu | Skąd | Po co |
 |---|---|---|
-| `/flash/main.py` | `device/main.py` | firmware czyta `main.py` z systemu plików (nie da się go zamrozić); ma 10 linii |
+| `/flash/main.py` | `device/main.py` | firmware czyta `main.py` z systemu plików (nie da się go zamrozić); 5 linii. **Wgrywa go narzędzie** (patrz niżej) |
 | `/system/common/font/squirrel.vlw` | `fonts/squirrel.vlw` albo `squirrel.vlw` | polskie litery; **wbudowany w obraz** przez narzędzie (partycja systemowa, zapisywana przy każdym wgraniu). Font wgrany ręcznie do `/flash/fonts/` też działa, ale ten z obrazu ma pierwszeństwo |
 | `/sd/Squirrel/…` | tworzy aplikacja | ustawienia (`config.txt`), `wifi.json`, notatki, To-Do, nagrania, statystyki. Skopiuj swoje stare, jeśli chcesz je zachować |
 
 **Nie wgrywaj ani nie zostawiaj:** `/flash/apps/Squirrel/*.py` i żadnych modułów `.py`/`.mpy` w `/flash/` (poza `main.py`).
 Katalog bieżący jest na `sys.path` **przed** kodem zamrożonym, więc taki plik po cichu przesłania zamrożony moduł o tej samej nazwie
 (to był problem z `bars.py`). `verify_device.py` i tools/, archive/, tests/ nie są potrzebne na urządzeniu.
+
+### Przygotowanie urządzenia (robi to `--flash` samo)
+Po wgraniu obrazu (`--flash PORT` albo `--flash-image ... --flash PORT`) narzędzie łączy się z REPL urządzenia i:
+1. wgrywa `/flash/main.py` = `device/main.py` (inny, starszy zostaje jako `/flash/main.py.old`);
+2. zmienia nazwę UIFlow-owego `/flash/boot.py` na `/flash/boot.py.uiflow`, gdy importuje on `startup`, którego to firmware nie ma
+   (wyjątek w `boot.py` blokuje start `main.py`); przywrócenie nazwy = z powrotem menu UIFlow;
+3. ustawia w NVS opcję startu UIFlow `boot_option = 0` („uruchom main.py od razu”).
+Każdy krok tylko wtedy, gdy trzeba; urządzenie, którego `sys.implementation._machine` nie zawiera `[port] machine` z `port.toml`, nie jest
+ruszane. Osobno (np. dla egzemplarza wgranego wcześniej): `python3 build_firmware.py --setup-device /dev/ttyACM0`; pominięcie: `--no-device-setup`.
+Zamknij Thonny — trzyma port.
 
 ## Sprawdzenie na urządzeniu
 ```python
@@ -109,8 +133,8 @@ font oraz skąd załadowano `nuts` (zamrożony: ścieżka bez `/` na początku).
 
 ## Tryb DEV (zmiana kodu bez przebudowy firmware)
 Utwórz pusty plik `/flash/DEV` (Thonny: nowy plik na urządzeniu) i wgraj poprawione `.py` do `/flash/apps/Squirrel/` (podfolder `screens/`
-dla ekranów, `hw/` dla modułów sprzętowych). Folder `screens/` albo `hw/` na urządzeniu zasłania CAŁY zamrożony pakiet o tej nazwie,
-więc wgrywaj go w całości, nie pojedyncze pliki. Od tej chwili te pliki mają pierwszeństwo przed zamrożonymi. Usuń `/flash/DEV`, żeby wrócić do kodu z firmware.
+dla ekranów, `hw/`, `drivers/`, `ports/` dla sprzętu). Folder `screens/`, `hw/`, `drivers/` albo `ports/` na urządzeniu zasłania CAŁY
+zamrożony pakiet o tej nazwie, więc wgrywaj go w całości, nie pojedyncze pliki. `port_config.py` musi być tym dla danego urządzenia. Od tej chwili te pliki mają pierwszeństwo przed zamrożonymi. Usuń `/flash/DEV`, żeby wrócić do kodu z firmware.
 Plik `.mpy` o tej samej nazwie co `.py` w tym samym folderze wygrywa z `.py` (też to, co było przyczyną błędu z `from_top`).
 
 ## Zmiany w aplikacji pod zamrożony kod

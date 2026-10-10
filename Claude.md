@@ -9,21 +9,27 @@ Licence: MIT — Rafał Nitychoruk (Ijon Tichy).
 ```
 squirrel_app.py        # entry point (uruchamiany z /flash/main.py)
 squirrel_boot.py       # boot sequence (/flash/main.py wywołuje to)
-nuts.py                # cała konfiguracja: keymaps, kolory, stałe, BASE_DIR
+nuts.py                # kolory, stałe aplikacji, domyślne ustawienia użytkownika (BEZ faktów sprzętowych)
+features.toml          # rejestr funkcji zależnych od sprzętu (czego wymagają, jakie moduły/menu/ekrany/grupy ustawień)
+features.py            # has("voice_notes") ... (czyta port_config.FEATURES)
+port_config.py         # GENEROWANY z ports/<port>/port.toml (build_firmware.py --gen-port-config) - nie edytować
+ports/                 # jeden folder na urządzenie
+  cardputer_adv/       #   port.toml (sprzęt, piny, funkcje), board.py (składa sterowniki), keymap.py
 screens/               # UI screens (base_screen.py + indywidualne pliki)
 ui_renderer.py         # warstwa rysowania
+gfx.py                 # ekran widziany przez aplikację (sterownik z port_config.DISPLAY_DRIVER), SCREEN_W/SCREEN_H
 storage_manager.py     # I/O plików na SD card (/sd/Squirrel)
-hw/                    # moduły dotykające sprzętu bezpośrednio (import: from hw.<moduł> import ...)
-  sd_card.py           #   SDCardManager (SPI: SCK=40 MISO=39 MOSI=14 CS=12 slot=3)
-  cardputer_keypad.py  #   obsługa klawiatury I2C (TCA8418)
+drivers/               # sterowniki nazwane od UKŁADU (piny dostają jako argumenty, nie czytają port_config)
+  tca8418_keypad.py, sd_spi.py, ds1302.py, gpio_button.py, ws2812.py, pin_pulser.py, bmi270.py
+  m5_display.py, m5_power.py, m5_audio.py   # API firmware UIFlow 2 (moduł M5)
+hw/                    # logika sprzętu niezależna od urządzenia (import: from hw.<moduł> import ...)
+  ports.py             #   dokumentacja interfejsów portu (nie importowany, nie zamrażany)
   rtc_base.py          #   abstrakcja TimeProvider
-  rtc_ds1302.py        #   adapter DS1302 (GPIO CLK=6 DAT=4 RST=3)
-  rtc_provider.py      #   RTCManager + SoftTimeProvider fallback
-  audio_manager.py     #   głośnik i mikrofon
-  battery.py, buttons.py, power.py, radio.py
-  buzzer.py            #   buzzer na G13 (NPN)
-  led.py               #   wbudowana dioda RGB (G21)
-hal/                   # adaptery HAL dla portu T-Watch (ports-and-adapters)
+  rtc_provider.py      #   RTCManager (zegar sprzętowy z portu) + SoftTimeProvider
+  audio_manager.py     #   nagrywanie/odtwarzanie przez obiekty Mic/Speaker portu
+  battery.py, power.py, radio.py
+  buzzer.py, led.py    #   tryby, ustawienia, cisza; pin/sterownik daje płytka
+tools/sim/             # symulator: aplikacja pod MicroPython unix z atrapami sprzętu; porównanie dwóch wersji
 device/                # pliki wgrywane przez Thonny: main.py, fonts/
 fonts/                 # squirrel.vlw (polskie znaki)
 vendor/                # cardputer-adv-micropython (klonowane przez build_firmware.py)
@@ -38,7 +44,7 @@ dist/                  # zbudowane obrazy .bin (gitignore)
 - **Modifier keys**: SHIFT i FN — sticky (toggle przy ponownym naciśnięciu); CTRL/OPT/ALT — momentary (auto-reset po jednym klawiszu); zdefiniowane w `nuts.py` jako `MODIFIER_STICKY` / `MODIFIER_MOMENTARY`
 - **Note/TODO**: ten sam flow `InputScreen`; pierwsza linia = tytuł
 - **Edytor notatek**: `note_editor.py` (logika biznesowa) + `note_editor_screen.py` (UI/klawiatura/kursor) — oba potrzebne
-- **SD card**: montowana przez `hardware.SDCard` (UIFlow2 driver); zarządzana przez `hw/sd_card.py`
+- **SD card**: montowana przez `machine.SDCard` (fallback: `hardware.SDCard` z UIFlow2); zarządzana przez `drivers/sd_spi.py`
 - **RTC**: DS1302 odczytywany raz przy bocie; czas można też ustawić przez NTP (Wi-Fi wyłączane po synchronizacji); fallback: `SoftTimeProvider`
 - **Keyboard**: TCA8418 (I2C matrix driver); GPIO 3/4/5/6 wolne od klawiatury
 
@@ -46,7 +52,9 @@ dist/                  # zbudowane obrazy .bin (gitignore)
 
 - Bez button-hint footerów na listach plików — hinty tylko w podglądzie pliku
 - Komentarze w kodzie po angielsku; UI po polsku
-- Konfiguracja wyłącznie w `nuts.py`; kod aplikacji nie hardkoduje stałych
+- Konfiguracja aplikacji w `nuts.py`, sprzętu w `ports/<port>/port.toml`; kod aplikacji nie hardkoduje stałych ani pinów
+- Moduł `M5` tylko w `drivers/m5_*.py` i `ports/cardputer_adv/board.py`; reszta rysuje przez `gfx.Lcd`
+- Refaktoryzacja bez zmiany zachowania: sprawdzaj `tools/sim/compare.sh` (ślad musi być identyczny)
 - Jeden ekran = jeden plik w `screens/`; logika biznesowa oddzielona od UI
 
 ## Hardware
@@ -87,15 +95,12 @@ ESP-IDF 5.4.2 — **nie 5.5.x** (mikrofon zwraca ciszę na nowszych wersjach).
 
 Po flashowaniu wgraj przez Thonny: `/flash/main.py` (z `device/main.py`) i `/flash/fonts/squirrel.vlw`.
 
-## Port T-Watch 2020 v3
+## Porty (Cardputer ADV, T-Watch 2020 V3)
 
-HAL w `hal/` według wzorca ports-and-adapters:
-- `hal/ports.py` — abstrakcyjne interfejsy (DisplayPort, TouchPort, RTCPort, PowerPort, NotifyPort, ButtonPort)
-- `hal/<devicename>/` — adaptery dla konkretnego urządzenia
-- `hal/registry.py` — auto-detekcja hardware przez skan I2C
-
-Zbudowane adaptery: `AXP202Power`, `ST7789Display`, `FT6336Touch`, `PCF8563RTC`, `VibroNotify`, `SideButton`.
-Główny interfejs użytkownika: web server REST + inline HTML (brak klawiatury fizycznej).
+Architektura i plan: `PORTING_PL.md`.  Etap 0 (refaktoryzacja, Cardputer jako port) zrobiony; T-Watch: jeszcze nie ma
+folderu `ports/twatch2020_v3/` ani sterowników (AXP202, ST7789, FT6336, PCF8563, BMA423) - etap 1.
+Sprzęt urządzenia: `ports/<port>/port.toml` -> `port_config.py`; płytka: `ports/<port>/board.py` (interfejsy w `hw/ports.py`).
+Funkcja zależna od sprzętu = wpis w `features.toml`; brakujący sprzęt ukrywa jej menu/ekrany/ustawienia i wycina moduły z buildu.
 
 ## Planowane funkcje
 

@@ -7,19 +7,13 @@ import gfx
 from gfx import Lcd
 from boot_log import log, trace
 from ui_renderer import UIRenderer
-from hw.cardputer_keypad import CardputerKeypad
-from hw.sd_card import SDCardManager
 from storage_manager import StorageManager
 from todo_editor import TodoEditor
 from note_editor import NoteEditor
 from hw.rtc_provider import RTCManager
-from hw.audio_manager import AudioManager
 from services import ServiceManager
 from focus_timer import FocusTimer
-from hw.buttons import ButtonPoller
 from hw.radio import RadioManager
-from wifi_ntp import WifiNtpClient
-from time_sync import TimeSyncService
 from hw.battery import BatteryMonitor, BatteryLogger
 from bars import StatusBars
 from screen_dimmer import ScreenDimmer
@@ -27,12 +21,17 @@ from notifier import Notifier
 from scheduler import DayCounter, RoutineStore, Scheduler
 from hw.power import PowerManager, collect
 import nuts
+import port_config
+from features import has
 from appconfig import cfg
 from hw.buzzer import buzzer
 from hw.led import led
 
 from screens.clock_screen import ClockScreen
 from screens.menu_screen import MenuScreen
+
+# The device's hardware is put together by its port (ports/<port>/board.py, see hw/ports.py)
+board = __import__(port_config.BOARD_MODULE, None, None, ("begin",))
 
 # Main-loop profiler: a single phase slower than this is written to the boot log.
 _SLOW_PHASE_MS = 150
@@ -88,10 +87,10 @@ class SquirrelApp:
         print("==========================================")
 
         # 0. The buzzer's pin LOW at once: until then it floats, and the NPN behind it could sound
-        buzzer.begin(quiet=lambda: self.audio.is_recording())
+        board.begin_buzzer(buzzer, quiet=lambda: self.audio.is_recording())
 
-        # 1. SD card — must be mounted before StorageManager
-        self.sd = SDCardManager()
+        # 1. Storage (the SD card) — must be mounted before StorageManager
+        self.sd = board.make_storage()
 
         # Settings come next: they live on the card, and everything below reads them.
         cfg.load(nuts.CONFIG_FILE)
@@ -100,19 +99,20 @@ class SquirrelApp:
 
         # 2. Hardware and helper layers
         self.renderer = UIRenderer()
-        self.keypad = CardputerKeypad()
+        self.keypad = board.make_input()
         try:
-            self.buttons = ButtonPoller(getattr(nuts, "BUTTON0_PIN", 0))     # G0: quick recorder
+            self.buttons = board.make_buttons()     # {role: button}; "quick" = G0 on the Cardputer: the quick recorder
         except Exception as e:
-            log(f"[BTN0] unavailable: {e}")
-            self.buttons = None
+            log(f"[BTN] unavailable: {e}")
+            self.buttons = {}
+        self._button_list = tuple(self.buttons.items())     # the main loop goes through this on every pass
         # The font with the Polish letters, if the user has accepted it (Settings -> Experimental -> Font test).
-        # Holding G0 while the device starts skips it: the way out if a font ever misbehaves.
-        held = bool(getattr(self.buttons, "held_at_start", False))
+        # Holding the quick button (G0) while the device starts skips it: the way out if a font ever misbehaves.
+        held = bool(getattr(self.buttons.get("quick"), "held_at_start", False))
         log(f"[FONT] start-up: {gfx.start(cfg.get('FONT_ENABLED'), nuts.FONT_FILES, skip=held)}")
-        self.rtc = RTCManager()
-        self.rtc.sync_on_boot()      # one-time read of a permanently attached DS1302
-        self.audio = AudioManager()
+        self.rtc = RTCManager(*board.clock_chip())
+        self.rtc.sync_on_boot()      # one-time read of a permanently attached hardware clock (DS1302 on the Cardputer)
+        self.audio = board.make_audio()
         self.storage = StorageManager(nuts.BASE_DIR)
 
         # Background services: ticked by the main loop whichever screen is active
@@ -123,8 +123,9 @@ class SquirrelApp:
             goal_seconds=lambda: cfg.get("FOCUS_GOAL_MINUTES") * 60))
 
         # Status bars, screen dimming and notifications (all ticked by the main loop)
-        self.battery = self.services.add(BatteryMonitor())
-        led.begin(battery=self.battery)               # dark at once; then signals, Breathing, the charging light
+        source = board.power_source()
+        self.battery = self.services.add(BatteryMonitor(read=source.level, charging=source.charging))
+        board.begin_led(led, self.battery)            # dark at once; then signals, Breathing, the charging light
         self.services.add(led)
         self.bars = StatusBars(cfg, self.battery, self.focus)
         self.renderer.bars = self.bars
@@ -132,19 +133,26 @@ class SquirrelApp:
                                                      lambda: self.active_screen is self.screens["CLOCK"],
                                                      on_wake=cfg.check_file,     # an edit of config.txt made from a PC counts after a wake
                                                      floor=led.backlight_floor)) # the LED is powered through the back-light
-        self.battery_log = self.services.add(BatteryLogger(cfg, self.battery, self.dimmer, nuts.BASE_DIR + "/battery.csv"))
+        self.battery_log = self.services.add(BatteryLogger(cfg, self.battery, self.dimmer, nuts.BASE_DIR + "/battery.csv",
+                                                           voltage=source.millivolts))
         self.notifier = self.services.add(Notifier(self, self.audio))
 
-        # Radios stay off unless a network task needs them.  Without a working DS1302 the
+        # Radios stay off unless a network task needs them.  Without a working hardware clock the
         # clock is set once over Wi-Fi + NTP (network saved by UIFlow); otherwise power down now.
         self.radio = RadioManager()
-        self.timesync = self.services.add(TimeSyncService(
-            self.rtc,
-            WifiNtpClient(self.radio,
-                          lambda: cfg.get("WIFI_SSID"), lambda: cfg.get("WIFI_PASSWORD")),
-            utc_offset_min=lambda: cfg.get("TIME_UTC_OFFSET_MIN"),
-            eu_dst=lambda: cfg.get("TIME_EU_DST")))
-        want_sync = cfg.get("TIMESYNC_AT_BOOT") and self.rtc.last_sync_source != "ds1302"
+        self.timesync = None
+        if has("wifi_ntp"):
+            from wifi_ntp import WifiNtpClient
+            from time_sync import TimeSyncService
+            self.timesync = self.services.add(TimeSyncService(
+                self.rtc,
+                WifiNtpClient(self.radio,
+                              lambda: cfg.get("WIFI_SSID"), lambda: cfg.get("WIFI_PASSWORD")),
+                utc_offset_min=lambda: cfg.get("TIME_UTC_OFFSET_MIN"),
+                eu_dst=lambda: cfg.get("TIME_EU_DST")))
+        clock_chip = board.clock_chip()[1]
+        want_sync = (self.timesync is not None and cfg.get("TIMESYNC_AT_BOOT")
+                     and (clock_chip is None or self.rtc.last_sync_source != clock_chip))
         if want_sync:
             self.timesync.start("boot")     # switches the radios off when it ends - or fails to start
         else:
@@ -168,8 +176,10 @@ class SquirrelApp:
             import machine
         except ImportError:
             machine = None
-        self.power = self.services.add(PowerManager(cfg, self.dimmer, self._power_busy, machine, self.keypad))
-        self.power.start(getattr(self.keypad, "i2c", None))
+        self.power = self.services.add(PowerManager(cfg, self.dimmer, self._power_busy, machine, self.keypad,
+                                                    wake_pins=port_config.POWER_MGMT_WAKE_PINS,
+                                                    slow_hz=port_config.POWER_MGMT_SLOW_CPU_HZ))
+        self.power.start(board.motion_off)
         # what the energy log times, now that every part exists (see hw/battery.py)
         self.battery_log.attach(slow=lambda: self.power.slow, led=lambda: led.backlight_floor() > 0,
                                 speaker=lambda: self.audio.speaker_on, radio=self._radio_in_use,
@@ -310,17 +320,22 @@ class SquirrelApp:
                 return (name, {})
         return ("CLOCK", {})
 
-    def _on_button0(self):
-        """G0 pressed.  The recorder screen toggles start/stop itself; from the clock and the
-        menus the quick recorder starts at once and returns there when the take is saved.
+    def _on_button(self, role):
+        """A button of the device pressed (its role: see the port's make_buttons())."""
+        if role == "quick":
+            self._on_quick_button()
+
+    def _on_quick_button(self):
+        """The quick button (G0 on the Cardputer) pressed.  The recorder screen toggles start/stop itself; from the
+        clock and the menus the quick recorder starts at once and returns there when the take is saved.
         Screens that hold unsaved input (editors, time entry) ignore the button."""
         screen = self.active_screen
-        handler = getattr(screen, "on_button0", None)
+        handler = getattr(screen, "on_quick_button", None)
         if handler is not None:
             handler()
             self._render_active()
             return
-        if not getattr(screen, "quick_record_from", False):
+        if not has("voice_notes") or not getattr(screen, "quick_record_from", False):
             trace(f"[BTN0] ignored on {type(screen).__name__}")
             return
         target = self._return_target(screen)
@@ -408,17 +423,18 @@ class SquirrelApp:
         """One iteration of the main loop (without the pause between iterations)."""
         t0 = time.ticks_ms()
         # Background work — must run every iteration, whichever screen is active:
-        # chunked audio recording / playback, the services (focus timer, ...) and the G0 button
+        # chunked audio recording / playback, the services (focus timer, ...) and the buttons (G0)
         self.audio.tick()
         self.services.tick()
         if self._config_changed:
             self._config_changed = False
             self._render_active()      # colours / offsets may have changed
         self._tick_bars()
-        if self.buttons is not None and self.buttons.pressed():
-            self.dimmer.wake()         # G0 lights the screen up AND acts: it is the quick-recorder button
-            if self.overlay is None:
-                self._on_button0()
+        for role, button in self._button_list:
+            if button.pressed():
+                self.dimmer.wake()     # a button lights the screen up AND acts (G0: the quick-recorder button)
+                if self.overlay is None:
+                    self._on_button(role)
         t1 = time.ticks_ms()
 
         # get_pressed_action returns (action, modifier_changed).

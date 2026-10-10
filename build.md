@@ -50,6 +50,13 @@ python3 build_firmware.py --flash-image dist/squirrel-....bin
 
 # Flash an already-built image to a specific port
 python3 build_firmware.py --flash-image dist/squirrel-....bin --flash /dev/ttyACM0
+
+# After flashing to a PORT the device is prepared by itself: /flash/main.py (device/main.py),
+# UIFlow's boot.py renamed when it cannot run, UIFlow boot option = run main.py.  Only that, for a device flashed earlier:
+python3 build_firmware.py --setup-device /dev/ttyACM0
+
+# Flash without preparing the device
+python3 build_firmware.py --flash /dev/ttyACM0 --no-device-setup
 ```
 
 ## Updates and maintenance
@@ -64,6 +71,29 @@ python3 build_firmware.py --reset-deps
 # Remove .build/ and the generated board definition
 python3 build_firmware.py --clean
 ```
+
+## Ports (devices)
+
+Each device is a folder `ports/<name>/` with `port.toml` (its hardware, wiring and features) and `board.py`.
+The default port is `cardputer_adv`.
+
+```bash
+# Build for another port (or set "port" in build_config.json)
+python3 build_firmware.py --port cardputer_adv
+
+# Regenerate port_config.py next to the sources after editing port.toml / features.toml
+python3 build_firmware.py --gen-port-config
+
+# Check that another port's sources hang together (works for every port)
+python3 build_firmware.py --stage-only --port <name>
+```
+
+See `PORTING_PL.md` for the architecture.
+
+## Checking a refactoring without the device
+
+`tools/sim/` runs the app on the PC under the MicroPython unix port with fake hardware and compares two versions call by
+call (display, logs, files on the SD card) - see `Squirrel!/tools/sim/README.md`.
 
 ## Quick options (no full build)
 

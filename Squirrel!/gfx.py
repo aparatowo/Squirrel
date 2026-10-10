@@ -10,12 +10,17 @@
 #     a Polish note shows as readable plain letters instead of garbage.  Nothing is lost: the text
 #     itself is stored and edited with the real letters.
 #
-# All other calls go straight to M5.Lcd (the hot ones are bound once, so they cost nothing extra).
+# All other calls go straight to the real display (the hot ones are bound once, so they cost nothing extra).
+#
+# The real display is the port's (port_config.DISPLAY_DRIVER: drivers/<driver>.py gives `lcd`; on the Cardputer M5.Lcd).
+# Every display driver offers the M5.Lcd calls the app uses.  SCREEN_W / SCREEN_H: its size in pixels.
 
 import os
-from M5 import Lcd as _lcd
 import charmap
 from boot_log import log
+from port_config import DISPLAY_DRIVER, DISPLAY_WIDTH as SCREEN_W, DISPLAY_HEIGHT as SCREEN_H
+
+_lcd = __import__("drivers." + DISPLAY_DRIVER, None, None, ("lcd",)).lcd
 
 _DIRECT = ("setTextColor", "setTextSize", "fillRect", "drawRect", "fillScreen", "drawLine",
            "fillCircle", "drawCircle", "drawPixel", "setBrightness", "getBrightness")

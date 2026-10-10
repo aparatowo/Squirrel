@@ -4,7 +4,7 @@
 # this screen only shows progress.  Leaving it does not interrupt a running sync.
 #   ENTER - try again        ESC - back to Settings
 
-from M5 import Lcd
+from gfx import Lcd
 from screens.base_screen import BaseScreen
 
 

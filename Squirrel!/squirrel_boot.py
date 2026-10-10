@@ -7,7 +7,8 @@
 #
 # DEV MODE: create an empty file /flash/DEV (Thonny: new file on the device).  Then /flash/apps/Squirrel is put FIRST
 # on sys.path, so a .py file copied there replaces the frozen module of the same name - edit and test without
-# rebuilding the firmware (a screens/ or hw/ folder there hides the WHOLE frozen package: copy it complete).
+# rebuilding the firmware (a screens/, hw/, drivers/ or ports/ folder there hides the WHOLE frozen package: copy it
+# complete).  port_config.py there must be the one of this device (build_firmware.py --gen-port-config --port ...).
 # Delete /flash/DEV to go back to the frozen code.  Never leave a .py with the name of a
 # frozen module in /flash itself or next to main.py: it is found first and silently hides the frozen one
 # (sq_info.report() lists such files).
@@ -50,11 +51,12 @@ def run():
         log(f"[MAIN] reset_cause unavailable: {e}")
 
     try:
-        import M5
-        M5.begin()
-        log("[MAIN] M5.begin() OK")
+        import port_config
+        board = __import__(port_config.BOARD_MODULE, None, None, ("begin",))
+        board.begin()
+        log(f"[MAIN] board {port_config.PORT}: begin() OK")
     except Exception as e:
-        log(f"[MAIN WARN] M5.begin() failed: {e}")
+        log(f"[MAIN WARN] board begin() failed: {e}")
 
     try:
         from squirrel_app import SquirrelApp

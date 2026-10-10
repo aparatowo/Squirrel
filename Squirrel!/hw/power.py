@@ -6,23 +6,20 @@
 # that the collector runs early and often in small steps instead of rarely and late.
 #
 # ENERGY (everything here is off by default or harmless; see POWER_SAVE / POWER_LIGHT_SLEEP):
-#   * imu_off(): the BMI270 motion sensor is not used - its accelerometer, gyroscope and temperature are switched off.
-#   * while the screen is dimmed and nothing is going on: the CPU runs at 80 MHz instead of 240, and the main loop
-#     pauses 50 ms instead of 20.
+#   * start(motion_off): the motion sensor is not used - the board switches it off (on the Cardputer the BMI270's
+#     accelerometer, gyroscope and temperature, drivers/bmi270.py).
+#   * while the screen is dimmed and nothing is going on: the CPU runs slower (the port's slow_cpu_hz, 80 MHz instead
+#     of 240 on the Cardputer), and the main loop pauses 50 ms instead of 20.
 #   * POWER_LIGHT_SLEEP (experimental): while the screen is dimmed and nothing is going on, the chip light-sleeps
-#     for ~0.8 s at a time; G0 and the keyboard controller's INT line (GPIO 11) wake it at once.  The USB console
-#     (Thonny) disconnects in light sleep, hence it is off by default.
+#     for ~0.8 s at a time; the port's wake pins (Cardputer: G0 and the keyboard controller's INT line, GPIO 11) wake
+#     it at once.  The USB console (Thonny) disconnects in light sleep, hence it is off by default.
 # Wi-Fi and Bluetooth are already powered down by radio.py unless a network task runs.
 
 import gc
 import time
 from boot_log import log, trace
 
-_BMI270_ADDRS = (0x69, 0x68)
-_BMI270_PWR_CTRL = 0x7D         # bits: aux, gyr, acc, temp enable - 0 = all off
 _FAST_HZ_DEFAULT = 240_000_000
-_SLOW_HZ = 80_000_000
-_WAKE_PINS = (0, 11)            # G0, keyboard controller INT
 _GC_EVERY_MS = 30_000
 LOW_HEAP = 30_000             # free bytes after a collection below which a line is written to the log
 
@@ -36,22 +33,11 @@ def collect():
         return 0
 
 
-def imu_off(i2c):
-    """Switch the BMI270's sensors off.  Returns the address that answered, or None."""
-    if i2c is None:
-        return None
-    for addr in _BMI270_ADDRS:
-        try:
-            i2c.writeto_mem(addr, _BMI270_PWR_CTRL, b"\x00")
-            return addr
-        except Exception:
-            continue
-    return None
-
-
 class PowerManager:
-    def __init__(self, cfg, dimmer, busy, machine=None, keypad=None, now_ms=None):
+    def __init__(self, cfg, dimmer, busy, machine=None, keypad=None, now_ms=None, wake_pins=(), slow_hz=80_000_000):
         self._cfg = cfg
+        self._wake_pins = wake_pins       # GPIOs that end a light sleep (active low)
+        self._slow_hz = slow_hz
         self._dimmer = dimmer
         self._busy = busy                 # function: True while something needs the CPU at full speed
         self._mp = machine
@@ -66,8 +52,8 @@ class PowerManager:
         self.sleeps = 0
         self.clock_fixes = 0
 
-    def start(self, i2c=None):
-        """Once, at start-up."""
+    def start(self, motion_off=None):
+        """Once, at start-up.  motion_off() switches the motion sensor off and returns its I2C address (or None)."""
         free = collect()
         try:
             gc.threshold(free // 4 + gc.mem_alloc())      # collect after every quarter of the free heap that is used
@@ -78,7 +64,10 @@ class PowerManager:
                 self._fast = self._mp.freq()
             except Exception:
                 pass
-        addr = imu_off(i2c)
+        try:
+            addr = motion_off() if motion_off is not None else None
+        except Exception:
+            addr = None
         log(f"[POWER] start-up: free heap {free} bytes, CPU {self._fast // 1000000} MHz, "
             f"IMU {'off (0x%02x)' % addr if addr else 'not reached'}")
 
@@ -97,9 +86,9 @@ class PowerManager:
         slow = self.dimmed_and_quiet()
         if slow != self.slow and self._mp is not None:
             try:
-                self._mp.freq(_SLOW_HZ if slow else self._fast)
+                self._mp.freq(self._slow_hz if slow else self._fast)
                 self.slow = slow
-                trace(f"[POWER] CPU {(_SLOW_HZ if slow else self._fast) // 1000000} MHz")
+                trace(f"[POWER] CPU {(self._slow_hz if slow else self._fast) // 1000000} MHz")
             except Exception as e:
                 log(f"[POWER] cannot change the CPU frequency: {e}")
                 self.slow = slow
@@ -140,7 +129,7 @@ class PowerManager:
             return False
         try:
             if not self._armed:
-                for number in _WAKE_PINS:
+                for number in self._wake_pins:
                     pin = self._mp.Pin(number, self._mp.Pin.IN, self._mp.Pin.PULL_UP)
                     pin.irq(trigger=self._mp.Pin.IRQ_LOW_LEVEL, wake=self._mp.SLEEP)
                 self._armed = True

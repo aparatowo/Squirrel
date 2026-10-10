@@ -1,0 +1,48 @@
+# features.toml - the features that depend on hardware, for every port (read by build_firmware.py on the PC)
+#
+# A feature is built when the port has everything in `requires` (a section of port.toml, e.g. "audio_in", or a key
+# that must be true, e.g. "input.keyboard") and port.toml does not switch it off in [features].  For a feature that is
+# not built:  `modules` are left out of the firmware,  and the app hides  `menus` (menu ids of menu_tree.py, including
+# file lists), `screens` (screen names), `actions` (menu actions) and `settings` (groups of appconfig_schema.py).
+# Everything not listed here works on every port.
+
+[text_edit]                                 # typing: notes, To-Do, Mind Dump, routine names, Wi-Fi passwords
+requires = ["input.keyboard"]
+modules  = ["screens/note_editor_screen.py", "screens/mind_dump_screen.py"]
+screens  = ["NOTE_EDITOR", "MIND_DUMP"]
+menus    = ["MIND"]
+settings = ["Keyboard"]
+
+[key_calibration]
+requires = ["input.keyboard"]
+modules  = ["key_calibrator.py"]
+screens  = ["CALIBRATOR"]
+
+[voice_notes]
+requires = ["audio_in", "storage.removable"]
+modules  = ["screens/record_screen.py", "screens/playback_screen.py"]
+screens  = ["RECORD", "PLAYBACK"]
+menus    = ["RECORDS"]
+
+[wifi_ntp]                                  # the clock set over Wi-Fi + NTP; saved networks
+requires = ["radio.wifi"]
+modules  = ["wifi_ntp.py", "time_sync.py", "wifi_profiles.py", "screens/wifi_screen.py", "screens/time_sync_screen.py"]
+screens  = ["WIFI_NETWORKS", "TIME_SYNC"]
+menus    = ["CONNECTIONS"]
+settings = ["Network"]
+
+[hw_clock]                                  # a hardware clock to copy the time from
+requires = ["clock"]
+actions  = ["sync_rtc"]
+
+[led]
+requires = ["signal.led"]
+modules  = ["screens/led_test_screen.py"]
+screens  = ["LED_TESTS"]
+menus    = ["LED_TEST", "LED_MODES"]
+settings = ["LED"]
+
+[buzzer]
+requires = ["signal.buzzer"]
+menus    = ["BUZZER_TEST"]
+settings = ["Buzzer"]

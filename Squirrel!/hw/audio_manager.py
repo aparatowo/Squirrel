@@ -58,7 +58,9 @@ def _wav_header(data_bytes: int, sample_rate: int, bits: int, channels: int) -> 
 class AudioManager:
     """Chunked async recorder + WAV file writer, plus WAV playback."""
 
-    def __init__(self):
+    def __init__(self, backend=None):
+        """backend() -> (Mic, Speaker): the port's audio objects with the M5.Mic / M5.Speaker API (drivers/m5_audio.py)."""
+        self._backend  = backend
         self._volume   = cfg.get("AUDIO_DEFAULT_VOL") / 100.0
         self._Mic      = None
         self._Speaker  = None
@@ -91,7 +93,9 @@ class AudioManager:
 
     def _init(self):
         try:
-            from M5 import Mic, Speaker
+            if self._backend is None:
+                raise OSError("no audio on this device")
+            Mic, Speaker = self._backend()
             self._Mic     = Mic
             self._Speaker = Speaker
             # Both stay stopped until needed: the UIFlow reference example stops

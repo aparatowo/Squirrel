@@ -6,7 +6,7 @@
 #        calibrated here, so they cannot be used to exit.
 import json
 import time
-from M5 import Lcd
+from gfx import Lcd
 from screens.base_screen import BaseScreen
 
 TARGET_KEYS = [
@@ -37,7 +37,7 @@ class CalibrationScreen(BaseScreen):
         self.keymap.clear()
         self.current_target = TARGET_KEYS[0]
 
-    def on_button0(self):
+    def on_quick_button(self):
         """G0: leave without saving."""
         print("[CALIBRATOR] Left with G0 (nothing saved)")
         self.app.set_screen("MENU", menu_name="SETTINGS")

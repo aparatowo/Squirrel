@@ -4,8 +4,9 @@
 #   ENTER or G0 - start, or stop and save
 #   ESC         - while recording: discard the take; otherwise just leave
 # After saving or discarding it returns to where it was opened from.
+import os
 import time
-from M5 import Lcd
+from gfx import Lcd
 from screens.base_screen import BaseScreen
 from nuts import BASE_DIR
 
@@ -49,7 +50,7 @@ class RecordScreen(BaseScreen):
             return True   # recording ended by itself (e.g. write error)
         return recording and self._bucket() != self._drawn_bucket
 
-    def on_button0(self):
+    def on_quick_button(self):
         """G0 while this screen is open: the same start / stop toggle as ENTER."""
         if self.app.audio.is_recording():
             self._stop()
@@ -66,12 +67,17 @@ class RecordScreen(BaseScreen):
             return
 
         if action == 'ENTER':
-            self.on_button0()
+            self.on_quick_button()
 
     def _start(self):
         dt = self.app.rtc.get_datetime()
         fname = f"REC_{dt[0]:04d}{dt[1]:02d}{dt[2]:02d}_{dt[3]:02d}{dt[4]:02d}{dt[5]:02d}.wav"
-        self._filepath = f"{BASE_DIR}/records/{fname}"
+        folder = f"{BASE_DIR}/records"
+        try:
+            os.mkdir(folder)       # a fresh card has none until Voice Notes is opened: the quick recorder (G0) comes first
+        except OSError:
+            pass                   # it is there already
+        self._filepath = f"{folder}/{fname}"
         ok = self.app.audio.start_recording(self._filepath)
         if ok:
             self._start_ticks = time.ticks_ms()

@@ -26,13 +26,14 @@ _VISIBLE = 5                     # rows the menu renderer shows
 _RESET_ALL = "Reset all to defaults"
 _ELSEWHERE = ("Time", "Network", "Cuckoo", "Silent")          # groups that are reached from other menus, not from the main list
 _SETTINGS_MENU = ("MENU", {"menu_name": "SETTINGS"})
+from port_config import HIDDEN_GROUPS                          # settings of features this device does not have
 _INT_DIGITS = 6
 
 
 class PersonalizeScreen(BaseScreen):
     def __init__(self, app):
         super().__init__(app)
-        self._groups = [g for g in cfg.groups() if g not in _ELSEWHERE]
+        self._groups = [g for g in cfg.groups() if g not in _ELSEWHERE and g not in HIDDEN_GROUPS]
         self._restricted = False
         self._title = "Personalize"
         self._back = _SETTINGS_MENU
@@ -58,9 +59,9 @@ class PersonalizeScreen(BaseScreen):
         self._reset_state()
         self._restricted = bool(groups)
         if groups:
-            self._groups = [g for g in cfg.groups() if g in groups]
+            self._groups = [g for g in cfg.groups() if g in groups and g not in HIDDEN_GROUPS]
         else:
-            self._groups = [g for g in cfg.groups() if g not in _ELSEWHERE]
+            self._groups = [g for g in cfg.groups() if g not in _ELSEWHERE and g not in HIDDEN_GROUPS]
         self._title = title or "Personalize"
         self._back = back or _SETTINGS_MENU
         if self._restricted and len(self._groups) == 1:
@@ -230,6 +231,8 @@ class PersonalizeScreen(BaseScreen):
             if led.demo(key[:-6] if key.endswith("_COLOR") else key):
                 return "Saved - look"
             return "Saved (" + led.status() + ")"
+        if key == "FONT_ENABLED" and bool(value) != Lcd.font_active:
+            return "Restart to apply"                 # saved; the font is loaded once, at start-up (gfx.start)
         return "Saved"
 
     def _leave_edit(self, notice=None):

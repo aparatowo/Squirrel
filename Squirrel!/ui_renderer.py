@@ -1,5 +1,4 @@
-import M5
-from gfx import Lcd
+from gfx import Lcd, SCREEN_W, SCREEN_H
 from nuts import THEME, FONTS_THEME, named_color
 from appconfig import cfg
 
@@ -8,8 +7,8 @@ _COLOR_SETTINGS = (("BG", "COLOR_BG"), ("FG", "COLOR_FG"), ("ACCENT", "COLOR_ACC
                    ("WARNING", "COLOR_WARNING"), ("ERROR", "COLOR_ERROR"),
                    ("KEY_SHIFT", "COLOR_KEY_SHIFT"), ("KEY_FN", "COLOR_KEY_FN"), ("KEY_OPT", "COLOR_KEY_OPT"))
 
-_V_CELLS = 16          # '#' characters in a vertical bar (8 px each: 128 px of the 135 px screen)
-_SCREEN_W = 240
+_V_CELLS = SCREEN_H // 8   # '#' characters in a vertical bar (8 px each: 128 px of the 135 px Cardputer screen)
+_SCREEN_W = SCREEN_W
 # The menu header lines and the horizontal bars are measured in pixels with the font in use (Lcd.textWidth), not counted
 # in characters: the firmware's own font and the .vlw font have different widths, and 36 characters fill the screen
 # with one but not with the other.
@@ -122,7 +121,7 @@ class UIRenderer:
 
     def _draw_centered_string(self, text: str, y: int, size: int, offset_x: int = 0, offset_y: int = 0):
         Lcd.setTextSize(size)
-        screen_width = 240
+        screen_width = SCREEN_W
         text_width = len(text) * 6 * size
         x = max(0, (screen_width - text_width) // 2) + offset_x
         Lcd.drawString(text, x, y + offset_y)
@@ -156,7 +155,7 @@ class UIRenderer:
     def draw_vector_clock(self, time_str, base_y=32, color=0xFFA500, offset_x=0, offset_y=0):
         digit_w, digit_h, spacing, colon_w = 26, 50, 8, 14
         total_w = (4 * digit_w) + (3 * spacing) + colon_w
-        start_x = ((240 - total_w) // 2) + offset_x
+        start_x = ((SCREEN_W - total_w) // 2) + offset_x
         y = base_y + offset_y
 
         curr_x = start_x

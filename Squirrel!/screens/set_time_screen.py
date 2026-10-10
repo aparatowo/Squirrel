@@ -7,7 +7,7 @@
 # ESC           — cancel and return to Settings
 
 import time
-from M5 import Lcd
+from gfx import Lcd
 from screens.base_screen import BaseScreen
 
 

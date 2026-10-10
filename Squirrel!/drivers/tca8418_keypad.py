@@ -1,14 +1,11 @@
-# cardputer_keyboard.py
+# tca8418_keypad.py - a key matrix scanned by a TCA8418 on I2C (the Cardputer ADV keyboard)
+#
+# The key maps (which action each key code gives, with and without the modifiers) belong to the device and come from
+# the port (ports/<port>/keymap.py); the I2C bus comes from the board, which can open it again after errors.
 import time
-from machine import I2C, Pin
 from boot_log import log
 from charmap import compose
 from appconfig import cfg
-from nuts import (
-    I2C_ADDR_KEYPAD, I2C_SDA_PIN, I2C_SCL_PIN, I2C_FREQ,
-    MAP_NAV, MAP_TEXT, MAP_FN, MAP_SHIFT, MAP_CTRL, MAP_OPT, MAP_ALT, MAP_ALT_SHIFT,
-    MODIFIER_STICKY, MODIFIER_MOMENTARY
-)
 
 # Boot logs showed read errors (259 = ESP_ERR_INVALID_STATE) that vanish as soon as
 # machine.I2C(0, ...) is constructed again, so recovery = reopen the bus.
@@ -17,7 +14,7 @@ _MAX_LOGGED_FAILURES = 30        # keep the log file small
 
 # TCA8418 keyboard controller (subset of its registers).  Cardputer ADV wires the 56
 # keys as a 7 x 8 matrix (rows R0-R6, columns C0-C7); a key event carries
-# code = row * 10 + col + 1, which is what MAP_NAV in nuts.py is keyed on.
+# code = row * 10 + col + 1, which is what MAP_NAV of the port's keymap is keyed on.
 _TCA_CFG = 0x01
 _TCA_INT_STAT = 0x02
 _TCA_KEY_EVENT_A = 0x04          # FIFO head: bit7 = pressed, bits 6..0 = key code
@@ -26,10 +23,15 @@ _KP_CONFIG = (0x7F, 0xFF, 0x00)
 _CFG_KE_IEN = 0x01
 
 
-class CardputerKeypad:
-    def __init__(self):
+class TCA8418Keypad:
+    def __init__(self, open_bus, addr, keymap):
+        """open_bus() -> a new machine.I2C object for the bus the controller is on (called again to recover);
+        keymap: a module with MAP_NAV, MAP_TEXT, MAP_FN, MAP_SHIFT, MAP_CTRL, MAP_OPT, MAP_ALT, MAP_ALT_SHIFT,
+        MODIFIER_STICKY and MODIFIER_MOMENTARY (see ports/cardputer_adv/keymap.py)."""
+        self._new_bus = open_bus
+        self._keys = keymap
         self.i2c = None
-        self.addr = I2C_ADDR_KEYPAD
+        self.addr = addr
         self.is_text_mode = False
         # Set per screen by the app: when True, Aa / OPT / FN / CTRL / ALT are delivered
         # to the screen as ordinary key actions instead of toggling a modifier.
@@ -62,7 +64,7 @@ class CardputerKeypad:
         is the only reset available.  The device scan runs only at start-up.
         """
         try:
-            self.i2c = I2C(0, sda=Pin(I2C_SDA_PIN), scl=Pin(I2C_SCL_PIN), freq=I2C_FREQ)
+            self.i2c = self._new_bus()
         except Exception as e:
             self.i2c = None
             log(f"[KEYPAD ERROR] I2C init: {e}")
@@ -150,11 +152,11 @@ class CardputerKeypad:
             self.display_modifier = mod_name
 
         print(f"[KEYPAD MODIFIER] {mod_name} -> {self.flags.get(mod_name)} "
-              f"(sticky={mod_name in MODIFIER_STICKY}, display={self.display_modifier})")
+              f"(sticky={mod_name in self._keys.MODIFIER_STICKY}, display={self.display_modifier})")
 
     def _release_momentary_modifiers(self):
         """Auto-reset modifiers that are MOMENTARY after a key has been consumed."""
-        for mod in MODIFIER_MOMENTARY:
+        for mod in self._keys.MODIFIER_MOMENTARY:
             if self.flags.get(mod):
                 self.flags[mod] = False
                 # a sticky modifier that was kept alongside (Aa) is what the mark shows again
@@ -162,20 +164,21 @@ class CardputerKeypad:
                 print(f"[KEYPAD MODIFIER] {mod} auto-released (momentary)")
 
     def _get_active_map(self):
+        k = self._keys
         if self.flags['SHIFT'] and self.flags['ALT']:
-            return MAP_ALT_SHIFT                      # ALT with Aa on: capital accented letters
+            return k.MAP_ALT_SHIFT                    # ALT with Aa on: capital accented letters
         if self.flags['SHIFT']:
-            return MAP_SHIFT
+            return k.MAP_SHIFT
         if self.flags['FN']:
-            return MAP_FN
+            return k.MAP_FN
         if self.flags['CTRL']:
-            return MAP_CTRL
+            return k.MAP_CTRL
         if self.flags['OPT']:
-            return MAP_OPT
+            return k.MAP_OPT
         if self.flags['ALT']:
-            return MAP_ALT
+            return k.MAP_ALT
         
-        return MAP_TEXT if self.is_text_mode else MAP_NAV
+        return k.MAP_TEXT if self.is_text_mode else k.MAP_NAV
 
     def acknowledge(self):
         """Clear the controller's interrupt flag (INT_STAT, reg 0x02): the INT line (GPIO 11) goes high again."""
@@ -218,7 +221,7 @@ class CardputerKeypad:
                 self.last_key_code = key_code
 
                 # 1. Check if the pressed key is a modifier
-                base_action = MAP_NAV.get(key_code)
+                base_action = self._keys.MAP_NAV.get(key_code)
 
                 if base_action in self.flags or base_action == 'Aa':
                     if self.modifiers_as_keys:
@@ -236,7 +239,7 @@ class CardputerKeypad:
 
                 # Fallback to base map when the modifier has no special binding
                 if not action:
-                    fallback_map = MAP_TEXT if self.is_text_mode else MAP_NAV
+                    fallback_map = self._keys.MAP_TEXT if self.is_text_mode else self._keys.MAP_NAV
                     action = fallback_map.get(key_code)
 
                 print(f"[KEY EVENT] KeyCode: {key_code} | TextMode: {self.is_text_mode} "

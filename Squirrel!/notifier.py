@@ -11,7 +11,7 @@
 # be muted), and appears as soon as the recording ends.
 
 import time
-from M5 import Lcd
+from gfx import Lcd, SCREEN_W, SCREEN_H
 from boot_log import log
 from hw.buzzer import signal
 from hw.led import signal as led_signal
@@ -155,23 +155,23 @@ class NotifyOverlay:
         left = self._notifier.seconds_left()
         self._drawn = left
         renderer.clear()
-        Lcd.drawRect(0, 0, 240, 135, theme["ACCENT"])
-        Lcd.drawRect(1, 1, 238, 133, theme["ACCENT"])
+        Lcd.drawRect(0, 0, SCREEN_W, SCREEN_H, theme["ACCENT"])
+        Lcd.drawRect(1, 1, SCREEN_W - 2, SCREEN_H - 2, theme["ACCENT"])
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["FG"], theme["BG"])
         if n.title:
-            Lcd.drawString(n.title[:30], max(4, (240 - 6 * len(n.title[:30])) // 2), 8)
-        Lcd.drawString("%ds" % left, 240 - 6 * (len(str(left)) + 1) - 6, 8)
+            Lcd.drawString(n.title[:30], max(4, (SCREEN_W - 6 * len(n.title[:30])) // 2), 8)
+        Lcd.drawString("%ds" % left, SCREEN_W - 6 * (len(str(left)) + 1) - 6, 8)
         Lcd.setTextSize(2)
         Lcd.setTextColor(theme["WARNING"], theme["BG"])
         lines = wrap(n.text, 18, 4)
         y = 30 + (4 - len(lines)) * 8
         for line in lines:
-            Lcd.drawString(line, (240 - 12 * len(line)) // 2, y)
+            Lcd.drawString(line, (SCREEN_W - 12 * len(line)) // 2, y)
             y += 18
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["ACCENT"], theme["BG"])
-        Lcd.drawString("[OPT] " + n.done_label, 8, 118)
+        Lcd.drawString("[OPT] " + n.done_label, 8, SCREEN_H - 17)
         text = "[DEL] " + n.cancel_label
         Lcd.setTextColor(theme["ERROR"], theme["BG"])
-        Lcd.drawString(text, 240 - 8 - 6 * len(text), 118)
+        Lcd.drawString(text, SCREEN_W - 8 - 6 * len(text), SCREEN_H - 17)

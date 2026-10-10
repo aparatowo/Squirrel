@@ -10,7 +10,7 @@
 #            ESC cancels.  The cursor moves with FN + LEFT / RIGHT.
 
 import time
-from M5 import Lcd
+from gfx import Lcd
 import nuts
 from screens.base_screen import BaseScreen
 from line_editor import LineEditor

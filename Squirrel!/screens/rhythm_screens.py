@@ -9,7 +9,7 @@
 #                  while you breathe in (and held), blue fading while you breathe out, dark in the pause after it.
 
 import time
-from gfx import Lcd
+from gfx import Lcd, SCREEN_W
 import intervals as iv
 from appconfig import cfg
 from screens.base_screen import BaseScreen
@@ -176,7 +176,7 @@ class BreathingScreen(BaseScreen):
             Lcd.setTextColor(theme["ACCENT"], theme["BG"])
             Lcd.drawString("[ENTER] %s  <> exercise" % ("Stop" if self.running else "Start"), 5, 119)
             self._full = False
-        Lcd.fillRect(0, 20, 240, 96, theme["BG"])
+        Lcd.fillRect(0, 20, SCREEN_W, 96, theme["BG"])
         if s is None:
             self._shown = None
             return
