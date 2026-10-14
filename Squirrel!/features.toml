@@ -38,6 +38,16 @@ screens  = ["WIFI_NETWORKS", "TIME_SYNC"]
 menus    = ["CONNECTIONS"]
 settings = ["Network"]
 
+[ble_sync]                                  # Bluetooth: this device can be synced by the head (docs/implementation/en/bluetooth.md)
+requires = ["radio.ble"]
+modules  = ["ble/peripheral.py", "ble/node_data.py", "ble/peers.py", "ble/secrets.py", "screens/ble_sync_screen.py"]
+screens  = ["BLE_SYNC"]
+
+[ble_hub]                                   # Bluetooth: this device is the head - it syncs the others (the Cardputer)
+requires = ["radio.ble", "input.keyboard"]
+modules  = ["ble/central.py", "screens/ble_head_screen.py"]
+screens  = ["BLE_HUB"]
+
 [hw_clock]                                  # a hardware clock to copy the time from
 requires = ["clock"]
 actions  = ["sync_rtc"]

@@ -18,6 +18,7 @@
 
 import time
 from appconfig import cfg
+from timeutil import weekday as weekday_of
 
 CHANNELS = {"sound": "QUIET_SOUND", "buzzer": "QUIET_BUZZER", "led": "QUIET_LED"}
 _MIN_YEAR = 2024                    # the same rule as scheduler.valid_now()
@@ -42,7 +43,7 @@ def is_quiet(channel, settings=None, now=None):
     t = now or time.localtime()
     if t[0] < _MIN_YEAR:
         return False
-    minute, weekday = t[3] * 60 + t[4], t[6]
+    minute, weekday = t[3] * 60 + t[4], weekday_of(t)
     if start < end:                                     # within one day, e.g. 13:00 - 15:00
         return start <= minute < end and bool(days >> weekday & 1)
     if minute >= start:                                 # the evening part of a night

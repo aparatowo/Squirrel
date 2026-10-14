@@ -81,10 +81,30 @@ class StatusBars:
                               c.get("BATTERY_GREEN_PCT"), c.get("BATTERY_YELLOW_PCT"))
         return cells[::-1] if from_top else cells
 
+    def _progress(self):
+        goal = self._focus.goal_seconds
+        return self._focus.today_seconds() * 100 // goal if goal > 0 else 0
+
+    def battery_color(self):
+        """The colour of the battery bar's tail, for text about the battery; None: the bar's own colour (no tail)."""
+        level, c = self._battery.level(), self._cfg
+        if not level or level < 0:
+            return None
+        return battery_color(min(level, 100), c.get("BATTERY_BLUE_PCT"), c.get("BATTERY_GREEN_PCT"),
+                             c.get("BATTERY_YELLOW_PCT"))
+
+    def focus_color(self, progress=None):
+        """The colour of the focus bar's filled cells, for text about focus; None: nothing done yet (the bar's own
+        colour). progress: percent of the daily goal, today's by default."""
+        progress = self._progress() if progress is None else progress
+        if progress <= 0:
+            return None
+        c = self._cfg
+        return focus_color(progress, c.get("FOCUS_RED_PCT"), c.get("FOCUS_YELLOW_PCT"))
+
     def focus_cells(self, n):
         c = self._cfg
-        goal = self._focus.goal_seconds
-        progress = self._focus.today_seconds() * 100 // goal if goal > 0 else 0
+        progress = self._progress()
         blink_on = (self._now() // 500) % 2 == 0
         return focus_cells(progress, n, c.get("FOCUS_RED_PCT"), c.get("FOCUS_YELLOW_PCT"),
                            self._focus.state == "running", blink_on)

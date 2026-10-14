@@ -23,6 +23,13 @@ import nuts
 from boot_log import log
 from appconfig_schema import SETTINGS, HELP
 
+# Defaults that changed: config.txt keeps every setting, the defaults too, so a file written by an older version would
+# keep the old one for ever.  A value found here is read as "the default" (the device's current one).
+PREVIOUS_DEFAULTS = {
+    "CLOCK_FOOTER_TEXT": ("no need to go nuts", "I'm just squirreling around"),   # 2.0: each port has its own
+                                                                                    # (the watch: Squirrel! is watching)
+}
+
 _TRUE = ("true", "on", "yes", "1")
 _FALSE = ("false", "off", "no", "0")
 DAYS = "MTWTFSS"                 # kind "days": bit 0 = Monday
@@ -38,8 +45,27 @@ def days_text(mask):
 
 
 def days_shown(mask):
-    """The days as the screen shows them: spaced out, '-' for a day that is not ticked ("M T W T F - -")."""
-    return " ".join(DAYS[i] if mask >> i & 1 else "-" for i in range(7))
+    """The days as the screen shows them, in the language of the screen: spaced out, '-' for a day that is not ticked
+    ("M T W T F - -").  (days_text() is the file's form: always MTWTFSS.)"""
+    letters = day_letters()
+    return " ".join(letters[i] if mask >> i & 1 else "-" for i in range(7))
+
+
+_DAY_SHORT = ("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
+
+
+def day_short(n):
+    """Two letters for weekday n (0 = Monday), in the language of the screen - for pickers, where one letter is
+    ambiguous (Polish: P W Ś C P S N)."""
+    from i18n import _
+    return _(_DAY_SHORT[n])
+
+
+def day_letters():
+    """One letter per weekday, Monday first, in the language of the screen."""
+    from i18n import _
+    letters = _("MTWTFSS")
+    return letters if len(letters) == 7 else DAYS
 
 
 def _stamp(path):
@@ -76,9 +102,8 @@ _LEGACY = {
 
 class Config:
     def __init__(self):
-        self._schema = {}          # key -> (kind, group, label, extra)
-        self._order = []
-        self._defaults = {}
+        self._schema = {}          # key -> its row of SETTINGS: (key, kind, group, label, extra) - a constant tuple (in
+        self._order = []           # flash, frozen): no copy of it in RAM; the defaults are nuts' own attributes
         self._values = {}
         self._listeners = []
         self._extra = []           # lines of the file we do not recognise: kept when saving
@@ -86,10 +111,11 @@ class Config:
         self._stamp = None         # (mtime, size) as of our last read / write
         self.last_changed = 0      # results of the most recent (re)load, for the UI
         self.last_problems = 0
-        for key, kind, group, label, extra in SETTINGS:
-            self._schema[key] = (kind, group, label, extra)
+        for row in SETTINGS:
+            key = row[0]
+            self._schema[key] = row
             self._order.append(key)
-            self._defaults[key] = self._values[key] = getattr(nuts, key)
+            self._values[key] = getattr(nuts, key)
 
     # ---------------- reading ----------------
 
@@ -97,10 +123,10 @@ class Config:
         return self._values[key]
 
     def default(self, key):
-        return self._defaults[key]
+        return getattr(nuts, key)
 
     def is_default(self, key):
-        return self._values[key] == self._defaults[key]
+        return self._values[key] == getattr(nuts, key)
 
     def keys(self):
         return list(self._order)
@@ -108,17 +134,17 @@ class Config:
     def groups(self):
         seen = []
         for key in self._order:
-            group = self._schema[key][1]
+            group = self._schema[key][2]
             if group not in seen:
                 seen.append(group)
         return seen
 
     def keys_in(self, group):
-        return [k for k in self._order if self._schema[k][1] == group]
+        return [k for k in self._order if self._schema[k][2] == group]
 
     def describe(self, key):
         """(kind, group, label, extra) - what a settings screen needs to edit the key."""
-        return self._schema[key]
+        return self._schema[key][1:]                   # (kind, group, label, extra)
 
     @staticmethod
     def help(key):
@@ -126,7 +152,7 @@ class Config:
         return HELP.get(key, "")
 
     def text_of(self, key):
-        return self._to_text(self._schema[key][0], self._values[key])
+        return self._to_text(self._schema[key][1], self._values[key])
 
     @property
     def path(self):
@@ -136,7 +162,7 @@ class Config:
 
     def validate(self, key, value):
         """The value in canonical form, or ValueError.  Numbers are clamped to their range."""
-        kind, _group, _label, extra = self._schema[key]
+        _key, kind, _group, _label, extra = self._schema[key]
         if kind == "int":
             if isinstance(value, bool) or not isinstance(value, int):
                 raise ValueError("not a whole number")
@@ -164,7 +190,7 @@ class Config:
 
     def parse(self, key, text):
         """Turn the text after '=' into a value (ValueError when it makes no sense)."""
-        kind, _group, _label, extra = self._schema[key]
+        _key, kind, _group, _label, extra = self._schema[key]
         t = text.strip()
         if kind == "int":
             return self.validate(key, int(t))
@@ -209,9 +235,10 @@ class Config:
         """Restore the default of one setting, or of all of them."""
         changed = False
         for k in ([key] if key else self._order):
-            if self._values[k] != self._defaults[k]:
-                self._values[k] = self._defaults[k]
-                self._notify(k, self._defaults[k])
+            default = getattr(nuts, k)
+            if self._values[k] != default:
+                self._values[k] = default
+                self._notify(k, default)
                 changed = True
         if changed and save:
             self.save()
@@ -314,7 +341,10 @@ class Config:
         self._extra = extra
         changed = 0
         for key in self._order:
-            new = overrides.get(key, self._defaults[key])     # absent from the file = default
+            default = getattr(nuts, key)
+            new = overrides.get(key, default)                 # absent from the file = default
+            if new != default and new in PREVIOUS_DEFAULTS.get(key, ()):
+                new = default                                 # the old default, written by an older version: the new one
             if new != self._values[key]:
                 self._values[key] = new
                 self._notify(key, new)
@@ -351,7 +381,7 @@ class Config:
                 problems.append("%s: %s - using the default" % (key, e))
                 continue
             overrides[key] = parsed
-            if self._schema[key][0] == "int" and parsed != int(value.strip()):
+            if self._schema[key][1] == "int" and parsed != int(value.strip()):
                 problems.append("%s: %s is outside the allowed range - set to %d" % (key, value.strip(), parsed))
         return overrides, problems, extra, seen
 
@@ -364,7 +394,7 @@ class Config:
         ]
         group = None
         for key in self._order:
-            kind, g, label, extra = self._schema[key]
+            _key, kind, g, label, extra = self._schema[key]
             if g != group:
                 group = g
                 lines.append("# --- %s ---" % g)

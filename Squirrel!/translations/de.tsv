@@ -1,0 +1,591 @@
+en	de
+   %dx more  (ESC = cancel)	   noch %dx  (ESC = Abbruch)
+   [RIGHT] Edit	   [RIGHT] Bearbeiten
+  (ENTER again)	  (ENTER erneut)
+  [ESC] Cancel	  [ESC] Abbrechen
+  and +/-	  und +/-
+!! DELETE !!  Press DEL:	!! LÖSCHEN !!  DEL drücken:
+# Bluetooth	# Bluetooth
+# Bluetooth sync	# Bluetooth-Sync
+# Focus Stats	# Fokus-Statistik
+# Key calibration	# Tastenkalibrierung
+# LED test: 	# LED-Test: 
+# Reset ALL settings?	# ALLES zurücksetzen?
+# Set time	# Zeit stellen
+# Time via WiFi	# Zeit über WLAN
+# Voice Recorder	# Sprachrekorder
+% for notification sounds	% für Benachrichtigungstöne
+% for the metronome	% für das Metronom
+% for the quarter tick	% für die Viertelstunden
+% for voice notes	% für Sprachnotizen
+% of full brightness; bright colours are\nlimited by LED_MAX_SUM (nuts.py)	% der vollen Helligkeit; helle Farben\nbegrenzt LED_MAX_SUM (nuts.py)
+% of normal brightness; 0 = off	% der normalen Helligkeit; 0 = aus
+%d blocks	%d Blöcke
+%d blocks, %s in all	%d Blöcke, insgesamt %s
+%d days ago	vor %d Tagen
+%d h ago	vor %d Std.
+%d log entries	%d Protokolleinträge
+%d min ago	vor %d Min.
+%d settings	%d Einstellungen
+%d to %d   default %s	%d bis %d   Standard %s
+%d to %d, default %s	%d bis %d, Standard %s
+%d:%02d left	noch %d:%02d
+%s  block %d/%d	%s  Block %d/%d
+%s finished	%s beendet
+%s: To-Dos	%s: To-Dos
+%s: notes	%s: Notizen
+%s: reports	%s: Berichte
+%s: routines	%s: Routinen
+(2.4 GHz). WiFi and BT are	(2,4 GHz). WLAN und BT werden
+(Empty)	(Leer)
+(From = Until: no silence)	(Von = Bis: keine Ruhe)
+(empty)	(leer)
+(none yet)	(noch keine)
+(none: open Bluetooth sync there)	(keins: dort Bluetooth-Sync öffnen)
++ [Add block]	+ [Block hinzufügen]
++ [Add network]	+ [Netz hinzufügen]
++ [New item]	+ [Neu]
++ [New routine]	+ [Neue Routine]
+0 = the firmware default	0 = Firmware-Standard
+1-255; 0 = as the device starts	1-255; 0 = wie beim Start
+<> day   ENTER tick   ESC done	<> Tag   ENTER an/aus   ESC fertig
+<> device  [ENTER] Start/Pause	<> Gerät  [ENTER] Start/Pause
+<> hour/min   up/down change   ENTER ok	<> Std/Min   auf/ab ändern   ENTER ok
+<> interval  up/down volume	<> Intervall  auf/ab Lautstärke
+<> step  R D S B  ESC back	<> Schritt  R D S B  ESC zurück
+A night counts for the day it starts	Eine Nacht zählt zum Tag ihres Beginns
+A quiet tick every 15 minutes	Leiser Tick alle 15 Minuten
+ALT+letter layout	ALT+Buchstabe
+Accent colour	Akzentfarbe
+Active: 	Aktiv: 
+Add device	Gerät hinzufügen
+Alarm	Alarm
+All reset	Alles zurückgesetzt
+All settings reset	Alle Einstellungen zurückgesetzt
+Already default	Schon Standard
+Already the default	Ist schon der Standard
+Audio	Audio
+Auto sync every	Auto-Sync alle
+Auto sync: %s	Auto-Sync: %s
+B light %d	B Licht %d
+Background colour	Hintergrundfarbe
+Bars	Balken
+Bars from edge	Balken vom Rand
+Bars in menus	Balken in Menüs
+Bars on clock	Balken an der Uhr
+Bars shift down	Balken nach unten
+Battery % from which it is green	Akku-% ab dem es grün ist
+Battery % from which it is yellow;\nbelow: red	Akku-%, ab dem gelb;\ndarunter: rot
+Battery % from which the bar is blue	Akku-% ab dem der Balken blau ist
+Battery and focus bars on the clock	Akku- und Fokusbalken an der Uhr
+Battery log	Akku-Protokoll
+Battery: blue	Akku: blau
+Battery: green	Akku: grün
+Battery: yellow	Akku: gelb
+Be visible (for a phone)	Sichtbar sein (für Handy)
+Blink intervals	Blinkintervalle
+Bluetooth	Bluetooth
+Bluetooth failed: %s	Bluetooth-Fehler: %s
+Bluetooth sync	Bluetooth-Sync
+Box 4-4-4-4	Box 4-4-4-4
+Break	Pause
+Breathe in	Einatmen
+Breathe out	Ausatmen
+Breathing	Atmung
+Breathing light	Atemlicht
+Brightness	Helligkeit
+Brightness steps	Helligkeitsstufen
+Buzzer	Summer
+Buzzer quiet days	Summer Ruhetage
+Buzzer quiet from	Summer still ab
+Buzzer quiet until	Summer still bis
+Buzzer test	Summer-Test
+Buzzer: 	Summer: 
+CTRL+S = move to Notes	CTRL+S = zu Notizen
+Calm 5-5	Ruhe 5-5
+Cancel	Abbrechen
+Cannot open	Öffnen nicht möglich
+Characters in a To-Do title	Zeichen im To-Do-Titel
+Characters in a note title	Zeichen im Notiztitel
+Characters in one To-Do	Zeichen pro To-Do
+Characters in one note	Zeichen pro Notiz
+Characters in one thought	Zeichen pro Gedanke
+Charging light	Ladelicht
+Click	Klick
+Clock date X	Uhr Datum X
+Clock date Y	Uhr Datum Y
+Clock footer X	Uhr Fußzeile X
+Clock footer Y	Uhr Fußzeile Y
+Clock footer text	Fußzeilentext
+Clock time X	Uhr Zeit X
+Clock time Y	Uhr Zeit Y
+Close	Schließen
+Coming soon	Kommt bald
+Config: %d changed, %d bad	Konfig: %d geändert, %d fehlerhaft
+Connected	Verbunden
+Connected, nothing asked	Verbunden, nichts angefragt
+Connecting RTC...	RTC verbinden...
+Connecting...	Verbinden...
+Connecting: %s	Verbinden: %s
+Connections	Verbindungen
+Cuckoo	Kuckuck
+Cuckoo (quarter)	Kuckuck (Viertel)
+Cuckoo clock	Kuckucksuhr
+Cuckoo: blink	Kuckuck: Blinken
+Cuckoo: colour	Kuckuck: Farbe
+Cuckoo: mode	Kuckuck: Modus
+D driver:  	D Treiber:  
+DAY	TAG
+DEL again: forget %s	DEL erneut: %s vergessen
+Daily focus goal	Tagesziel Fokus
+Days	Tage
+Days a done To-Do stays, then it goes	Tage, die ein erledigtes To-Do bleibt
+Days: 	Tage: 
+Days:  	Tage:  
+Deep sleep after	Tiefschlaf nach
+Default	Standard
+Default: 	Standard: 
+Delete	Löschen
+Delete failed!	Löschen fehlgeschlagen!
+Deleted	Gelöscht
+Deleted!	Gelöscht!
+Devices	Geräte
+Devices: 	Geräte: 
+Dim clock after	Uhr dimmen nach
+Dim others after	Andere dimmen nach
+Dimmed brightness	Gedimmt
+Discarded	Verworfen
+Display	Anzeige
+Done	Erledigt
+Done: %d received, %d sent	Fertig: %d empfangen, %d gesendet
+Dot in the corner while the focus\ntimer runs (never on the clock)	Punkt in der Ecke, solange der Fokus\nläuft (nie auf der Uhr)
+Double	Doppelt
+ENTER add + sync   ESC back	ENTER hinzufügen + Sync   ESC zurück
+ENTER or G0 to start	ENTER oder G0 zum Starten
+ENTER tick   ESC done	ENTER an/aus   ESC fertig
+ESC again = discard the text	ESC erneut = Text verwerfen
+ESC to cancel	ESC zum Abbrechen
+ESC to go back	ESC zum Zurückgehen
+EU summer time	EU-Sommerzeit
+Edit	Bearbeiten
+Edit network	Netz bearbeiten
+Energy data every 10 min in battery.csv\non the SD card; never sent anywhere	Energiedaten alle 10 Min. in battery.csv\nauf der SD-Karte; nie gesendet
+Enter text:	Text eingeben:
+Error colour	Fehlerfarbe
+Every setting goes back	Jede Einstellung kehrt
+Every setting goes back to	Jede Einstellung kehrt
+Experimental	Experimentell
+FINISHED	FERTIG
+FN + arrows: cursor	FN + Pfeile: Cursor
+Failed: %s	Fehler: %s
+Fallback WiFi name	Ersatz-WLAN
+Fallback network	Ersatznetz
+Fallback password	Ersatz-Passwort
+File: %d bytes	Datei: %d Bytes
+File: found	Datei: gefunden
+File: not found (fonts/squirrel.vlw)	Datei: fehlt (fonts/squirrel.vlw)
+Flash	Blitz
+Focus	Fokus
+Focus ON	Fokus AN
+Focus dot	Fokuspunkt
+Focus paused	Fokus pausiert
+Focus resumed	Fokus fortgesetzt
+Focus tools	Fokus
+Focus: red	Fokus: rot
+Focus: yellow	Fokus: gelb
+Font in use	Schrift aktiv
+Font test	Schrifttest
+Found %d	%d gefunden
+Fr	Fr
+Free screens	Screens freigeben
+Fri	Fr
+From	Von
+From = Until (00:00) = no silence	Von = Bis (00:00) = keine Ruhe
+From:  	Von:   
+Getting time...	Zeit wird geholt...
+Goal % below which it is yellow;\nthen green, blue at 100	Ziel-%, unter dem gelb;\ndann grün, blau bei 100
+Goal % below which the bar is red	Ziel-% unter dem der Balken rot ist
+Green breathing in, blue out	Grün beim Einatmen, blau beim Ausatmen
+HOUR	STD
+Hard	Hart
+Hold	Halten
+Keep done To-Dos	Erledigte behalten
+Kept: used at every start	Behalten: bei jedem Start
+Key calibration	Tastenkalibrierung
+Keyboard	Tastatur
+L/R: field  U/D: value	L/R: Feld  O/U: Wert
+LED	LED
+LED brightness	LED-Helligkeit
+LED modes	LED-Modi
+LED quiet days	LED Ruhetage
+LED quiet from	LED still ab
+LED quiet until	LED still bis
+LED test	LED-Test
+LED: 	LED: 
+Language	Sprache
+Last error: %s	Letzter Fehler: %s
+Light	Leicht
+Limited to %d	Begrenzt auf %d
+Lines above and below menu titles\nbecome battery and focus bars	Linien um Menütitel werden\nzu Akku- und Fokusbalken
+List full (%d)	Liste voll (%d)
+Long	Lang
+Long break	Lange Pause
+Looking for a network...	Suche Netzwerk...
+Looking for nuts...	Suche Nüsse...
+MIN	MIN
+MON	MON
+MTWTFSS	MDMDFSS
+Main colour	Hauptfarbe
+Mark: Aa (shift)	Markierung: Aa
+Mark: FN	Markierung: FN
+Mark: OPT/CTRL/ALT	Mark OPT/CTRL/ALT
+Mark: aa (normal)	Markierung: aa
+Metronome	Metronom
+Metronome interval	Metronom-Takt
+Metronome volume	Metronom-Lautst.
+Metronome: blink	Metronom: Blinken
+Metronome: colour	Metronom: Farbe
+Metronome: mode	Metronom: Modus
+Microphone gain	Mikrofon-Gain
+Mind dump	Gedankenablage
+Mind dump length	Gedankenlänge
+Minutes before an unanswered\nroutine comes back	Minuten, bis eine unbeantwortete\nRoutine wiederkommt
+Minutes dimmed before a deep sleep\n(not while Pomodoro / metronome run)	Minuten gedimmt vor dem Tiefschlaf\n(nicht bei Pomodoro / Metronom)
+Minutes of a short break	Minuten einer kurzen Pause
+Minutes of focus a day	Fokus-Minuten pro Tag
+Minutes of one work block	Minuten eines Arbeitsblocks
+Minutes; 0 = only on demand. On the\nclock (every 60: at full hours). The\nwatch wakes for it: each sync costs\nabout 1 mAh of its battery	Minuten; 0 = nur auf Abruf. Nach der\nUhr (alle 60: zur vollen Stunde). Die\nUhr wacht dafür auf: jeder Sync kostet\netwa 1 mAh ihres Akkus
+Minutes; Poland: 60 (summer time\nis added by EU summer time)	Minuten; Deutschland: 60 (Sommerzeit\nfügt EU-Sommerzeit hinzu)
+Minutes; after the last block\nof a round	Minuten; nach dem letzten Block\neiner Runde
+Mo	Mo
+Modes	Modi
+Mon	Mo
+Moved to Notes!	Zu Notizen verschoben!
+Muted (sound off / recording)	Stumm (Ton aus / Aufnahme)
+NTP failed: %s	NTP-Fehler: %s
+Name	Name
+Network	Netzwerk
+Network: 	Netz: 
+New	Neu
+New network	Neues Netz
+Next	Weiter
+Next: %s %s	Danach: %s %s
+No RTC found!	Keine RTC gefunden!
+No config file	Keine Konfigdatei
+No devices - add one first	Keine Geräte - erst eins hinzufügen
+No font loaded: plain letters	Keine Schrift: einfache Buchstaben
+Nobody came	Niemand kam
+Normal	Normal
+Not enough memory	Zu wenig Speicher
+Not loaded: 	Nicht geladen: 
+Not saved	Nicht gespeichert
+Note max length	Notizlänge
+Note title length	Notiztitel
+Note viewer footer. Pixels;\nmore = lower	Fußzeile der Notizansicht. Pixel;\nmehr = tiefer
+Note viewer footer. Pixels;\nmore = to the right	Fußzeile der Notizansicht. Pixel;\nmehr = nach rechts
+Notes	Notizen
+Nothing planned: routines, cuckoo	Nichts geplant: Routinen, Kuckuck
+Notification sound	Hinweiston
+Notifications	Benachrichtigungen
+Notify volume	Lautst. Hinweis
+Notify: blink	Hinweis: Blinken
+Notify: colour	Hinweis: Farbe
+Notify: mode	Hinweis: Modus
+Now: 	Jetzt: 
+OK	OK
+ON	AN
+OPT = done	OPT = erledigt
+OPT = done   ENTER = edit	OPT = erledigt  ENTER = ändern
+OPT = keep it (%ds)	OPT = behalten (%ds)
+Of the fallback network (hidden)	Des Ersatznetzes (verborgen)
+Off	Aus
+Only where charging is reported\n(not on the Cardputer ADV)	Nur wo das Laden gemeldet wird\n(nicht beim Cardputer ADV)
+PAUSED	PAUSE
+PLAYING	WIEDERGABE
+Pairing code:	Kopplungscode:
+Pairing: %s	Kopplung: %s
+Password for 	Passwort für 
+Pause	Pause
+Personalize	Anpassen
+Phone hotspot must be ON	Handy-Hotspot muss AN sein
+Pixels down	Pixel nach unten
+Pixels from the screen edges	Pixel vom Bildschirmrand
+Pixels; more = lower	Pixel; mehr = tiefer
+Pixels; more = to the right	Pixel; mehr = nach rechts
+Planned alarms	Geplante Alarme
+Playback volume	Wiedergabe-Lautst.
+Polish letters. Takes effect after\na restart (hold G0 at start to skip).	Umlaute u. Akzente. Wirkt nach\nNeustart (G0 beim Start = überspringen).
+Pomodoro	Pomodoro
+Pomodoro blocks	Pomodoro-Blöcke
+Pomodoro break	Pomodoro-Pause
+Pomodoro work	Pomodoro-Arbeit
+Pomodoro/Training	Pomodoro/Training
+Pomodoro: blink	Pomodoro: Blinken
+Pomodoro: colour	Pomodoro: Farbe
+Pomodoro: mode	Pomodoro: Modus
+Power	Energie
+Power save	Energiesparen
+Prepare	Vorbereiten
+Press: %s	Drücken: %s
+Pulse	Puls
+Quarters	Viertelstunden
+Quick sync	Schnell-Sync
+R sending: %d/%d %s	R Senden: %d/%d %s
+REC	REC
+RUNNING	LÄUFT
+Rarely used screens leave memory\n(more free heap, slower to open)	Selten genutzte Screens geben Speicher\nfrei (mehr frei, öffnen langsamer)
+Ready	Bereit
+Rec Error!	Aufnahmefehler!
+Relax 4-7-8	Entspannung 4-7-8
+Reload config	Konfig neu laden
+Reset	Zurücksetzen
+Reset ALL	ALLE Einstellungen
+Reset all	Alles zurücksetzen
+Reset all to defaults	Alles auf Standard
+Rest	Ruhe
+Restart to apply	Neustart zum Anwenden
+Restarting...	Neustart...
+Resume	Weiter
+Routine	Routine
+Routine %02d:%02d	Routine %02d:%02d
+Routine snooze	Routine-Schlummern
+Routine text	Routinentext
+Routines	Routinen
+S speaker: 	S Lautsprecher: 
+SOS	SOS
+STOPPED	GESTOPPT
+Sa	Sa
+Sat	Sa
+Save	Speichern
+Save Error!	Speicherfehler!
+Save failed!	Speichern fehlgeschlagen!
+Saved	Gespeichert
+Saved (	Gespeichert (
+Saved - listen	Gespeichert - hören
+Saved - look	Gespeichert - schauen
+Saved Keymap!	Tastenbelegung gespeichert!
+Saved to Mind dump!	In Gedankenablage gespeichert!
+Saved!	Gespeichert!
+Screen	Bildschirm
+Seconds between beats;\n0.125 = 1/8 s, 0.25 = 1/4 s, 0.5 = 1/2 s	Sekunden zwischen den Schlägen;\n0.125 = 1/8 s, 0.25 = 1/4 s, 0.5 = 1/2 s
+Seconds without a key; 0 = never	Sekunden ohne Taste; 0 = nie
+Securing the link: %s	Verbindung sichern: %s
+Set in config.txt	In config.txt setzen
+Set the clock over WiFi at start\nwhen there is no DS1302	Uhr beim Start über WLAN stellen,\nwenn kein DS1302 da ist
+Set time	Zeit stellen
+Set time first (Settings)	Erst Zeit stellen (Einstellungen)
+Set time first!	Erst Zeit stellen!
+Settings	Einstellungen
+Short	Kurz
+Signal played	Signal gespielt
+Silent	Ruhe
+Silent (recording)	Still (Aufnahme)
+Silent days	Ruhetage
+Silent from	Ruhe ab
+Silent mode	Ruhemodus
+Silent mode: LED	Ruhemodus: LED
+Silent mode: buzzer	Ruhemodus: Summer
+Silent mode: sound	Ruhemodus: Ton
+Silent until	Ruhe bis
+Silent: LED	Ruhe: LED
+Silent: buzzer	Ruhe: Summer
+Silent: sound	Ruhe: Ton
+Skip	Überspringen
+Sleep mode	Schlafmodus
+Sleep mode is not 'deep' (Personalize)	Schlafmodus ist nicht 'tief'
+Slower CPU while the screen is dimmed	Langsamere CPU bei gedimmtem Bildschirm
+Smooth fade	Sanftes Dimmen
+Snoozed: %s	Verschoben: %s
+Sound	Ton
+Sound quiet days	Ton Ruhetage
+Sound quiet from	Ton still ab
+Sound quiet until	Ton still bis
+Squirrel	Squirrel
+Start	Start
+Statistics	Statistik
+Steady colours	Feste Farben
+Step %d/%d	Schritt %d/%d
+Stop	Stopp
+Stopped	Gestoppt
+Su	So
+Sun	So
+Switch off	Ausschalten
+Sync RTC	RTC-Sync
+Sync now	Jetzt synchronisieren
+Synced %02d:%02d %02d-%02d-%04d	Synchron %02d:%02d %02d-%02d-%04d
+Synced %d of %d	%d von %d synchronisiert
+TICKING	TICKT
+Test notification	Test-Benachrichtigung
+Test sound	Tontest
+Text notes	Textnotizen
+Text: 	Text: 
+Th	Do
+The language of every screen.\nAny but English turns the font on\n(for the accented letters)	Die Sprache aller Bildschirme.\nJede außer Englisch schaltet die\nSchrift ein (Umlaute)
+The name is required	Der Name ist nötig
+This device	Dieses Gerät
+This is a test. OPT = done, DEL = cancel	Das ist ein Test. OPT = erledigt, DEL = abbrechen
+Thu	Do
+Time	Zeit
+Time Set!	Zeit gestellt!
+Time and date	Zeit und Datum
+Time from a device	Zeit von einem Gerät
+Time settings	Zeiteinstellungen
+Time via WiFi	Zeit über WLAN
+Time: %02d:%02d	Zeit: %02d:%02d
+Title Required!	Titel nötig!
+To-Do list	To-Do-Liste
+To-Do max length	To-Do-Länge
+To-Do title length	To-Do-Titel
+Together	Zusammen
+Too short - not saved	Zu kurz - nicht gespeichert
+Training	Training
+Training blocks	Trainingsblöcke
+Triple	Dreifach
+Try the font	Schrift testen
+Tu	Di
+Tue	Di
+Type a whole number	Ganze Zahl eingeben
+Type the code shown on %s	Code von %s eingeben
+Type: ALT+a = %s (layout %s)	Tippen: ALT+a = %s (Layout %s)
+UTC offset	UTC-Versatz
+Until	Bis
+Until: 	Bis:   
+Updated	Aktualisiert
+Use font	Schrift nutzen
+Used when no saved network is in range	Wenn kein gespeichertes Netz in Reichweite ist
+Viewer footer X	Viewer Fußzeile X
+Viewer footer Y	Viewer Fußzeile Y
+Voice notes	Sprachnotizen
+Vol: %3d%%	Laut.: %3d%%
+Volume	Lautstärke
+Waiting for the squirrel	Warte auf das Eichhörnchen
+Warning colour	Warnfarbe
+We	Mi
+Wed	Mi
+WiFi networks	WLAN-Netze
+WiFi scan failed: %s	WLAN-Suche fehlgeschlagen: %s
+WiFi start failed: %s	WLAN-Start fehlgeschlagen: %s
+WiFi sync at start	WLAN-Sync b. Start
+Work	Arbeit
+Work blocks in one round	Arbeitsblöcke pro Runde
+Write something first!	Erst etwas schreiben!
+YEAR	JAHR
+[CTRL+S] Save | [ESC] Discard	[CTRL+S] Sichern  [ESC] Abbruch
+[CTRL+S] Save | [ESC] Exit	[CTRL+S] Speichern | [ESC] Ende
+[DEL] Delete	[DEL] Löschen
+[ENTER] 	[ENTER] 
+[ENTER] %s  <> exercise	[ENTER] %s  <> Übung
+[ENTER] %s  [DEL] Stop	[ENTER] %s  [DEL] Stopp
+[ENTER] %s  [ESC] Back	[ENTER] %s  [ESC] Zurück
+[ENTER] Close	[ENTER] Schließen
+[ENTER] Edit	[ENTER] Ändern
+[ENTER] OK	[ENTER] OK
+[ENTER] Pause/Play	[ENTER] Pause/Abspielen
+[ENTER] Reset   [ESC] Cancel	[ENTER] Zurücksetzen [ESC] Abbruch
+[ENTER] Retry  [ESC] Back	[ENTER] Nochmal  [ESC] Zurück
+[ENTER] Save  [ESC] Cancel	[ENTER] Speichern  [ESC] Abbruch
+[ENTER] Save | [ESC] Cancel	[ENTER] Speichern | [ESC] Abbruch
+[ENTER] Save | [ESC] Discard	[ENTER] Sichern  [ESC] Abbruch
+[ENTER] Start	[ENTER] Start
+[ENTER] Start/Pause  [ESC] Back	[ENTER] Start/Pause  [ESC] Zurück
+[ESC] Back	[ESC] Zurück
+[ESC] Stop	[ESC] Stopp
+[G0/ENTER] Save  [ESC] Discard	[G0/ENTER] Sichern  [ESC] Abbruch
+[G0] Exit without saving	[G0] Ende ohne Speichern
+[L/R] -/+10s  [U/D] Vol	[L/R] -/+10s  [O/U] Laut.
+add them on the squirrel	auf dem Eichhörnchen hinzufügen
+alarm	Alarm
+allowed	erlaubt
+any other key = undo	andere Taste = rückgängig
+auto	auto
+auto = double on the hour, click\nfor the quarters	auto = doppelt zur vollen Stunde,\nKlick zu den Vierteln
+auto = double, triple (hard block),\nlong (break)	auto = doppelt, dreifach (harter Block),\nlang (Pause)
+auto = short every 4th beat,\nclick on the others	auto = kurz bei jedem 4. Schlag,\nKlick bei den anderen
+auto = the feature's own signal	auto = eigenes Signal der Funktion
+bat %d%%%s	Akku %d%%%s
+black	schwarz
+blue	blau
+click	Klick
+clock set there	Uhr dort gestellt
+clock taken	Uhrzeit übernommen
+clock write failed: %s	Uhr schreiben fehlgeschlagen: %s
+connection failed	Verbindung fehlgeschlagen
+connection timeout (is the hotspot on?)	Zeitüberschreitung (Hotspot an?)
+cyan	cyan
+darkgray	dunkelgrau
+de	de
+deep	tief
+digits, then ENTER   [ESC] Stop	Ziffern, dann ENTER   [ESC] Stopp
+disconnected	getrennt
+double	doppelt
+en	en
+every %d h	alle %d Std.
+every %d min	alle %d Min.
+failed: %s	Fehler: %s
+flash	Blitz
+focus %d:%02d/%d:%02d	Fokus %d:%02d/%d:%02d
+fr	fr
+frames %d	Frames %d
+goal %dh	Ziel %dh
+gray	grau
+green	grün
+hidden   up to %d characters	verborgen   bis %d Zeichen
+hold = done	halten = erledigt
+its default value.	zu ihrem Standardwert zurück.
+joined as %d	beigetreten als %d
+just now	gerade eben
+light	leicht
+light: sleeps while dimmed (the USB\nconsole disconnects); deep: after the\ntime below; the button / alarms wake	light: schläft gedimmt (USB-Konsole\ntrennt); deep: nach der Zeit unten;\nTaste / Alarme wecken
+lightgray	hellgrau
+lightgreen	hellgrün
+long	lang
+magenta	magenta
+never	nie
+next %s %s	danach %s %s
+no	nein
+no answer (waited for %s)	keine Antwort (gewartet auf %s)
+no place for the pairing keys	kein Platz für die Kopplungsschlüssel
+no saved WiFi network	kein gespeichertes WLAN
+no saved network in range	kein gespeichertes Netz in Reichweite
+no silence	keine Ruhe
+no valid clock there	dort keine gültige Uhr
+not a Squirrel! device	kein Squirrel!-Gerät
+notes %d/%d	Notizen %d/%d
+now: 	jetzt: 
+off	aus
+on	an
+on demand	auf Abruf
+orange	orange
+pairing failed - wrong code?	Kopplung fehlgeschlagen - falscher Code?
+pairing method %d not supported	Kopplungsmethode %d nicht unterstützt
+paused	pausiert
+pl	pl
+protocol %d, this device speaks %d	Protokoll %d, dieses Gerät spricht %d
+pulse	Puls
+received %d  sent %d	empfangen %d  gesendet %d
+red	rot
+routines %d/%d	Routinen %d/%d
+running	läuft
+settings?	zurücksetzen?
+short	kurz
+silent	still
+sos	sos
+step %d of %d	Schritt %d von %d
+switched off afterwards.	danach ausgeschaltet.
+text	Text
+text = the colour of the text	Text = Farbe des Textes
+text_edit	text_edit
+the Squirrel! service is incomplete	der Squirrel!-Dienst ist unvollständig
+the node refused (%d)	das Gerät hat abgelehnt (%d)
+the node refused a write (%d) - not paired?	das Gerät hat das Schreiben abgelehnt (%d) - nicht gekoppelt?
+to its default value.	zum Standardwert zurück.
+todo %d/%d	To-Do %d/%d
+triple	dreifach
+type it on the squirrel	auf dem Eichhörnchen eingeben
+up to %d characters	bis %d Zeichen
+up to date	aktuell
+volume	Lautstärke
+white	weiß
+wrong code	falscher Code
+yellow	gelb
+yes	ja

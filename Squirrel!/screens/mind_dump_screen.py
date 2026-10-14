@@ -1,9 +1,9 @@
 # screens/mind_dump_screen.py - quick capture of a thought
 #
 # Simpler than a note: a few lines of text (MIND_DUMP_MAX_CHARS, 200), ENTER saves.  The thought goes to the
-# Mind Dump list (Notes -> Mind Dump).  Editing it there turns it into a proper note: it moves to Notes
+# Mind dump list (Notes -> Mind dump).  Editing it there turns it into a proper note: it moves to Notes
 # (see NoteEditorScreen) and the user is told so.
-# It opens from the clock (Aa) and from Notes -> Mind Dump -> + [New Item], and returns to where it came from.
+# It opens from the clock (Aa) and from Notes -> Mind dump -> + [New item], and returns to where it came from.
 # ESC on a screen with text asks for a second ESC, so a thought is not lost to a slip of the finger.
 
 import time
@@ -12,6 +12,7 @@ from appconfig import cfg
 from line_editor import LineEditor
 from text_layout import layout, locate, scroll_to
 from screens.base_screen import BaseScreen
+from i18n import _
 
 _FROM_MENU = ("MENU", {"menu_name": "NOTES_ROOT"})
 COLS, ROWS, ROW_H = 36, 6, 13
@@ -43,15 +44,15 @@ class MindDumpScreen(BaseScreen):
     def _save(self):
         text = self.edit.buf.strip()
         if not text:
-            self.app.renderer.render_alert("Write something first!")
+            self.app.renderer.render_alert(_("Write something first!"))
             time.sleep(0.6)
             return
         limit = cfg.get("NOTE_TITLE_MAX_LEN")
         title = self.app.storage.unique_title("MIND", text.split("\n")[0][:limit].rstrip(), limit)
         if self.app.storage.save_item("MIND", title, text):
-            self.app.renderer.render_options("Saved to Mind Dump!")
+            self.app.renderer.render_options(_("Saved to Mind dump!"))
         else:
-            self.app.renderer.render_alert("Save failed!")
+            self.app.renderer.render_alert(_("Save failed!"))
         time.sleep(0.6)
         self._leave()
 
@@ -73,7 +74,7 @@ class MindDumpScreen(BaseScreen):
         theme = renderer.theme
         Lcd.setTextSize(renderer.fonts["MENU_ITEM"])
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("Mind Dump", 5, 5)
+        Lcd.drawString(_("Mind dump"), 5, 5)
         renderer.render_keypad_mode_indicator(getattr(self.app, 'keypad', None))
         Lcd.drawRect(5, 22, 230, 88, theme["ACCENT"])
         rows = layout([self.edit.buf], COLS)
@@ -89,8 +90,8 @@ class MindDumpScreen(BaseScreen):
         counter = "%d/%d" % (len(self.edit.buf), self.edit.max_len)
         if self._armed:
             Lcd.setTextColor(theme["ERROR"], theme["BG"])
-            Lcd.drawString("ESC again = discard the text", 5, 115)
+            Lcd.drawString(_("ESC again = discard the text"), 5, 115)
         else:
-            Lcd.drawString("[ENTER] Save | [ESC] Discard", 5, 115)
+            Lcd.drawString(_("[ENTER] Save | [ESC] Discard"), 5, 115)
         Lcd.setTextColor(theme["FG"], theme["BG"])
         Lcd.drawString(counter, 235 - 6 * len(counter), 115)

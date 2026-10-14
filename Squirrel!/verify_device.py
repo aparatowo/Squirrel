@@ -1,5 +1,5 @@
 # verify_device.py - for a setup with plain .py files in /flash/apps/Squirrel.
-# With a FROZEN build use  import sq_info; sq_info.report()  instead (see BUILD.md).
+# With a FROZEN build use  import sq_info; sq_info.report()  instead (see docs/implementation/en/building.md).
 BASE = '/flash/apps/Squirrel/'
 EXPECT = {
     'services.py': ['class ServiceManager'],
@@ -94,15 +94,15 @@ for name, markers in EXPECT.items():
         with open(BASE + name) as f:
             text = f.read()
         missing = [m for m in markers if m not in text]
-        status = 'OK     ' if not missing else 'STARA/ZLA TRESC'
+        status = 'OK     ' if not missing else 'OLD/WRONG CONTENT'
     except OSError:
-        status = 'BRAK   '
+        status = 'MISSING'
     print(status, name)
     bad += (status != 'OK     ')
 for name in OLD:
     try:
         open(BASE + name).close()
-        print('STARY PLIK - USUN   ', name)
+        print('OLD FILE - DELETE IT', name)
         bad += 1
     except OSError:
         pass
@@ -112,7 +112,7 @@ for name in EXPECT:
     mpy = BASE + name[:-3] + '.mpy'
     try:
         os.stat(mpy)
-        print('PRZESLANIA .py - USUN', name[:-3] + '.mpy')
+        print('HIDES THE .py - DELETE', name[:-3] + '.mpy')
         bad += 1
     except OSError:
         pass
@@ -120,9 +120,9 @@ for name in EXPECT:
 for name, size in {'fonts/squirrel.vlw': 19863}.items():
     try:
         got = os.stat(BASE + name)[6]
-        status = 'OK     ' if got == size else 'ZLY ROZMIAR %d (ma byc %d)' % (got, size)
+        status = 'OK     ' if got == size else 'WRONG SIZE %d (should be %d)' % (got, size)
     except OSError:
-        status = 'BRAK (potrzebny tylko dla polskich liter)'
+        status = 'MISSING (needed only for accented letters)'
     print(status, name)
-    bad += (status[:2] != 'OK' and not status.startswith('BRAK'))
-print('WSZYSTKO OK' if not bad else 'DO POPRAWY: %d' % bad)
+    bad += (status[:2] != 'OK' and not status.startswith('MISSING'))
+print('ALL OK' if not bad else 'TO FIX: %d' % bad)

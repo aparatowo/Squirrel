@@ -18,6 +18,28 @@ def file_stem(title):
 class StorageManager:
     def __init__(self, base_dir="/flash/apps/Squirrel"):
         self.base_dir = base_dir
+        self._metas = {}
+
+    def meta(self, collection_name):
+        """records_meta.Meta of a collection that is synced (todo, notes), else None."""
+        name = collection_name.lower()
+        from records_meta import Meta, SYNCED
+        if name not in SYNCED:
+            return None
+        if name not in self._metas:
+            self._metas[name] = Meta(f"{self.base_dir}/{name}")
+        return self._metas[name]
+
+    def _edited(self, collection_name, stem, old_stem=None):
+        m = self.meta(collection_name)
+        if m is not None:
+            m.edited(stem, old_stem)
+
+    def _forget_path(self, filepath):
+        folder, _sep, name = filepath.rpartition("/")
+        m = self.meta(folder.rpartition("/")[2])
+        if m is not None and name.endswith(".txt"):
+            m.forget(name[:-4])
         print(f"[STORAGE INIT] Initializing StorageManager at: {self.base_dir}")
         self._ensure_dir(self.base_dir)
 
@@ -168,6 +190,8 @@ class StorageManager:
             with open(filepath, "w") as f:
                 f.write(content)
             print(f"[STORAGE SUCCESS] Saved file {filepath}")
+            if extension == ".txt":
+                self._edited(collection_name, file_stem(title))
             return True
         except Exception as e:
             print(f"[STORAGE ERROR] Failed saving file {filepath}: {e}")
@@ -198,6 +222,10 @@ class StorageManager:
             print(f"[STORAGE ERROR] Failed writing {new_filepath}: {e}")
             return False
 
+        if extension == ".txt":
+            old_stem = old_filepath.rpartition("/")[2][:-len(extension)] if old_filepath else None
+            self._edited(collection_name, file_stem(new_title), old_stem)     # a rename keeps the record's id
+
         # Remove old file only when the title (filename) actually changed
         if old_filepath and old_filepath != new_filepath:
             try:
@@ -219,6 +247,7 @@ class StorageManager:
         try:
             os.remove(filepath)
             print(f"[STORAGE SUCCESS] Deleted file: {filepath}")
+            self._forget_path(filepath)
             return True
         except Exception as e:
             print(f"[STORAGE ERROR] Failed deleting file {filepath}: {e}")
@@ -232,6 +261,7 @@ class StorageManager:
             try:
                 os.remove(filepath)
                 print(f"[STORAGE SUCCESS] Deleted file: {filepath}")
+                self._forget_path(filepath)
                 return True
             except Exception as e:
                 print(f"[STORAGE ERROR] Failed deleting file {filepath}: {e}")

@@ -13,6 +13,7 @@
 import time
 from gfx import Lcd
 from screens.base_screen import BaseScreen
+from i18n import _
 
 _SEEK_MS = 10000
 DELETE_CONFIRM_PRESSES = 3      # DEL presses needed after the warning appears
@@ -66,7 +67,7 @@ class PlaybackScreen(BaseScreen):
         self.app.audio.stop_playback()
         ok = self.app.storage.delete_path(self._filepath)
         self._delete_confirm = None
-        self.app.renderer.render_alert("Deleted!" if ok else "Delete failed!")
+        self.app.renderer.render_alert(_("Deleted!") if ok else _("Delete failed!"))
         time.sleep(0.6)
         self.app.set_screen("MENU", menu_name="RECORDS")
 
@@ -122,13 +123,13 @@ class PlaybackScreen(BaseScreen):
 
         if state == 'playing':
             Lcd.setTextColor(theme["ACCENT"], theme["BG"])
-            label = "PLAYING"
+            label = _("PLAYING")
         elif state == 'paused':
             Lcd.setTextColor(theme["WARNING"], theme["BG"])
-            label = "PAUSED"
+            label = _("PAUSED")
         else:
             Lcd.setTextColor(theme["WARNING"], theme["BG"])
-            label = "STOPPED"
+            label = _("STOPPED")
         Lcd.drawString(label, 5, 30)
 
         Lcd.setTextColor(theme["FG"], theme["BG"])
@@ -138,16 +139,16 @@ class PlaybackScreen(BaseScreen):
             Lcd.fillRect(6, 55, int(218 * pos / total), 4, theme["ACCENT"])
 
         vol = audio.volume_pct_int()
-        Lcd.drawString(f"Vol: {vol:3d}%", 5, 66)
+        Lcd.drawString(_("Vol: %3d%%") % vol, 5, 66)
         Lcd.drawRect(70, 66, 150, 10, theme["FG"])
         Lcd.fillRect(71, 67, int(148 * vol / 100), 8, theme["ACCENT"])
 
-        Lcd.drawString("[ENTER] Pause/Play", 5, 85)
-        Lcd.drawString("[L/R] -/+10s  [U/D] Vol", 5, 100)
-        Lcd.drawString("[ESC] Back", 5, 115)
+        Lcd.drawString(_("[ENTER] Pause/Play"), 5, 85)
+        Lcd.drawString(_("[L/R] -/+10s  [U/D] Vol"), 5, 100)
+        Lcd.drawString(_("[ESC] Back"), 5, 115)
         Lcd.setTextColor(theme["ERROR"], theme["BG"])
-        Lcd.drawString("[DEL] Delete", 80, 115)
+        Lcd.drawString(_("[DEL] Delete"), 80, 115)
 
         # The delete warning is drawn on top of the normal screen.
         if self._delete_confirm is not None:
-            renderer.render_delete_confirm(self._delete_confirm)
+            renderer.render_delete_confirm(self._delete_confirm, self._title or None)

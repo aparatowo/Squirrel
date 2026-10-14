@@ -7,12 +7,15 @@
 #   Backspace / FN+Backspace      -> on_cancel
 #   nothing for `timeout_s`       -> on_timeout
 # Other keys are ignored on purpose: a notification must not be dismissed by accident.
+# On a touch screen (the watches) it takes the whole panel, with two big buttons: Done and the cancel one (Skip for a
+# routine); the side button / a swipe right puts it off (on_timeout - a routine comes back after its snooze).
 # While a recording runs the notification waits (recording has priority; the sound would also
 # be muted), and appears as soon as the recording ends.
 
 import time
 from gfx import Lcd, SCREEN_W, SCREEN_H
 from boot_log import log
+from i18n import _
 from hw.buzzer import signal
 from hw.led import signal as led_signal
 
@@ -90,6 +93,10 @@ class Notifier:
             self._last_beep = now
             self._beep(n.sound)
 
+    def later(self):
+        """Put the notification off as if nobody answered (a routine comes back after its snooze)."""
+        self._finish("timeout")
+
     def abort(self):
         """Drop the notification on display without calling anything (used when the screen is reset)."""
         self.current = None
@@ -120,7 +127,7 @@ class Notifier:
         self._last_beep = now
         self._host.wake()
         self._beep(notification.sound)
-        self._host.show_overlay(NotifyOverlay(self, notification))
+        self._host.show_overlay(NotifyOverlay(self, notification, getattr(self._host, "keypad", None)))
 
     def _finish(self, how):
         n, self.current = self.current, None
@@ -138,18 +145,32 @@ class Notifier:
 class NotifyOverlay:
     """What the screen shows while a notification is up."""
 
-    def __init__(self, notifier, notification):
+    full_height = True                 # on a touch screen: the whole panel (squirrel_app.show_overlay)
+
+    def __init__(self, notifier, notification, keypad=None):
+        from ui.touch import has_touch, TouchPanel
         self._notifier = notifier
         self._n = notification
         self._drawn = None
+        self._keypad = keypad
+        self._touch = has_touch()
+        self._panel = TouchPanel() if self._touch else None
 
     def handle_input(self, action):
+        if self._touch:
+            if self._panel.handle(action, self._keypad):
+                return
+            if action == "ESC":                        # the side button, a swipe right: later
+                self._notifier.later()
+                return
         self._notifier.handle_input(action)
 
     def needs_refresh(self):
         return self._notifier.seconds_left() != self._drawn
 
     def render(self, renderer):
+        if self._touch:
+            return self._render_touch(renderer)
         theme = renderer.theme
         n = self._n
         left = self._notifier.seconds_left()
@@ -171,7 +192,36 @@ class NotifyOverlay:
             y += 18
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["ACCENT"], theme["BG"])
-        Lcd.drawString("[OPT] " + n.done_label, 8, SCREEN_H - 17)
-        text = "[DEL] " + n.cancel_label
+        Lcd.drawString("[OPT] " + _(n.done_label), 8, SCREEN_H - 17)
+        text = "[DEL] " + _(n.cancel_label)
         Lcd.setTextColor(theme["ERROR"], theme["BG"])
         Lcd.drawString(text, SCREEN_W - 8 - 6 * len(text), SCREEN_H - 17)
+
+    def _render_touch(self, renderer):
+        """The whole panel: the title and the seconds left, the text big, two buttons at the bottom."""
+        from ui.touch import Button, button_height, draw_centered
+        theme = renderer.theme
+        n = self._n
+        left = self._notifier.seconds_left()
+        self._drawn = left
+        renderer.clear()
+        w, h = Lcd.screen_size()
+        Lcd.drawRect(0, 0, w, h, theme["ACCENT"])
+        Lcd.setTextSize(1)
+        Lcd.setTextColor(theme["FG"], theme["BG"])
+        if n.title:
+            Lcd.drawString(n.title[:30], 8, 8)
+        Lcd.drawString("%ds" % left, w - 6 * (len(str(left)) + 1) - 6, 8)
+        bh = button_height()
+        size = 3 if len(wrap(n.text, w // 18 - 1, 9)) <= 3 else 2
+        lines = wrap(n.text, w // (6 * size) - 1, (h - bh - 40) // (9 * size))
+        y = 24 + (h - bh - 30 - len(lines) * 9 * size) // 2
+        for line in lines:
+            draw_centered(line, y, size, theme["WARNING"], theme["BG"])
+            y += 9 * size
+        half = (w - 12) // 2
+        p = self._panel
+        p.clear()
+        p.add(Button(4, h - bh - 4, half, bh, _(n.done_label), "ACCENT"), lambda: self._notifier.handle_input("OPT"))
+        p.add(Button(8 + half, h - bh - 4, half, bh, _(n.cancel_label), "ERROR"), lambda: self._notifier.handle_input("DEL"))
+        p.draw(theme)

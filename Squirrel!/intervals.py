@@ -13,7 +13,18 @@ from hw.buzzer import signal
 from hw.led import signal as led_signal
 
 COLORS = ("blue", "yellow", "orange", "red", "green")
-NAMES = {"blue": "Prepare", "yellow": "Light", "orange": "Normal", "red": "Hard", "green": "Rest"}
+NAMES = {"blue": "Prepare", "yellow": "Light", "orange": "Normal", "red": "Hard", "green": "Rest"}   # training: effort
+
+
+def block_name(plan, n, pomodoro):
+    """What block n is called: in a training its effort (NAMES); in a Pomodoro work / break / long break."""
+    from i18n import _
+    color = plan[n][0]
+    if not pomodoro:
+        return _(NAMES[color])
+    if color == "red":
+        return _("Work")
+    return _("Long break") if n == len(plan) - 1 else _("Break")
 SOUND = {"blue": "step", "yellow": "step", "orange": "go", "red": "go", "green": "rest"}
 BUZZ = {"step": "double", "go": "triple", "rest": "long"}        # the buzzer mode for each signal
 MIN_S, MAX_S = 5, nuts.MAX_BLOCK_SECONDS
@@ -131,7 +142,8 @@ class IntervalRunner:
         self.index = len(self.plan) - 1
         self._audio.beep("notify")
         from notifier import Notification
-        self._notifier.post(Notification(self.title + " finished", title=self.title, timeout_s=20,
+        from i18n import _
+        self._notifier.post(Notification(_("%s finished") % _(self.title), title=_(self.title), timeout_s=20,
                                          done_label="OK", cancel_label="Close"))
 
     # ---- what the screen shows ----

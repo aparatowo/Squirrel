@@ -6,7 +6,7 @@
 # FIZYCZNE MAPY KLAWIATURY CARDPUTER (Kody matrycy 1..68)
 # -----------------------------------------------------------------------------
 
-# 1. Mapowanie nawigacyjne (MAP_NAV) - używane domyślnie w Menu / Systemie
+# 1. Navigation (MAP_NAV) - the default in the menus and the system screens
 MAP_NAV = {
     # ROW 1
     1: 'ESC', 5: '1', 11: '2', 15: '3', 21: '4', 25: '5', 31: '6', 35: '7', 41: '8', 45: '9', 51: '0', 55: '-', 61: '=', 65: 'BACKSPACE',
@@ -18,7 +18,7 @@ MAP_NAV = {
     4: 'CTRL', 8: 'OPT', 14: 'ALT', 18: 'z', 24: 'x', 28: 'c', 34: 'v', 38: 'b', 44: 'n', 48: 'm', 54: 'LEFT', 58: 'DOWN', 64: 'RIGHT', 68: 'SPACE'
 }
 
-# 2. Mapowanie tekstowe (MAP_TEXT) - domyślne w edytorze (is_text_mode = True)
+# 2. Text (MAP_TEXT) - the default in an editor (is_text_mode = True)
 class KeyMap:
     """A key map = a base map + a few changes on top of it (+ optionally a prefix in front of every action).
 
@@ -44,7 +44,7 @@ MAP_TEXT = KeyMap(MAP_NAV, {
     64: '/'
 })
 
-# 3. Mapowanie po włączeniu FN (MAP_FN) - przywraca nawigację kursorem w edytorze
+# 3. With FN (MAP_FN) - brings back the cursor keys in an editor
 MAP_FN = KeyMap(MAP_TEXT, {
     1: 'ESC',
     57: 'UP',
@@ -54,7 +54,7 @@ MAP_FN = KeyMap(MAP_TEXT, {
     65: 'DEL'
 })
 
-# 4. Mapowanie po włączeniu SHIFT / Aa (MAP_SHIFT)
+# 4. With SHIFT / Aa (MAP_SHIFT)
 MAP_SHIFT = {
     # ROW 1
     1: '~', 5: '!', 11: '@', 15: '#', 21: '$', 25: '%', 31: '^', 35: '&', 41: '*', 45: '(', 51: ')', 55: '_', 61: '+', 65: 'DEL',

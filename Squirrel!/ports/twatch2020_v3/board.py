@@ -1,7 +1,7 @@
 # board.py - the LilyGo T-Watch 2020 V3: puts its hardware together for the app
 #
 # The pins and addresses come from port_config (port.toml next to this file); every one was confirmed on the watch
-# (tools/hwtest/README_PL.md).  Order matters: the AXP202 must power the display (LDO2) before the panel is set up.
+# (tools/hwtest/README.md).  Order matters: the AXP202 must power the display (LDO2) before the panel is set up.
 
 import port_config as P
 

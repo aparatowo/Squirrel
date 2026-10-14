@@ -91,7 +91,7 @@ IDF_WANTED = "v5.4.2"
 IDF_URL = "https://github.com/espressif/esp-idf.git"
 # Python modules that exist on a PC only: a file importing one of them is a PC-side script, not device code
 PC_ONLY = set("PIL fontTools numpy subprocess argparse shutil glob pathlib tempfile unittest pytest tkinter".split())
-EXCLUDE_DIRS = {"tools", "archive", "fonts", "device", "tests", "test", "dist", "firmware", "docs", "vendor",
+EXCLUDE_DIRS = {"tools", "archive", "firmware_patches", "fonts", "device", "tests", "test", "dist", "firmware", "docs", "vendor",
                 "__pycache__", ".git", ".build", ".idea", ".vscode", "venv", ".venv"}
 # modules that exist in the firmware or in MicroPython itself (an import of anything else that is not in the
 # sources is only a warning: we cannot list every module of the firmware)
@@ -986,7 +986,7 @@ def wrong_folder_hint(app_dir):
         dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS and not d.startswith(".")]
         if "squirrel_app.py" in files:
             return (f"squirrel_app.py is not in {app_dir} but in {root}.\n"
-                    f"  build_firmware.py takes ITS OWN folder as the folder with the code: move it (and squirrel_boot.py, BUILD.md, device/) to {root}")
+                    f"  build_firmware.py takes ITS OWN folder as the folder with the code: move it (and squirrel_boot.py, device/) to {root}")
     return None
 
 
@@ -1343,6 +1343,7 @@ def cmd_build(args):
 
     idf, version = choose_idf(repo, c["idf"], allow_any=args.allow_any_idf)
     say(f"ESP-IDF {version or '?'} at {idf}")
+    apply_patches(os.path.join(repo, "micropython"), common_patches())
 
     btype = board_type(os.path.join(repo, "m5stack", "Makefile"), c["base"])
     type_arg = f" BOARD_TYPE={btype}" if btype else ""
@@ -1449,6 +1450,52 @@ def ensure_mp_repo(repo, update=False):
         raise BuildError(f"git clone of {MP_URL} ({MP_TAG}) failed - check the network, or give the folder with --repo")
 
 
+def _patched_files(patch):
+    out = []
+    with open(patch, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if line.startswith("+++ "):
+                path = line[4:].split("\t")[0].strip()
+                out.append(path[2:] if path.startswith(("a/", "b/")) else path)
+    return out
+
+
+def _applied_prefix(mp_dir, patches):
+    """How many of the patches, from the first, are applied to `mp_dir` already.  They are a stack - a later one may
+    change the lines next to an earlier one (two of them patch ports/esp32/panichandler.c) - and git apply checks every
+    patch against the tree as it is, so the test is done on a copy of the files: the last patch reversed, then the one
+    before it ...  The longest first part that reverses this way is the part applied."""
+    import tempfile
+    files = sorted({f for p in patches for f in _patched_files(p)})
+    for k in range(len(patches), 0, -1):
+        with tempfile.TemporaryDirectory() as tmp:
+            for rel in files:
+                src = os.path.join(mp_dir, rel)
+                if os.path.exists(src):
+                    os.makedirs(os.path.dirname(os.path.join(tmp, rel)), exist_ok=True)
+                    shutil.copy(src, os.path.join(tmp, rel))
+            if all(subprocess.call(["git", "apply", "--reverse", p], cwd=tmp, stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL) == 0 for p in reversed(patches[:k])):
+                return k
+    return 0
+
+
+def apply_patches(mp_dir, patches):
+    """git apply the patches, in order, to the MicroPython tree `mp_dir` - those not applied yet (see _applied_prefix)."""
+    patches = [os.path.abspath(p) for p in patches]
+    for patch in patches[_applied_prefix(mp_dir, patches):]:
+        name = os.path.basename(patch)
+        if subprocess.call(["git", "-C", mp_dir, "apply", "--check", patch]) != 0:
+            raise BuildError(f"the patch {name} does not apply to {mp_dir}")
+        subprocess.check_call(["git", "-C", mp_dir, "apply", patch])
+        say(f"  patch applied: {name}")
+
+
+def common_patches():
+    """Squirrel!'s own fixes to MicroPython, for every port (firmware_patches/; e.g. pairing as a BLE central)."""
+    return sorted(glob.glob(os.path.join(HERE, "firmware_patches", "*.patch")))
+
+
 def port_patches(port):
     folder = os.path.join(HERE, PORTS_DIR, port, load_port(port)["port"].get("board", "firmware"), "patches")
     return sorted(glob.glob(os.path.join(folder, "*.patch")))
@@ -1462,14 +1509,7 @@ def prepare_mp_repo(repo, port, idf):
         say("== make submodules (ESP32 port)")
         if bash(idf_prefix(idf) + "make submodules", cwd=esp32) != 0:
             raise BuildError("`make submodules` in ports/esp32 failed (network?)")
-    for patch in port_patches(port):
-        name = os.path.basename(patch)
-        if subprocess.call(["git", "-C", repo, "apply", "--reverse", "--check", patch], stderr=subprocess.DEVNULL) == 0:
-            continue                                      # applied already
-        if subprocess.call(["git", "-C", repo, "apply", "--check", patch]) != 0:
-            raise BuildError(f"the patch {name} does not apply to {repo} - is it MicroPython {MP_TAG}?")
-        subprocess.check_call(["git", "-C", repo, "apply", patch])
-        say(f"  patch applied: {name}")
+    apply_patches(repo, port_patches(port) + common_patches())
     if not find_mpy_cross(repo):
         say("== make mpy-cross")
         if subprocess.call(["make", "-C", os.path.join(repo, "mpy-cross"), "-j8"]) != 0:
@@ -1543,7 +1583,9 @@ def cmd_build_mp(c, args):
     say(f"\n==> {target}  ({os.path.getsize(target)} bytes, {kind} image)")
     if args.flash:
         return flash(target, kind, args.flash, idf, prepare=not args.no_device_setup, machine=c["machine"], c=c)
-    say("flash:  esptool.py --chip esp32 -b 921600 write_flash -z 0x1000 " + name + "   (or: build_firmware.py --port " + port + " --flash PORT)")
+    how = ("esptool.py --chip esp32 -b 921600 write_flash -z 0x1000 " if kind == "complete@0x1000"
+           else "esptool.py --chip esp32s3 -b 460800 --after watchdog_reset write_flash 0x0 ")
+    say("flash:  " + how + name + "   (or: build_firmware.py --port " + port + " --flash PORT)")
     return 0
 
 

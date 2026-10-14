@@ -33,6 +33,8 @@ _RESET_ALL = "Reset all to defaults"
 _ELSEWHERE = ("Time", "Network", "Cuckoo", "Silent")          # groups that are reached from other menus, not from the main list
 _SETTINGS_MENU = ("MENU", {"menu_name": "SETTINGS"})
 from port_config import HIDDEN_GROUPS, HIDDEN_KEYS             # settings of features this device does not have
+from i18n import _
+from charmap import pad
 
 
 def _keys_in(group):
@@ -46,7 +48,7 @@ class PersonalizeScreen(BaseScreen):
         super().__init__(app)
         self._groups = [g for g in cfg.groups() if g not in _ELSEWHERE and g not in HIDDEN_GROUPS]
         self._restricted = False
-        self._title = "Personalize"
+        self._title = _("Personalize")
         self._back = _SETTINGS_MENU
         self._touch = has_touch()
         if self._touch:
@@ -78,7 +80,7 @@ class PersonalizeScreen(BaseScreen):
             self._groups = [g for g in cfg.groups() if g in groups and g not in HIDDEN_GROUPS]
         else:
             self._groups = [g for g in cfg.groups() if g not in _ELSEWHERE and g not in HIDDEN_GROUPS]
-        self._title = title or "Personalize"
+        self._title = _(title) if title else _("Personalize")
         self._back = back or _SETTINGS_MENU
         if self._restricted and len(self._groups) == 1:
             self.mode = "items"                          # a single group: straight to its settings
@@ -98,8 +100,8 @@ class PersonalizeScreen(BaseScreen):
         self._notice_until = time.ticks_add(time.ticks_ms(), _NOTICE_MS)
 
     def _group_rows(self):
-        rows = ["%s (%d)" % (g, len(_keys_in(g))) for g in self._groups]
-        return rows if self._restricted else rows + [_RESET_ALL]
+        rows = ["%s (%d)" % (_(g), len(_keys_in(g))) for g in self._groups]
+        return rows if self._restricted else rows + [_(_RESET_ALL)]
 
     def _leave(self):
         self.app.set_screen(self._back[0], **self._back[1])
@@ -111,19 +113,23 @@ class PersonalizeScreen(BaseScreen):
         kind = cfg.describe(key)[0]
         value = cfg.get(key)
         if kind == "bool":
-            return "on" if value else "off"
+            return _("on") if value else _("off")
         if kind == "secret":
-            return "*" * min(len(value), 8) if value else "(empty)"
+            return "*" * min(len(value), 8) if value else _("(empty)")
         if kind == "text":
-            return value if value else "(empty)"
+            return value if value else _("(empty)")
+        if kind == "choice":
+            return _option_text(key, value)
+        if kind == "color":
+            return _(value)
         return str(value)
 
     def _item_rows(self):
         rows = []
         for key in self._keys():
-            label = cfg.describe(key)[2]
+            label = _(cfg.describe(key)[2])
             mark = "" if cfg.is_default(key) else "*"        # * = differs from the default
-            rows.append("%-18s %s%s" % (label[:18], self._value_text(key)[:10], mark))
+            rows.append("%s %s%s" % (pad(label[:18], 18), self._value_text(key)[:15], mark))   # 2 + 18 + 1 + 15 + 1 <= 38
         return rows
 
     @staticmethod
@@ -154,7 +160,7 @@ class PersonalizeScreen(BaseScreen):
                 for group in self._groups:               # only the settings listed here, not the ones kept in other menus
                     for key in _keys_in(group):
                         cfg.reset(key)
-                self._notify("All settings reset")
+                self._notify(_("All settings reset"))
                 self.mode = "groups"
             elif action in ('ESC', 'LEFT'):
                 self.mode = "groups"
@@ -189,9 +195,9 @@ class PersonalizeScreen(BaseScreen):
         elif action == 'DEL':
             key = keys[self.i]
             if cfg.reset(key):
-                self._notify("Default: " + self._value_text(key))
+                self._notify(_("Default: ") + self._value_text(key))
             else:
-                self._notify("Already the default")
+                self._notify(_("Already the default"))
         elif action in ('ESC', 'LEFT'):
             if self._restricted and len(self._groups) == 1:
                 self._leave()
@@ -204,11 +210,11 @@ class PersonalizeScreen(BaseScreen):
         current = cfg.get(key)
         if kind in ("bool", "choice", "color"):
             if kind == "bool":
-                self.options = [("on", True), ("off", False)]
+                self.options = [(_("on"), True), (_("off"), False)]
             elif kind == "color":
-                self.options = [(name, name) for name in PALETTE]
+                self.options = [(_(name), name) for name in PALETTE]
             else:
-                self.options = [(str(option), option) for option in extra]
+                self.options = [(_option_text(self.key, option), option) for option in extra]
             self.p = 0
             for n, (_text, value) in enumerate(self.options):
                 if value == current:
@@ -242,16 +248,16 @@ class PersonalizeScreen(BaseScreen):
         if key.startswith("BUZZER_") and key.endswith("_MODE"):
             from hw.buzzer import buzzer
             if buzzer.demo(key[:-5], value):
-                return "Saved - listen"
-            return "Saved (" + buzzer.status() + ")"
+                return _("Saved - listen")
+            return _("Saved (") + buzzer.status() + ")"
         if key.startswith("LED_") and key not in ("LED_BREATHING", "LED_CHARGING"):
             from hw.led import led
             if led.demo(key[:-6] if key.endswith("_COLOR") else key):
-                return "Saved - look"
-            return "Saved (" + led.status() + ")"
+                return _("Saved - look")
+            return _("Saved (") + led.status() + ")"
         if key == "FONT_ENABLED" and bool(value) != Lcd.font_active:
-            return "Restart to apply"                 # saved; the font is loaded once, at start-up (gfx.start)
-        return "Saved"
+            return _("Restart to apply")                 # saved; the font is loaded once, at start-up (gfx.start)
+        return _("Saved")
 
     def _leave_edit(self, notice=None):
         self._text_mode(False)
@@ -309,13 +315,13 @@ class PersonalizeScreen(BaseScreen):
             try:
                 number = int(self.buf)
             except ValueError:
-                self.error = "Type a whole number"
+                self.error = _("Type a whole number")
                 return
             value = cfg.validate(self.key, number)
-            notice = "Saved" if value == number else "Limited to %d" % value
+            notice = _("Saved") if value == number else _("Limited to %d") % value
         else:
             value = self.buf
-            notice = "Saved"
+            notice = _("Saved")
         cfg.set(self.key, value)
         if self.key == "LED_BRIGHTNESS":
             from hw.led import led
@@ -337,23 +343,23 @@ class PersonalizeScreen(BaseScreen):
         elif self.mode == "confirm_all":
             self._render_confirm(renderer)
         elif self.mode == "pick":
-            label = cfg.describe(self.key)[2]
+            label = _(cfg.describe(self.key)[2])
             renderer.render_menu(label, [text for text, _v in self.options], self.p, self.p_top, _VISIBLE)
-            help_text = cfg.help(self.key).replace("\n", " ")
-            if help_text:                                     # one line under the options
+            help_text = _(cfg.help(self.key)).split("\n")[0]
+            if help_text:                     # the help's first line under the options, clear of the [n/m] counter
                 Lcd.setTextColor(renderer.theme["ACCENT"], renderer.theme["BG"])
-                Lcd.drawString(help_text[:38], 5, 119)
+                Lcd.drawString(help_text[:31], 5, 119)
             if cfg.describe(self.key)[0] == "color":
                 for row, (_text, name) in enumerate(self.options[self.p_top:self.p_top + _VISIBLE]):
                     Lcd.fillRect(205, 40 + 15 * row, 24, 9, named_color(name))
         elif self.mode == "items":
-            title = self._title if (self._restricted and len(self._groups) == 1) else self._groups[self.g]
+            title = self._title if (self._restricted and len(self._groups) == 1) else _(self._groups[self.g])
             if title == "Buzzer":
                 from hw.buzzer import buzzer
-                title = "Buzzer: " + buzzer.status()          # whether it works at all, above its on/off list
+                title = _("Buzzer: ") + buzzer.status()          # whether it works at all, above its on/off list
             elif title == "LED":
                 from hw.led import led
-                title = "LED: " + led.status()
+                title = _("LED: ") + led.status()
             renderer.render_menu(title, self._item_rows(), self.i, self.i_top, _VISIBLE)
         else:
             renderer.render_menu(self._title, self._group_rows(), self.g, self.g_top, _VISIBLE)
@@ -368,12 +374,12 @@ class PersonalizeScreen(BaseScreen):
         theme = renderer.theme
         Lcd.setTextSize(renderer.fonts["MENU_ITEM"])
         Lcd.setTextColor(theme["ERROR"], theme["BG"])
-        Lcd.drawString("# Reset ALL settings?", 5, 5)
+        Lcd.drawString(_("# Reset ALL settings?"), 5, 5)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("Every setting goes back to", 5, 35)
-        Lcd.drawString("its default value.", 5, 49)
+        Lcd.drawString(_("Every setting goes back to"), 5, 35)
+        Lcd.drawString(_("its default value."), 5, 49)
         Lcd.setTextColor(theme["WARNING"], theme["BG"])
-        Lcd.drawString("[ENTER] Reset   [ESC] Cancel", 5, 100)
+        Lcd.drawString(_("[ENTER] Reset   [ESC] Cancel"), 5, 100)
 
     def _render_edit(self, renderer):
         kind, _group, label, extra = cfg.describe(self.key)
@@ -384,13 +390,13 @@ class PersonalizeScreen(BaseScreen):
         Lcd.drawString("# " + label[:26], 5, 5)
         renderer.render_keypad_mode_indicator(getattr(self.app, "keypad", None))
         if kind == "int":
-            hint = "%d to %d   default %s" % (extra[0], extra[1], cfg.default(self.key))
+            hint = _("%d to %d   default %s") % (extra[0], extra[1], cfg.default(self.key))
         elif kind == "secret":
-            hint = "hidden   up to %d characters" % extra
+            hint = _("hidden   up to %d characters") % extra
         else:
-            hint = "up to %d characters" % extra
+            hint = _("up to %d characters") % extra
         Lcd.drawString(hint[:38], 5, 22)
-        help_lines = [line for line in cfg.help(self.key).split("\n") if line]
+        help_lines = [line for line in _(cfg.help(self.key)).split("\n") if line]
         Lcd.drawRect(5, 38, 230, 28, theme["ACCENT"])
         shown = "*" * len(self.buf) if kind == "secret" else self.buf
         start = max(0, self.cur - 34)                         # keep the cursor inside the 36-character box
@@ -407,8 +413,8 @@ class PersonalizeScreen(BaseScreen):
             Lcd.drawString(line[:38], 5, y)
             y += 13
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("[ENTER] Save  [ESC] Cancel", 5, 104)
-        Lcd.drawString("FN + arrows: cursor" + ("  and +/-" if kind == "int" else ""), 5, 118)
+        Lcd.drawString(_("[ENTER] Save  [ESC] Cancel"), 5, 104)
+        Lcd.drawString(_("FN + arrows: cursor") + (_("  and +/-") if kind == "int" else ""), 5, 118)
 
     # ------------------------------------------------------------------ touch (the watch)
 
@@ -485,7 +491,7 @@ class PersonalizeScreen(BaseScreen):
         key = self._keys()[index]
         kind = cfg.describe(key)[0]
         if long_press:
-            self._notify("Default: " + self._touch_value(key) if cfg.reset(key) else "Already default")
+            self._notify(_("Default: ") + self._touch_value(key) if cfg.reset(key) else _("Already default"))
         elif kind == "bool":
             value = not cfg.get(key)
             cfg.set(key, value)
@@ -499,7 +505,7 @@ class PersonalizeScreen(BaseScreen):
             self.mode = "edit"
             self._build_editor(kind)
         else:
-            self._notify("Set in config.txt")                   # text: no keyboard to type it
+            self._notify(_("Set in config.txt"))                   # text: no keyboard to type it
 
     def _touch_value(self, key):
         kind = cfg.describe(key)[0]
@@ -531,8 +537,8 @@ class PersonalizeScreen(BaseScreen):
                 x, y = 8 + (d % 4) * (bw + 4), 40 + (d // 4) * 64
                 self._day_buttons.append(panel.add(Button(x, y, bw, 56, name), lambda d=d: self._toggle_day(d)))
         bh = 46 if kind == "time" else 52
-        panel.add(Button(left, h - bh - 6, half, bh, "Default"), self._to_default)
-        panel.add(Button(right, h - bh - 6, half, bh, "Save", "ACCENT"), self._touch_save)
+        panel.add(Button(left, h - bh - 6, half, bh, _("Default")), self._to_default)
+        panel.add(Button(right, h - bh - 6, half, bh, _("Save"), "ACCENT"), self._touch_save)
 
     def _step(self, delta):
         kind, _group, _label, extra = cfg.describe(self.key)
@@ -552,21 +558,21 @@ class PersonalizeScreen(BaseScreen):
         if self.key == "LED_BRIGHTNESS":
             from hw.led import led
             led.demo(self.key)
-        self._notify("Saved")
+        self._notify(_("Saved"))
         self.mode = "items"
 
     def _build_confirm(self):
         from gfx import SCREEN_W as w, PANEL_H as h
         half = (w - 24) // 2
         self._panel.clear()
-        self._panel.add(Button(8, h - 64, half, 56, "Cancel"), self._touch_back)
-        self._panel.add(Button(16 + half, h - 64, half, 56, "Reset", "ERROR"), self._reset_all)
+        self._panel.add(Button(8, h - 64, half, 56, _("Cancel")), self._touch_back)
+        self._panel.add(Button(16 + half, h - 64, half, 56, _("Reset"), "ERROR"), self._reset_all)
 
     def _reset_all(self):
         for group in self._groups:
             for key in _keys_in(group):
                 cfg.reset(key)
-        self._notify("All reset")
+        self._notify(_("All reset"))
         self.mode = "groups"
 
     # ---- drawing
@@ -580,21 +586,21 @@ class PersonalizeScreen(BaseScreen):
             return
         if self.mode == "confirm_all":
             w = Lcd.screen_size()[0]
-            lst.draw_header(theme, "Reset all")
+            lst.draw_header(theme, _("Reset all"))
             Lcd.setTextSize(2)
             Lcd.setTextColor(theme["ERROR"], theme["BG"])
-            Lcd.drawString("Reset ALL", 8, 60)
-            Lcd.drawString("settings?", 8, 84)
+            Lcd.drawString(_("Reset ALL"), 8, 60)
+            Lcd.drawString(_("settings?"), 8, 84)
             Lcd.setTextSize(1)
             Lcd.setTextColor(theme["FG"], theme["BG"])
-            Lcd.drawString("Every setting goes back", 8, 120)
-            Lcd.drawString("to its default value.", 8, 132)
+            Lcd.drawString(_("Every setting goes back"), 8, 120)
+            Lcd.drawString(_("to its default value."), 8, 132)
             self._panel.draw(theme)
             return
         count, index, top = self._list_state()
         pos = "%d/%d" % (index + 1, count) if count > lst.visible else None
         if self.mode == "pick":
-            lst.draw_header(theme, cfg.describe(self.key)[2], pos)
+            lst.draw_header(theme, _(cfg.describe(self.key)[2]), pos)
             colour = cfg.describe(self.key)[0] == "color"
             w = Lcd.screen_size()[0]
             for row in range(min(lst.visible, count - top)):
@@ -603,24 +609,24 @@ class PersonalizeScreen(BaseScreen):
                 if colour:
                     Lcd.fillRect(w - 44, lst.y_of(row) + lst.row_h // 2 - 8, 36, 16, named_color(value))
         elif self.mode == "items":
-            title = self._title if (self._restricted and len(self._groups) == 1) else self._groups[self.g]
+            title = self._title if (self._restricted and len(self._groups) == 1) else _(self._groups[self.g])
             if title == "Buzzer":
                 from hw.buzzer import buzzer
-                title = "Buzzer: " + buzzer.status()
+                title = _("Buzzer: ") + buzzer.status()
             elif title == "LED":
                 from hw.led import led
-                title = "LED: " + led.status()
+                title = _("LED: ") + led.status()
             lst.draw_header(theme, title, pos)
             keys = self._keys()
             for row in range(min(lst.visible, count - top)):
                 key = keys[top + row]
                 value = self._touch_value(key) + ("" if cfg.is_default(key) else "*")
-                lst.draw_row(theme, row, cfg.describe(key)[2], top + row == index, sub=value)
+                lst.draw_row(theme, row, _(cfg.describe(key)[2]), top + row == index, sub=value)
         else:
             lst.draw_header(theme, self._title, pos)
             names = self._groups if self._restricted else self._groups + ["Reset all"]
             for row in range(min(lst.visible, count - top)):
-                lst.draw_row(theme, row, names[top + row], top + row == index)
+                lst.draw_row(theme, row, _(names[top + row]), top + row == index)
         if self._notice is not None:
             if time.ticks_diff(time.ticks_ms(), self._notice_until) < 0:
                 lst.notice(theme, self._notice)
@@ -636,7 +642,7 @@ class PersonalizeScreen(BaseScreen):
             text = str(self.val)
             Lcd.setTextSize(4)
             Lcd.drawString(text, (w - 24 * len(text)) // 2, 44)
-            hint = "%d to %d, default %s" % (extra[0], extra[1], cfg.default(self.key))
+            hint = _("%d to %d, default %s") % (extra[0], extra[1], cfg.default(self.key))
             Lcd.setTextSize(1)
             Lcd.setTextColor(theme["ACCENT"], theme["BG"])
             Lcd.drawString(hint, (w - 6 * len(hint)) // 2, 84)
@@ -651,3 +657,14 @@ class PersonalizeScreen(BaseScreen):
         else:
             days = self._day_buttons
             self._panel.draw(theme, lambda b: b in days and bool(self.val >> days.index(b) & 1))
+
+
+_NATIVE_NAMES = {"en": "English", "pl": "Polski", "fr": "Français", "de": "Deutsch"}
+
+
+def _option_text(key, option):
+    """An option of a choice as shown: a language (or a keyboard layout) under its own name, in its own language -
+    the way it is found whatever the language of the screen; any other option translated."""
+    if key in ("LANGUAGE", "KEYBOARD_LAYOUT"):
+        return _NATIVE_NAMES.get(option, option)
+    return _(str(option))

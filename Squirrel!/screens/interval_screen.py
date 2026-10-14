@@ -6,12 +6,18 @@
 # ready:    ENTER start      training: RIGHT edit the blocks         ESC back
 # running:  ENTER pause / resume      DEL stop      ESC leave (it keeps running)
 # editing:  UP/DOWN block   LEFT/RIGHT shorter / longer   ENTER next colour   DEL remove   ESC save and leave
+# On a touch screen (the watch): the whole panel - the block's name and the time left in big letters, the blocks as a
+# strip, Start / Pause / Stop as buttons; a tap on the title (or a swipe right) leaves, the timer keeps running.  The
+# training blocks are put together on the Cardputer (they come over the sync).
 
 from gfx import Lcd
 import nuts
 import intervals as iv
 from appconfig import cfg
 from screens.base_screen import BaseScreen
+from ui.touch import has_touch, TouchList, TouchPanel, Button, header_tapped, button_height, draw_centered
+from i18n import _
+from charmap import pad
 
 _VISIBLE = 5
 
@@ -27,6 +33,13 @@ class IntervalScreen(BaseScreen):
         self.i = 0
         self.top = 0
         self._drawn = None
+        self._touch = has_touch()
+        self._panel = TouchPanel() if self._touch else None
+        self._list = TouchList() if self._touch else None
+
+    @property
+    def full_height(self):
+        return self._touch
 
     def on_enter(self, mode="pomodoro", **kwargs):
         self.mode, self.editing, self.i, self.top = mode, False, 0, 0
@@ -36,6 +49,10 @@ class IntervalScreen(BaseScreen):
     @property
     def runner(self):
         return self.app.runner()
+
+    def _pomodoro(self, r):
+        """Is what runs (or is about to) a Pomodoro?  Its blocks are work / break, not training efforts."""
+        return (r.title == "Pomodoro") if r.state != "idle" else self.mode == "pomodoro"
 
     def _label(self):
         return "Pomodoro" if self.mode == "pomodoro" else "Training"
@@ -47,6 +64,14 @@ class IntervalScreen(BaseScreen):
     # ---------------------------------------------------------------- input
 
     def handle_input(self, action):
+        if self._touch:
+            if action in ('ESC', 'LEFT') or (action in ('ENTER', 'OPT') and header_tapped(self.app.keypad)):
+                if self.runner.state == "idle":
+                    self.runner.stop()
+                self.app.set_screen("MENU", menu_name="FOCUS")
+            else:
+                self._panel.handle(action, self.app.keypad)
+            return
         if self.editing:
             self._edit_input(action)
             return
@@ -110,11 +135,69 @@ class IntervalScreen(BaseScreen):
                 Lcd.drawRect(x - 1, 90, w + 1, 16, theme["FG"])
             x += w
 
+    def _strip_at(self, plan, current, theme, x0, width, y, h):
+        total = sum(b[1] for b in plan) or 1
+        x = x0
+        for n, (color, secs) in enumerate(plan):
+            w = max(3, secs * width // total)
+            Lcd.fillRect(x, y, w - 1, h, nuts.named_color(color))
+            if n == current:
+                Lcd.drawRect(x - 1, y - 2, w + 1, h + 4, theme["FG"])
+            x += w
+
+    def _touch_buttons(self, r):
+        w, h = Lcd.screen_size()
+        bh = button_height()
+        y = h - bh - 2
+        p = self._panel
+        p.clear()
+        if r.state == "idle":
+            p.add(Button(4, y, w - 8, bh, _("Start"), "ACCENT"), lambda: r.start(self.plan, self._label()))
+        elif r.state == "done":
+            p.add(Button(4, y, w - 8, bh, _("Close"), "ACCENT"), r.stop)
+        else:
+            half = w // 2
+            p.add(Button(4, y, half - 8, bh, _("Resume") if r.state == "paused" else _("Pause"), "ACCENT"), r.toggle)
+            p.add(Button(half + 4, y, half - 8, bh, _("Stop"), "ERROR"), r.stop)
+
+    def _render_touch(self, renderer):
+        theme = renderer.theme
+        r = self.runner
+        active = r.state != "idle"
+        plan = r.plan if active else self.plan
+        self._drawn = (r.state, r.index, r.remaining())
+        renderer.clear()
+        w, h = Lcd.screen_size()
+        top = TouchList.HEADER
+        self._list.draw_header(theme, _(r.title if active else self._label()),
+                               "%d/%d" % (r.index + 1, len(plan)) if active else None)
+        if not active:
+            draw_centered(_("%d blocks") % len(plan), top + 14, 2, theme["FG"], theme["BG"])
+            draw_centered(iv.fmt(sum(b[1] for b in plan)), top + 42, 5, theme["FG"], theme["BG"])
+            self._strip_at(plan, -1, theme, 6, w - 12, top + 100, 18)
+        else:
+            color, _secs = plan[r.index]
+            draw_centered(iv.block_name(plan, r.index, self._pomodoro(r)), top + 8, 3, nuts.named_color(color), theme["BG"])
+            draw_centered(iv.fmt(r.remaining()), top + 40, 6, theme["FG"], theme["BG"])
+            tag = _({"running": "", "paused": "PAUSED", "done": "FINISHED"}[r.state]) if r.state != "running" else ""
+            nxt = ""
+            if r.state != "done" and r.index + 1 < len(plan):
+                nb = plan[r.index + 1]
+                nxt = _("next %s %s") % (iv.block_name(plan, r.index + 1, self._pomodoro(r)), iv.fmt(nb[1]))
+            draw_centered(tag or nxt, top + 92, 2, theme["WARNING"] if tag else theme["FG"], theme["BG"])
+            self._strip_at(plan, r.index, theme, 6, w - 12, top + 120, 18)
+        self._touch_buttons(r)
+        self._panel.draw(theme)
+
     def render(self, renderer):
         theme = renderer.theme
+        if self._touch:
+            return self._render_touch(renderer)
         if self.editing:
-            rows = ["+ [Add block]"] + ["%d. %-7s %s" % (n + 1, iv.NAMES[c], iv.fmt(s)) for n, (c, s) in enumerate(self.plan)]
-            renderer.render_menu("Training blocks", rows, self.i, self.top, _VISIBLE)
+            width = max(len(_(name)) for name in iv.NAMES.values())    # the times in one column, in any language
+            rows = [_("+ [Add block]")] + ["%d. %s %s" % (n + 1, pad(_(iv.NAMES[c]), width), iv.fmt(s))
+                                            for n, (c, s) in enumerate(self.plan)]
+            renderer.render_menu(_("Training blocks"), rows, self.i, self.top, _VISIBLE)
             if self.i > 0:
                 Lcd.setTextColor(nuts.named_color(self.plan[self.i - 1][0]), theme["BG"])
                 Lcd.drawString("####", 200, 124)
@@ -126,26 +209,27 @@ class IntervalScreen(BaseScreen):
         renderer.clear()
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString(r.title if active else self._label(), 5, 5)
+        Lcd.drawString(_(r.title if active else self._label()), 5, 5)
         if not active:
-            Lcd.drawString("%d blocks, %s in all" % (len(plan), iv.fmt(sum(b[1] for b in plan))), 5, 24)
+            Lcd.drawString(_("%d blocks, %s in all") % (len(plan), iv.fmt(sum(b[1] for b in plan))), 5, 24)
             self._strip(plan, -1, theme)
             Lcd.setTextColor(theme["ACCENT"], theme["BG"])
-            Lcd.drawString("[ENTER] Start" + ("   [RIGHT] Edit" if self.mode == "training" else ""), 5, 118)
+            Lcd.drawString(_("[ENTER] Start") + (_("   [RIGHT] Edit") if self.mode == "training" else ""), 5, 118)
             return
         color, secs = plan[r.index]
         Lcd.setTextColor(nuts.named_color(color), theme["BG"])
         Lcd.setTextSize(2)
-        Lcd.drawString(iv.NAMES[color], 5, 20)
+        Lcd.drawString(iv.block_name(plan, r.index, self._pomodoro(r)), 5, 20)
         Lcd.setTextSize(3)
         Lcd.drawString(iv.fmt(r.remaining()), 5, 44)
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        tag = {"running": "RUNNING", "paused": "PAUSED", "done": "FINISHED"}[r.state]
-        Lcd.drawString("%s  block %d/%d" % (tag, r.index + 1, len(plan)), 150, 5)
+        tag = _({"running": "RUNNING", "paused": "PAUSED", "done": "FINISHED"}[r.state])
+        status = _("%s  block %d/%d") % (tag, r.index + 1, len(plan))
+        Lcd.drawString(status, 235 - 6 * len(status), 5)               # to the right edge, whatever its length
         if r.state != "done" and r.index + 1 < len(plan):
             nxt = plan[r.index + 1]
-            Lcd.drawString("Next: %s %s" % (iv.NAMES[nxt[0]], iv.fmt(nxt[1])), 5, 76)
+            Lcd.drawString(_("Next: %s %s") % (iv.block_name(plan, r.index + 1, self._pomodoro(r)), iv.fmt(nxt[1])), 5, 76)
         self._strip(plan, r.index, theme)
         Lcd.setTextColor(theme["ACCENT"], theme["BG"])
-        Lcd.drawString("[ENTER] %s  [DEL] Stop" % ("Resume" if r.state == "paused" else "Pause") if r.state != "done" else "[ENTER] Close", 5, 118)
+        Lcd.drawString(_("[ENTER] %s  [DEL] Stop") % (_("Resume") if r.state == "paused" else _("Pause")) if r.state != "done" else _("[ENTER] Close"), 5, 118)

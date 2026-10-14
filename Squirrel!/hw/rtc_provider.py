@@ -15,6 +15,7 @@
 import machine
 from boot_log import log
 from hw.rtc_base import TimeProvider
+from timeutil import weekday
 
 
 class SoftTimeProvider(TimeProvider):
@@ -34,8 +35,8 @@ class SoftTimeProvider(TimeProvider):
 
     def get_datetime(self) -> tuple:
         # machine.RTC.datetime() → (year, month, mday, weekday, hour, min, sec, subsec)
-        r = self._rtc.datetime()
-        return (r[0], r[1], r[2], r[4], r[5], r[6], r[3], 0)
+        r = self._rtc.datetime()           # its weekday (r[3]) is not used: 0 = Sunday on the Cardputer's firmware
+        return (r[0], r[1], r[2], r[4], r[5], r[6], weekday(r), 0)
 
     def set_datetime(self, dt: tuple) -> None:
         year, month, mday, hour, minute, second, weekday, _ = dt

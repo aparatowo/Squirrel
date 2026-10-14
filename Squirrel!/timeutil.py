@@ -36,6 +36,24 @@ def weekday_from_days(z):
     return (z + 3) % 7
 
 
+def wire_time(t):
+    """A (y, m, d, hh, mm, ss ...) tuple of local time -> seconds since 1970-01-01 in local time: the time of the
+    shared record format (docs/implementation/en/data-format.md), whatever epoch the port's time.time() counts from."""
+    return days_from_civil(t[0], t[1], t[2]) * 86400 + t[3] * 3600 + t[4] * 60 + t[5]
+
+
+def wire_now():
+    import time
+    return wire_time(time.localtime())
+
+
+def weekday(t):
+    """0 = Monday ... 6 = Sunday of a (y, m, d, ...) tuple, from the date.  Never take it from time.localtime()[6] or
+    machine.RTC().datetime(): the Cardputer's firmware counts it the libc way (0 = Sunday), plain MicroPython from
+    Monday - a routine for Monday to Friday then came on Sunday and not on Friday."""
+    return weekday_from_days(days_from_civil(t[0], t[1], t[2]))
+
+
 def _last_sunday(year, month):
     z = days_from_civil(year, month, 31)        # March and October both have 31 days
     return z - (weekday_from_days(z) + 1) % 7

@@ -29,6 +29,7 @@ SETTINGS = (
     ("COLOR_WARNING", "color", "Display", "Warning colour", None),
     ("COLOR_ERROR",   "color", "Display", "Error colour", None),
     ("COLOR_BG",      "color", "Display", "Background colour", None),
+    ("LANGUAGE",      "choice", "Display", "Language", ("en", "pl", "fr", "de")),
     ("FONT_ENABLED",  "bool",  "Display", "Use font", None),
     ("CLOCK_FOOTER_TEXT",     "text", "Display", "Clock footer text", 30),
     ("CLOCK_DATE_OFFSET_X",   "int", "Display", "Clock date X", (-40, 40, 1)),
@@ -44,7 +45,7 @@ SETTINGS = (
     ("TODO_TITLE_MAX_LEN",  "int", "Notes", "To-Do title length", (8, 30, 1)),
     ("NOTE_TITLE_MAX_LEN",  "int", "Notes", "Note title length", (8, 40, 1)),
     ("NOTE_BODY_MAX_CHARS", "int", "Notes", "Note max length", (100, 2000, 50)),
-    ("MIND_DUMP_MAX_CHARS", "int", "Notes", "Mind Dump length", (50, 500, 10)),
+    ("MIND_DUMP_MAX_CHARS", "int", "Notes", "Mind dump length", (50, 500, 10)),
     ("TODO_KEEP_DAYS",      "int", "Notes", "Keep done To-Dos", (1, 60, 1)),
     # ---- Focus ----
     ("FOCUS_GOAL_MINUTES", "int", "Focus", "Daily focus goal", (10, 720, 10)),
@@ -89,10 +90,10 @@ SETTINGS = (
     # ---- Network ----
     ("WIFI_SSID",     "text",   "Network", "Fallback WiFi name", 32),
     ("WIFI_PASSWORD", "secret", "Network", "Fallback password", 63),
-    # ---- Cuckoo (reached from Focus Tools -> Cuckoo Clock) ----
-    ("CUCKOO_ENABLED",        "bool", "Cuckoo", "Cuckoo clock", None),
-    ("CUCKOO_QUARTERS",       "bool", "Cuckoo", "Quarter tick", None),
-    ("CUCKOO_QUARTER_VOLUME", "int",  "Cuckoo", "Quarter volume", (0, 100, 10)),
+    # ---- Cuckoo (reached from Focus tools -> Cuckoo clock) ----
+    ("CUCKOO_ENABLED",        "bool", "Cuckoo", "Cuckoo", None),
+    ("CUCKOO_QUARTERS",       "bool", "Cuckoo", "Quarters", None),
+    ("CUCKOO_QUARTER_VOLUME", "int",  "Cuckoo", "Volume", (0, 100, 10)),
     # ---- Buzzer (Personalize, with its status; tests in Settings -> Experimental) ----
     ("BUZZER_NOTIFY",         "bool",   "Buzzer", "Notifications", None),
     ("BUZZER_NOTIFY_MODE",    "choice", "Buzzer", "Notify: mode", BUZZER_MODES),
@@ -100,7 +101,7 @@ SETTINGS = (
     ("BUZZER_INTERVALS_MODE", "choice", "Buzzer", "Pomodoro: mode", BUZZER_MODES),
     ("BUZZER_METRONOME",      "bool",   "Buzzer", "Metronome", None),
     ("BUZZER_METRONOME_MODE", "choice", "Buzzer", "Metronome: mode", BUZZER_MODES),
-    ("BUZZER_CUCKOO",         "bool",   "Buzzer", "Cuckoo clock", None),
+    ("BUZZER_CUCKOO",         "bool",   "Buzzer", "Cuckoo", None),
     ("BUZZER_CUCKOO_MODE",    "choice", "Buzzer", "Cuckoo: mode", BUZZER_MODES),
     # ---- LED (in Personalize, with its status; tests in Settings -> Experimental) ----
     ("LED_BRIGHTNESS",      "int",    "LED", "LED brightness", (1, 100, 5)),
@@ -130,6 +131,8 @@ SETTINGS = (
     ("POWER_SLEEP",       "choice", "Power", "Sleep mode", SLEEP_MODES),
     ("POWER_DEEP_SLEEP_MIN", "int", "Power", "Deep sleep after", (1, 120, 1)),
     ("POWER_UNLOAD_SCREENS", "bool", "Power", "Free screens", None),
+    # ---- Bluetooth ----
+    ("BLE_AUTO_SYNC_MIN", "int", "Bluetooth", "Auto sync every", (0, 240, 15)),
 )
 
 # Shown when a setting is opened in Personalize (and as a comment in config.txt).  At most 38 characters per line; a
@@ -191,6 +194,8 @@ HELP = {
     "LED_BREATHING":          "Green breathing in, blue out",
     "POWER_SAVE":             "Slower CPU while the screen is dimmed",
     "BATTERY_LOG":            "Energy data every 10 min in battery.csv\non the SD card; never sent anywhere",
+    "LANGUAGE":               "The language of every screen.\nAny but English turns the font on\n(for the accented letters)",
+    "BLE_AUTO_SYNC_MIN":      "Minutes; 0 = only on demand. On the\nclock (every 60: at full hours). The\nwatch wakes for it: each sync costs\nabout 1 mAh of its battery",
     "POWER_SLEEP":            "light: sleeps while dimmed (the USB\nconsole disconnects); deep: after the\ntime below; the button / alarms wake",
     "POWER_DEEP_SLEEP_MIN":   "Minutes dimmed before a deep sleep\n(not while Pomodoro / metronome run)",
     "POWER_UNLOAD_SCREENS":   "Rarely used screens leave memory\n(more free heap, slower to open)",

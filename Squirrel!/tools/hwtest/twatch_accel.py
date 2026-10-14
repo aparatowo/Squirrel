@@ -134,7 +134,7 @@ def t02_still():
     if _addr is None and not t01_identify():
         return
     acc_on()
-    say("lay the watch FACE UP on the desk; measuring in 6 s", [("AKCELEROMETR", YELLOW), "", "poloz zegarek", "tarcza do gory", "na stole", "", ("pomiar za 6 s", CYAN)])
+    say("lay the watch FACE UP on the desk; measuring in 6 s", [("ACCELEROMETER", YELLOW), "", "lay the watch", "face up", "on the desk", "", ("measuring in 6 s", CYAN)])
     buzz(1)
     time.sleep(6)
     s = sample(2)
@@ -149,10 +149,10 @@ def t02_still():
     result("t02_still", "INFO", "noise (std, g): x=%.4f y=%.4f z=%.4f over %d samples" % (noise + (len(s),)))
 
 
-POSES = (("face_up", "FACE UP, flat on the desk", ["tarcza", "do GORY", "(na stole)"]),
-         ("face_down", "FACE DOWN, flat on the desk", ["tarcza", "w DOL", "(na stole)"]),
-         ("standing", "standing upright, 12 o'clock at the top (like a clock on the wall)", ["pionowo,", "jak zegar", "na scianie"]),
-         ("crown_up", "on its side, the side button pointing UP", ["na boku,", "przycisk", "do GORY"]))
+POSES = (("face_up", "FACE UP, flat on the desk", ["face", "UP", "(on the desk)"]),
+         ("face_down", "FACE DOWN, flat on the desk", ["face", "DOWN", "(on the desk)"]),
+         ("standing", "standing upright, 12 o'clock at the top (like a clock on the wall)", ["upright,", "like a clock", "on the wall"]),
+         ("crown_up", "on its side, the side button pointing UP", ["on its side,", "the button", "UP"]))
 
 
 def countdown(seconds):
@@ -173,7 +173,7 @@ def t03_orientation():
     acc_on()
     got = {}
     for n, (name, text, rows) in enumerate(POSES, 1):
-        say("next: " + text + " - 10 s", [("POZYCJA %d/4" % n, YELLOW), ""] + rows + ["", ("po wibracji: 10 s", CYAN)])
+        say("next: " + text + " - 10 s", [("POSITION %d/4" % n, YELLOW), ""] + rows + ["", ("after the buzz: 10 s", CYAN)])
         time.sleep(4)                                      # time to read it (the face-down one cannot be read later)
         buzz(1)
         countdown(10)
@@ -195,7 +195,7 @@ def t04_shake():
     if _addr is None and not t01_identify():
         return
     acc_on()
-    say("three vibrations = SHAKE the watch for 5 s", [("POTRZASANIE", YELLOW), "", "po 3 wibracjach", "potrzasaj", "przez 5 s"])
+    say("three vibrations = SHAKE the watch for 5 s", [("SHAKING", YELLOW), "", "after 3 buzzes", "shake it", "for 5 s"])
     time.sleep(4)
     buzz(3, 80)
     peak, end = 0, time.ticks_add(time.ticks_ms(), 5000)

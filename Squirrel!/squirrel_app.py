@@ -6,6 +6,7 @@ import boot_log
 import gfx
 from gfx import Lcd
 from boot_log import log, trace
+from i18n import _
 from ui_renderer import UIRenderer
 from storage_manager import StorageManager
 from todo_editor import TodoEditor
@@ -18,7 +19,7 @@ from hw.battery import BatteryMonitor, BatteryLogger
 from bars import StatusBars
 from screen_dimmer import ScreenDimmer
 from notifier import Notifier
-from scheduler import DayCounter, RoutineStore, Scheduler
+from scheduler import DayCounter, EventLog, RoutineStore, Scheduler
 from hw.power import PowerManager, collect
 import nuts
 import port_config
@@ -64,12 +65,31 @@ _LAZY_SCREENS = {
     "SILENT_MODE": ("screens.silent_mode_screen", "SilentModeScreen", ()),
     "LED_TESTS": ("screens.led_test_screen", "LedTestScreen", ()),
     "ALARMS": ("screens.alarms_screen", "AlarmsScreen", ()),
+    "CHECKLIST": ("screens.checklist_screen", "ChecklistScreen", ()),
+    "BLE_SYNC": ("screens.ble_sync_screen", "BleSyncScreen", ()),
+    "BLE_HUB": ("screens.ble_head_screen", "BleHeadScreen", ()),
 }
 # Of those, the ones used again and again stay in memory once they have been opened (compiling them anew at every visit
 # would be slow and would fragment the heap); the rest are given back when the user leaves them (POWER_UNLOAD_SCREENS).
 _KEEP_LOADED = ("VIEWER", "NOTE_EDITOR", "MIND_DUMP", "RECORD", "PLAYBACK", "FOCUS_STATS")
 _BARS_TICK_MS = 500          # how often the status bars are brought up to date (the focus cell blinks at 1 Hz)
+_WDT_STRETCHED_MS = 1_000_000_000  # ~12 days: "off" for a watchdog that cannot be stopped (see _watchdog)
 _CLEAN_STREAK = 100          # ~2 s of error-free loop iterations resets the error count
+
+
+def _watchdog(stretch=False):
+    """machine.WDT for the main loop (nuts.WATCHDOG_S), or None.  On the ESP32 it cannot be stopped once started:
+    `stretch` sets its timeout to ~12 days instead (on Ctrl-C).  A panic it causes is kept with the main task's
+    backtrace (firmware_patches/0002-panic-record.patch; tools/hwtest/panic_record.py)."""
+    seconds = getattr(nuts, "WATCHDOG_S", 0)
+    if not seconds:
+        return None
+    try:
+        import machine
+        return machine.WDT(timeout=_WDT_STRETCHED_MS if stretch else seconds * 1000)
+    except Exception as e:                # no WDT (the simulator, CPython)
+        log(f"[WDT] not started: {e}")
+        return None
 
 
 class SquirrelApp:
@@ -110,7 +130,11 @@ class SquirrelApp:
         # The font with the Polish letters, if the user has accepted it (Settings -> Experimental -> Font test).
         # Holding the quick button (G0) while the device starts skips it: the way out if a font ever misbehaves.
         held = bool(getattr(self.buttons.get("quick"), "held_at_start", False))
-        log(f"[FONT] start-up: {gfx.start(cfg.get('FONT_ENABLED'), nuts.FONT_FILES, skip=held)}")
+        # a language with letters beyond ASCII brings the font in with it (Use font only matters for English): its
+        # letters must not be shown plain; G0 held at start still skips it
+        wanted = cfg.get('FONT_ENABLED') or cfg.get('LANGUAGE') != "en"
+        log(f"[FONT] start-up: {gfx.start(wanted, nuts.FONT_FILES, skip=held)}")
+        cfg.on_change(self._language_font)
         self.rtc = RTCManager(*board.clock_chip())
         self.rtc.sync_on_boot()      # one-time read of a permanently attached hardware clock (DS1302 on the Cardputer)
         self.audio = board.make_audio()
@@ -168,18 +192,27 @@ class SquirrelApp:
         # Routines, the cuckoo clock and the daily clean-up of done To-Dos
         self.routines = RoutineStore(nuts.ROUTINES_FILE)
         self.scheduler = self.services.add(Scheduler(self.routines, self.notifier, self.audio, cfg,
-                                                     self.routines_done, self.todo_editor))
+                                                     self.routines_done, self.todo_editor,
+                                                     events=EventLog(nuts.BASE_DIR + "/focus/events.txt")))
         self._runner = None             # Pomodoro / Training and the metronome are created when first used
         self._metronome = None
 
         # A device whose clock has an alarm sleeps for real (POWER_SLEEP = deep): the coming routines / cuckoo are the
         # alarms that wake it (deep_sleep.py, alarms.py); what was going on before the sleep is put back here.
+        # Bluetooth sync by itself every BLE_AUTO_SYNC_MIN minutes (ble/auto.py): the head syncs, a node waits for it
+        self.ble_auto = None
+        if has("ble_hub") or has("ble_sync"):
+            from ble.auto import AutoSync
+            self.ble_auto = self.services.add(AutoSync(self, cfg, "head" if has("ble_hub") else "node"))
+
         self.deep_sleep = None
         if has("deep_sleep"):
             from alarms import AlarmQueue
             from deep_sleep import DeepSleep
             self.alarms = AlarmQueue()
             self.alarms.add_source(self.scheduler.events)
+            if self.ble_auto is not None:
+                self.alarms.add_source(self.ble_auto.events)       # a node wakes for its sync slots
             self.deep_sleep = self.services.add(DeepSleep(self, board, cfg, self.alarms, nuts.BASE_DIR + "/sleep.json"))
             self.deep_sleep.on_boot()
 
@@ -224,6 +257,13 @@ class SquirrelApp:
             self._metronome = self.services.add(Metronome(self.audio, cfg))
         return self._metronome
 
+    @staticmethod
+    def _language_font(key, value):
+        """Another language chosen in Personalize: load the font now, if it is not loaded (a display without .vlw
+        fonts - the watch's - draws the accented letters itself)."""
+        if key == "LANGUAGE" and value != "en" and not Lcd.font_active and Lcd.find_font(nuts.FONT_FILES):
+            Lcd.load_font(nuts.FONT_FILES)
+
     def _power_busy(self):
         """True while something needs the CPU at full speed and the screen's attention."""
         try:
@@ -231,6 +271,8 @@ class SquirrelApp:
                 return True
             busy = getattr(self.timesync, "busy", False)
             if (busy() if callable(busy) else busy) or (self._metronome is not None and self._metronome.running):
+                return True
+            if self.ble_auto is not None and self.ble_auto.busy:
                 return True
         except Exception:
             return True
@@ -260,7 +302,7 @@ class SquirrelApp:
         except Exception as e:                       # includes MemoryError
             log(f"[NAV] Cannot load {name}: {type(e).__name__}: {e}")
             try:
-                self.renderer.render_alert("Not enough memory" if isinstance(e, MemoryError) else "Cannot open")
+                self.renderer.render_alert(_("Not enough memory") if isinstance(e, MemoryError) else _("Cannot open"))
                 time.sleep(0.8)
             except Exception:
                 pass
@@ -272,11 +314,11 @@ class SquirrelApp:
                 return
         if screen_name in self.screens:
             trace(f"[NAV] -> {screen_name}")
-            # Domyślnie wracamy do trybu nawigacji przy każdej zmianie ekranu
+            # every change of screen starts in navigation mode
             if hasattr(self, 'keypad'):
                 self.keypad.set_text_mode(False)
             
-            # Przełączamy faktyczny aktywny ekran pętli run()
+            # the screen run() works with from now on
             previous = self.active_screen
             self.active_screen = self.screens[screen_name]
             Lcd.full_height(bool(getattr(self.active_screen, "full_height", False)))     # touch screens: the whole panel
@@ -292,7 +334,7 @@ class SquirrelApp:
             self._apply_screen_input_mode()
             self.active_screen.on_enter(**kwargs)
             
-            # Od razu renderujemy nowo aktywowany ekran
+            # draw the new screen at once
             self._render_active()
 
     # ---- used by the notifier and the dimmer ----
@@ -304,11 +346,13 @@ class SquirrelApp:
     def show_overlay(self, overlay):
         self.overlay = overlay
         self.keypad.modifiers_as_keys = True          # OPT, the "done" key, must arrive as a key
+        Lcd.full_height(bool(getattr(overlay, "full_height", False)))      # a touch screen: the whole panel
         self._render_active()
 
     def hide_overlay(self):
         self.overlay = None
         self._apply_screen_input_mode()
+        Lcd.full_height(bool(getattr(self.active_screen, "full_height", False)))   # the screen underneath, as it was
         self._render_active()
 
     def _can_dim(self):
@@ -401,18 +445,26 @@ class SquirrelApp:
         except Exception as e:
             self._recover_from_error(e)
 
-        while self.running:
-            try:
-                self._step()
-                self._ok_streak += 1
-                if self._ok_streak >= _CLEAN_STREAK:
-                    self._errors = 0
-            except Exception as e:
-                self._ok_streak = 0
-                self._recover_from_error(e)
-            power = self.power
-            if power is None or not power.maybe_sleep():
-                time.sleep_ms(power.pause_ms() if power else 20)
+        wdt = _watchdog()
+        try:
+            while self.running:
+                try:
+                    self._step()
+                    self._ok_streak += 1
+                    if self._ok_streak >= _CLEAN_STREAK:
+                        self._errors = 0
+                except Exception as e:
+                    self._ok_streak = 0
+                    self._recover_from_error(e)
+                power = self.power
+                if power is None or not power.maybe_sleep():
+                    time.sleep_ms(power.pause_ms() if power else 20)
+                if wdt is not None:
+                    wdt.feed()
+        except KeyboardInterrupt:
+            if wdt is not None:
+                _watchdog(stretch=True)      # Ctrl-C: Thonny, the test tools - the REPL must not be reset under them
+            raise
 
     def _recover_from_error(self, error):
         """Log the error and go back to the clock; give up after a run of failures."""

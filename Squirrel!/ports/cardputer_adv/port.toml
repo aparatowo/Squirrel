@@ -22,6 +22,7 @@ driver = "m5_display"                       # M5.Lcd, through gfx.py
 width  = 240
 height = 135
 fonts  = "vlw"
+clock_footer = "no need to go nuts"         # the default text under the clock (CLOCK_FOOTER_TEXT); never translated
 
 [i2c.sys]                                   # the keyboard and the motion sensor
 id   = 0
@@ -91,6 +92,7 @@ addrs  = [0x69, 0x68]
 
 [radio]
 wifi = true
+ble  = true                                 # the Bluetooth sync (features.toml: ble_sync)
 
 [power_mgmt]
 wake_pins   = [0, 11]                       # light sleep ends on G0 or a key (the keyboard controller's INT)

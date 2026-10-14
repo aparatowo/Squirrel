@@ -6,6 +6,7 @@
 
 from gfx import Lcd
 from screens.base_screen import BaseScreen
+from i18n import _, fill
 
 
 class TimeSyncScreen(BaseScreen):
@@ -40,9 +41,9 @@ class TimeSyncScreen(BaseScreen):
 
         Lcd.setTextSize(renderer.fonts["MENU_ITEM"])
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("# Time via WiFi", 5, 5)
+        Lcd.drawString(_("# Time via WiFi"), 5, 5)
         if svc.ssid:
-            Lcd.drawString("Network: " + svc.ssid[:22], 5, 24)
+            Lcd.drawString(_("Network: ") + svc.ssid[:22], 5, 24)
 
         if svc.state == "done":
             colour = theme["ACCENT"]
@@ -51,7 +52,8 @@ class TimeSyncScreen(BaseScreen):
         else:
             colour = theme["WARNING"]
         Lcd.setTextColor(colour, theme["BG"])
-        text = svc.message or "Ready"
+        from time_sync import MESSAGE_TEMPLATES
+        text = fill(svc.message, MESSAGE_TEMPLATES) if svc.message else _("Ready")
         if svc.busy:
             text += " %ds" % svc.elapsed_s()
         Lcd.drawString(text[:38], 5, 44)
@@ -59,7 +61,7 @@ class TimeSyncScreen(BaseScreen):
             Lcd.drawString(text[38:76], 5, 56)
 
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("Phone hotspot must be ON", 5, 82)
-        Lcd.drawString("(2.4 GHz). WiFi and BT are", 5, 94)
-        Lcd.drawString("switched off afterwards.", 5, 106)
-        Lcd.drawString("[ENTER] Retry  [ESC] Back", 5, 124)
+        Lcd.drawString(_("Phone hotspot must be ON"), 5, 82)
+        Lcd.drawString(_("(2.4 GHz). WiFi and BT are"), 5, 94)
+        Lcd.drawString(_("switched off afterwards."), 5, 106)
+        Lcd.drawString(_("[ENTER] Retry  [ESC] Back"), 5, 124)

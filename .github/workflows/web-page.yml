@@ -1,0 +1,39 @@
+# Publishes the Web Bluetooth page (Squirrel!/tools/web) on GitHub Pages, so a phone can open it over https.
+# Nothing happens until Pages is switched on: repository Settings -> Pages -> Source: "GitHub Actions".
+# Then it runs by hand (Actions -> "Web Bluetooth page" -> Run workflow) and on every push to main that changes the page.
+name: Web Bluetooth page
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["Squirrel!/tools/web/**"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: The page and its codec (index.html opens the page)
+        run: |
+          mkdir site
+          cp "Squirrel!/tools/web/squirrel_ble.html" "Squirrel!/tools/web/squirrel_protocol.js" site/
+          cp site/squirrel_ble.html site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

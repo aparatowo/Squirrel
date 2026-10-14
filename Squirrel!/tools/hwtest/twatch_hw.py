@@ -5,7 +5,7 @@
 # twatch_hw.py - bringing up the LilyGo T-Watch 2020 V3 under plain MicroPython (ESP32_GENERIC, SPIRAM), test by test
 #
 # Run with tools/hwtest/run.py.  Each test does ONE thing, says what it changes, and prints RESULT lines; ASK = the
-# person at the watch confirms what happened.  The pins are those of PORTING_PL.md (LilyGo's documentation for V3):
+# person at the watch confirms what happened.  The pins are those of ports/twatch2020_v3/port.toml (LilyGo's documentation for V3):
 # confirming them is the point of these tests.  Before anything else every test checks that an AXP202 answers on the
 # I2C bus at 21/22 - on any other board nothing is touched.  The pins were confirmed against CircuitPython's board
 # definition lilygo_twatch_2020_v3 (read from the watch on 2026-10-10), which added TOUCH_RST = GPIO14.

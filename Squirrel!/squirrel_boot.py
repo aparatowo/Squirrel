@@ -59,11 +59,12 @@ def _early_clock(board, log):
         if t[0] < 2024:
             return
         from gfx import Lcd
+        from timeutil import weekday
         from ui_renderer import UIRenderer
         Lcd.full_height(True)
         r = UIRenderer()
         r.render_clock_tall("%02d-%02d-%d" % (t[2], t[1], t[0]), "%02d:%02d" % (t[3], t[4]),
-                            ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")[t[6] % 7], "")
+                            ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")[weekday(t)], "")
         Lcd.flush()
         r.detach()
         log("[MAIN] early clock shown")

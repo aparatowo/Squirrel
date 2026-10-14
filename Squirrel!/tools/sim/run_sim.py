@@ -1,6 +1,8 @@
 # run_sim.py - runs Squirrel! on the PC under the MicroPython unix port, with fake hardware, and writes a trace
 #
 #   micropython tools/sim/run_sim.py <app dir> <empty work dir> <trace file> [port]
+#   SQUIRREL_SIM_SCENARIO=tools/sim/shots_scenario.py micropython tools/sim/run_sim.py ...   another scenario instead
+#       of the one below (it gets every helper here: key, type_text, visit, home, step, shot ...)
 #
 # The trace holds every display call, every key and the boot log, in order; the work dir ends up holding what the app
 # wrote to /sd and /flash.  Two versions of the code that behave the same give identical traces and files - that is
@@ -80,11 +82,23 @@ def key(name):
 
 
 def type_text(text):
+    """As a user types: Aa for a capital, ALT + the letter for an accented one (the keyboard layout setting)."""
+    from charmap import LAYOUTS
+    from appconfig import cfg
+    accents = {v: k for k, v in LAYOUTS.get(cfg.get("KEYBOARD_LAYOUT"), {}).items()}
     for ch in text:
         if ch == " ":
             key("SPACE")
-        else:
-            key(ch)
+            continue
+        base = accents.get(ch, ch)
+        upper = base != base.lower()
+        if upper:
+            key("Aa")
+        if ch in accents:
+            key("ALT")
+        key(base.lower())
+        if upper:
+            key("Aa")
 
 
 def button0():
@@ -157,6 +171,26 @@ def walk(menu_id, prefix, out, skip):
 
 SKIP = ("FONT_TEST",)             # its countdown ends in machine.reset()
 
+
+def shot(name):
+    """A marker for tools/sim/render_shots.py: the screen as it is now is saved as <name>.png."""
+    S.trace.append("SHOT %s" % name)
+
+
+def finish():
+    S.trace.append("--- end @%d ---" % S.ms)
+    with _open(OUT, "w") as f:
+        for line in S.trace:
+            f.write(line + "\n")
+    print("SIM DONE", len(S.trace), "trace lines, ms =", S.ms)
+
+
+_scenario = os.getenv("SQUIRREL_SIM_SCENARIO") if hasattr(os, "getenv") else None
+if _scenario:
+    exec(_open(_scenario).read())
+    finish()
+    sys.exit(0)
+
 step(50)
 # 1. every entry of every menu, one at a time
 paths = []
@@ -168,14 +202,22 @@ for p in paths:
 visit([2, 0], extra=("TYPE:kupic orzechy", "CTRL", "s", "W:20", "DOWN", "OPT", "W:20", "ENTER", "W:20"))
 # 3. A text note, saved
 visit([1, 0, 0], extra=("TYPE:pierwsza linia", "ENTER", "TYPE:druga", "CTRL", "s", "W:20"))
-# 4. Mind Dump from the clock
+# 4. Mind dump from the clock's TAB menu (TAB moves down, M opens it)
 S.trace.append("== mind dump ==")
 home()
-key("Aa")
+key("TAB")
+key("TAB")
+step(10)
+type_text("m")
 type_text("szybka mysl")
 key("ENTER")
 step(20)
 home()
+# 4b. Quick sync from the clock (Aa): no devices yet - the message, then back to the clock by itself
+S.trace.append("== quick sync ==")
+home()
+key("Aa")
+step(200)
 # 5. Focus timer on the clock, time passes, the screen dims and wakes
 home()
 key("OPT")
@@ -192,15 +234,11 @@ step(80)
 button0()
 step(40)
 home()
-# 6b. The take just recorded, played back from Voice Notes
+# 6b. The take just recorded, played back from Voice notes
 visit([1, 2], wait=10, extra=("DOWN", "ENTER", "W:150", "ENTER", "W:20", "ESC", "W:10"))
 # 7. Pomodoro started, a long wait (blocks end, notifications come), then stopped
 visit([0, 2], wait=10, extra=("ENTER", "W:3000", "ESC", "W:20"))
 # 8. A minute and a half of idling on the clock
 step(4500)
 
-S.trace.append("--- end @%d ---" % S.ms)
-with _open(OUT, "w") as f:
-    for line in S.trace:
-        f.write(line + "\n")
-print("SIM DONE", len(S.trace), "trace lines, ms =", S.ms)
+finish()

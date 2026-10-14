@@ -4,6 +4,7 @@ from gfx import Lcd
 from appconfig import cfg
 from screens.base_screen import BaseScreen
 from text_layout import layout, locate, move_vertical, scroll_to
+from i18n import _
 
 COLS = 36        # characters per screen row: 36 * 6 px fills the box (the old 22-26 left a quarter of the screen empty)
 ROWS = 6         # screen rows shown at once
@@ -94,18 +95,18 @@ class NoteEditorScreen(BaseScreen):
         full_body = "\n".join(self.body_lines)
         title = self._title()
         if not title:
-            self.app.renderer.render_alert("Title Required!")
+            self.app.renderer.render_alert(_("Title Required!"))
             time.sleep(0.6)
             return
 
         if self.menu_name == "MIND":
-            # a Mind Dump thought that is edited has grown into a note: it moves to Notes
+            # a Mind dump thought that is edited has grown into a note: it moves to Notes
             self.app.note_editor.create_note(title, full_body)
             if self.file_index is not None:
                 self.app.storage.delete_item("MIND", self.file_index)
             if hasattr(self.app, 'keypad'):
                 self.app.keypad.set_text_mode(False)
-            self.app.renderer.render_options("Moved to Notes!")
+            self.app.renderer.render_options(_("Moved to Notes!"))
             time.sleep(1.0)
             self.app.set_screen("MENU", menu_name="MIND")
             return
@@ -121,7 +122,7 @@ class NoteEditorScreen(BaseScreen):
         if hasattr(self.app, 'keypad'):
             self.app.keypad.set_text_mode(False)
 
-        self.app.renderer.render_options("Saved!")
+        self.app.renderer.render_options(_("Saved!"))
         time.sleep(0.6)
         self.app.set_screen("MENU", menu_name=self.menu_name)
 
@@ -206,7 +207,7 @@ class NoteEditorScreen(BaseScreen):
         Lcd.setTextColor(theme["FG"], theme["BG"])
         Lcd.setTextSize(renderer.fonts["MENU_ITEM"])
 
-        label = "New" if self.file_index is None else "Edit"
+        label = _("New") if self.file_index is None else _("Edit")
         Lcd.drawString(f"{label}: {self._title()[:20]}", 5, 5)
         renderer.render_keypad_mode_indicator(getattr(self.app, 'keypad', None))
         Lcd.drawRect(5, 22, 230, 88, theme["ACCENT"])
@@ -233,8 +234,8 @@ class NoteEditorScreen(BaseScreen):
 
         Lcd.setTextColor(theme["FG"], theme["BG"])
         if self.menu_name == "MIND":
-            Lcd.drawString("CTRL+S = move to Notes", 5, 115)
+            Lcd.drawString(_("CTRL+S = move to Notes"), 5, 115)
         else:
-            Lcd.drawString("[CTRL+S] Save | [ESC] Discard", 5, 115)
+            Lcd.drawString(_("[CTRL+S] Save | [ESC] Discard"), 5, 115)
         counter = "%d/%d" % (self._total_chars(), self.max_chars)
         Lcd.drawString(counter, 235 - 6 * len(counter), 115)

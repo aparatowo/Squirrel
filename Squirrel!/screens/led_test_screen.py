@@ -24,6 +24,7 @@ import time
 from gfx import Lcd
 from hw.led import led, RGB, SEND_MODES, _fit
 from screens.base_screen import BaseScreen
+from i18n import _
 
 _GREEN = 0x00FF00
 # (step label, what the step needs, how long it lasts in ms)
@@ -126,7 +127,7 @@ class LedTestScreen(BaseScreen):
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["FG"], theme["BG"])
         Lcd.fillRect(150, 106, 90, 12, theme["BG"])
-        Lcd.drawString("frames %d" % led.frames, 150, 108)
+        Lcd.drawString(_("frames %d") % led.frames, 150, 108)
 
     def render(self, renderer):
         theme = renderer.theme
@@ -141,8 +142,8 @@ class LedTestScreen(BaseScreen):
         renderer.clear()
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("# LED test: " + title, 5, 5)
-        Lcd.drawString("step %d of %d" % (self.step + 1, len(steps)), 5, 24)
+        Lcd.drawString(_("# LED test: ") + title, 5, 5)
+        Lcd.drawString(_("step %d of %d") % (self.step + 1, len(steps)), 5, 24)
         Lcd.setTextSize(3)
         Lcd.setTextColor(theme["WARNING"], theme["BG"])
         Lcd.drawString(str(self.step + 1), 200, 20)
@@ -150,12 +151,12 @@ class LedTestScreen(BaseScreen):
         Lcd.drawString(label[:19], 5, 52)
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["ACCENT"], theme["BG"])
-        Lcd.drawString("R sending: %d/%d %s" % (led.send_mode + 1, len(SEND_MODES), SEND_MODES[led.send_mode][0]), 5, 84)
+        Lcd.drawString(_("R sending: %d/%d %s") % (led.send_mode + 1, len(SEND_MODES), SEND_MODES[led.send_mode][0]), 5, 84)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("D driver:  " + led.status().rsplit(" ", 1)[-1], 5, 96)
-        Lcd.drawString("B light %d" % led.min_backlight, 150, 96)
+        Lcd.drawString(_("D driver:  ") + led.status().rsplit(" ", 1)[-1], 5, 96)
+        Lcd.drawString(_("B light %d") % led.min_backlight, 150, 96)
         Lcd.setTextColor(theme["WARNING"] if state[3] else theme["FG"], theme["BG"])
-        Lcd.drawString("S speaker: " + ("ON" if state[3] else "off"), 5, 108)
+        Lcd.drawString(_("S speaker: ") + (_("ON") if state[3] else _("off")), 5, 108)
         self._draw_frames(theme)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("<> step  R D S B  ESC back", 5, 122)
+        Lcd.drawString(_("<> step  R D S B  ESC back"), 5, 122)

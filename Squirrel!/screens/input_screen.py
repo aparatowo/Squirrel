@@ -1,5 +1,6 @@
 # screens/input_screen.py
 from screens.base_screen import BaseScreen
+from i18n import _
 
 
 class InputScreen(BaseScreen):
@@ -21,9 +22,9 @@ class InputScreen(BaseScreen):
         self.text_buffer = ""
         self.multiline = True
 
-    def on_enter(self, prompt="Enter text:", max_chars=160, callback=None,
+    def on_enter(self, prompt=None, max_chars=160, callback=None,
                  initial_text="", multiline=True, **kwargs):
-        self.prompt = prompt
+        self.prompt = prompt or _("Enter text:")
         self.max_chars = max_chars
         self.callback = callback
         self.text_buffer = initial_text

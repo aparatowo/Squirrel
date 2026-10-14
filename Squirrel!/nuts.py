@@ -1,4 +1,4 @@
-# nuts.py - kolorystyka oraz stałe dla aplikacji Squirrel
+# nuts.py - the colours and the constants of the Squirrel! app
 #
 # Two kinds of constants live here:
 #   * constants of the app (colours, limits, file names);
@@ -85,7 +85,10 @@ TODO_TITLE_MAX_LEN = 20
 NOTE_TITLE_MAX_LEN = 20
 NOTE_BODY_MAX_CHARS = 1000
 
-CLOCK_FOOTER_TEXT = "no need to go nuts"
+import port_config as _port
+# the text under the clock: each port has its own (port.toml [display] clock_footer); it is the device's motto, so it
+# is never translated (ui_renderer draws it as it is)
+CLOCK_FOOTER_TEXT = getattr(_port, "DISPLAY_CLOCK_FOOTER", "no need to go nuts")
 CLOCK_DATE_OFFSET_X = 0
 CLOCK_DATE_OFFSET_Y = 5
 CLOCK_TIME_OFFSET_X = -5
@@ -146,6 +149,7 @@ WIFI_PROFILES_FILE = BASE_DIR + "/wifi.json"    # the WiFi networks saved from S
 
 # ---- Language ----
 KEYBOARD_LAYOUT = "pl"          # ALT + letter types an accented one: "pl" (ALT+a = ą), "de" (ALT+a = ä), "en" (off)
+LANGUAGE = "en"                 # the user interface: "en", "pl", "fr", "de" (i18n.py; Personalize -> Display -> Language)
 FONT_ENABLED = False            # draw with the .vlw font (Polish letters).  Switch it on from Settings -> Experimental -> Font test
 # The font is read by the firmware as a FILE, so it cannot be frozen like a module.  build_firmware.py puts it into the
 # image's system file system instead (/system/common/font/, written by every flash, so it is always the font of the
@@ -161,6 +165,12 @@ TODO_KEEP_DAYS = 7              # a To-Do marked as done is deleted this many da
 # ---- Routines, Pomodoro ----
 ROUTINE_SNOOZE_MIN = 10         # no reaction to a routine for 30 s = it comes back after this many minutes
 ROUTINE_MAX_SNOOZES = 6         # ... at most this many times (OPT or DEL ends it earlier)
+WATCHDOG_S = 60                 # the main loop must come round within this, or the device restarts (0: no watchdog);
+                                # a frozen device restarts instead of staying frozen (squirrel_app.run)
+BLE_AUTO_SYNC_MIN = 0           # Bluetooth sync by itself every N minutes, on the clock (0: only on demand); ble/auto.py
+BLE_REQUIRE_PAIRING = True      # Bluetooth sync: only a head paired with a code (ble/auth.py) is served (False: test tools)
+BLE_LINK_PAIRING = False        # pairing / encryption of the Bluetooth link itself: off until it is tested again (the
+                                # resets it was blamed for had another cause - docs/implementation/en/backlog.md, A)
 POMODORO_WORK_MIN = 25
 POMODORO_BREAK_MIN = 5
 POMODORO_LONG_BREAK_MIN = 15    # after the last work block of a round
