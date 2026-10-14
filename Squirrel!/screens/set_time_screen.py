@@ -13,6 +13,7 @@ from gfx import Lcd
 from screens.base_screen import BaseScreen
 from timeutil import days_from_civil, weekday_from_days
 from ui.touch import Button, TouchPanel, has_touch, mm, MIN_TARGET_MM
+from i18n import _
 
 _DAYS_IN_MONTH = (0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 
@@ -82,8 +83,8 @@ class SetTimeScreen(BaseScreen):
             minus = p.add(Button(x + 2, minus_y, col - 4, step_h, "-"), lambda i=i: self._step(i, -1), repeat=True)
             self._buttons.append((plus, minus))
         half = w // 2
-        p.add(Button(2, btn_y, half - 6, btn_h, "Cancel", "ERROR"), self._cancel)
-        p.add(Button(half + 4, btn_y, half - 6, btn_h, "Save", "ACCENT"), self._save)
+        p.add(Button(2, btn_y, half - 6, btn_h, _("Cancel"), "ERROR"), self._cancel)
+        p.add(Button(half + 4, btn_y, half - 6, btn_h, _("Save"), "ACCENT"), self._save)
         self._layout = (col, value_y, value_y + 12)
 
     def _cancel(self):
@@ -149,7 +150,7 @@ class SetTimeScreen(BaseScreen):
         # the weekday matters (routines by day of the week); it used to be saved as 0 = Monday whatever the date
         dt = (year, month, mday, hour, minute, second, weekday_from_days(days_from_civil(year, month, mday)), 0)
         self.app.rtc.set_manual(dt)
-        self.app.renderer.render_options("Time Set!")
+        self.app.renderer.render_options(_("Time Set!"))
         time.sleep(0.8)
         self.app.set_screen("MENU", menu_name="TIME_DATE")
 
@@ -166,15 +167,15 @@ class SetTimeScreen(BaseScreen):
 
         Lcd.setTextSize(fonts["MENU_ITEM"])
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("# Set Time", 5, 5)
-        Lcd.drawString("L/R: field  U/D: value", 5, 18)
+        Lcd.drawString(_("# Set time"), 5, 5)
+        Lcd.drawString(_("L/R: field  U/D: value"), 5, 18)
 
         # Draw five fields in a row, highlight the active one
         field_x  = [5, 55, 105, 150, 195]
         field_y  = 50
         value_y  = 75
 
-        for i, (label, _, _) in enumerate(_FIELDS):
+        for i, (label, _lo, _hi) in enumerate(_FIELDS):
             x = field_x[i]
             # Separator between date and time
             if i == 3:
@@ -187,7 +188,7 @@ class SetTimeScreen(BaseScreen):
             else:
                 Lcd.setTextColor(theme["FG"], theme["BG"])
 
-            Lcd.drawString(label, x, field_y)
+            Lcd.drawString(_(label), x, field_y)
 
             if i in (0,):   # year: 4 digits
                 val_str = f"{self._values[i]:04d}"
@@ -197,7 +198,7 @@ class SetTimeScreen(BaseScreen):
             Lcd.drawString(val_str, x + 4, value_y)
 
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("[ENTER] Save | [ESC] Cancel", 5, 115)
+        Lcd.drawString(_("[ENTER] Save | [ESC] Cancel"), 5, 115)
 
     def _render_touch(self, renderer):
         renderer.clear()
@@ -205,14 +206,15 @@ class SetTimeScreen(BaseScreen):
         col, label_y, value_y = self._layout
         Lcd.setTextSize(2)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("Set Time", 4, 2)
+        Lcd.drawString(_("Set time"), 4, 2)
         active = self._buttons[self._field]
         self._panel.draw(theme, lambda wdg: wdg in active)
-        for i, (label, _, _) in enumerate(_FIELDS):
+        for i, (label, _lo, _hi) in enumerate(_FIELDS):
             x = i * col
             c = theme["ACCENT"] if i == self._field else theme["FG"]
             Lcd.setTextColor(c, theme["BG"])
             Lcd.setTextSize(1)
+            label = _(label)
             Lcd.drawString(label, x + (col - 6 * len(label)) // 2, label_y)
             text = ("%04d" if i == 0 else "%02d") % self._values[i]
             Lcd.setTextSize(2)

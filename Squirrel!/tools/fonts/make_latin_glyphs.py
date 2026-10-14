@@ -1,0 +1,113 @@
+# tools/fonts/make_latin_glyphs.py - accented letters for the 5x7 font (drivers/glcdfont.py): Polish, German, French
+#
+#   python3 tools/fonts/make_latin_glyphs.py            prints every glyph as a picture (to check by eye)
+#   python3 tools/fonts/make_latin_glyphs.py --write    writes drivers/glcdfont_latin.py
+# A glyph is its base letter of the classic font with a mark added: above a small letter (rows 0-1 are free).  A
+# capital keeps its bottom on the line and gives up a row of its top half (DROP) for a one-pixel mark in row 0
+# (MARKS_CAP); a circumflex needs two rows, so its capitals give up two (DROP_CIRC).  Ogonek and cedilla go below
+# (row 7).  The font's own codes 128-255 are code page 437 symbols, not Latin-1: these glyphs replace them for
+# the letters below, anything else beyond ASCII is folded to a plain letter (charmap.fold).
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+APP = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, APP)
+from drivers.glcdfont import FONT
+
+MARKS = {
+    "acute": [(3, 0), (2, 1)],
+    "grave": [(1, 0), (2, 1)],
+    "circ": [(2, 0), (1, 1), (3, 1)],
+    "uml": [(1, 0), (3, 0)],
+    "dot": [(2, 0)],
+    "ogonek": [(3, 7), (4, 7)],
+    "cedilla": [(2, 7), (1, 7)],
+}
+# above a capital there is one row: the mark is a pixel (or two)
+MARKS_CAP = {"acute": [(3, 0)], "grave": [(1, 0)], "uml": [(1, 0), (3, 0)], "dot": [(2, 0)]}
+# letter: (base, mark)
+LETTERS = {
+    "ą": ("a", "ogonek"), "ć": ("c", "acute"), "ę": ("e", "ogonek"), "ń": ("n", "acute"), "ó": ("o", "acute"),
+    "ś": ("s", "acute"), "ź": ("z", "acute"), "ż": ("z", "dot"),
+    "Ą": ("A", "ogonek"), "Ć": ("C", "acute"), "Ę": ("E", "ogonek"), "Ń": ("N", "acute"), "Ó": ("O", "acute"),
+    "Ś": ("S", "acute"), "Ź": ("Z", "acute"), "Ż": ("Z", "dot"),
+    "ä": ("a", "uml"), "ö": ("o", "uml"), "ü": ("u", "uml"), "Ä": ("A", "uml"), "Ö": ("O", "uml"), "Ü": ("U", "uml"),
+    "à": ("a", "grave"), "â": ("a", "circ"), "ç": ("c", "cedilla"), "é": ("e", "acute"), "è": ("e", "grave"),
+    "ê": ("e", "circ"), "ë": ("e", "uml"), "î": ("i", "circ"), "ï": ("i", "uml"), "ô": ("o", "circ"),
+    "û": ("u", "circ"), "ù": ("u", "grave"), "ÿ": ("y", "uml"),
+    "À": ("A", "grave"), "Â": ("A", "circ"), "Ç": ("C", "cedilla"), "É": ("E", "acute"), "È": ("E", "grave"),
+    "Ê": ("E", "circ"), "Ë": ("E", "uml"), "Î": ("I", "circ"), "Ï": ("I", "uml"), "Ô": ("O", "circ"),
+    "Û": ("U", "circ"), "Ù": ("U", "grave"),
+}
+# the row a capital under a mark gives up: the second (the default), or the one given here - always in its top half,
+# so the letter still stands on the line like the plain one
+DROP = {"A": 0, "C": 2}
+DROP_CIRC = {"A": (0, 2), "E": (1, 4)}         # the two rows under a circumflex; (1, 2) by default
+# under a mark, A gets a round top: its peak under a pixel or two read as an X
+ROUND_A = ["00000", "01110", "10001", "10001", "11111", "10001", "10001", "00000"]
+# drawn whole: rows top to bottom, 5 columns
+DRAWN = {
+    "ł": ["01100", "00100", "00110", "01100", "00100", "00100", "01110", "00000"],
+    "Ł": ["01000", "01000", "01010", "01100", "11000", "01000", "01111", "00000"],
+    "ß": ["01110", "10001", "10010", "10110", "10001", "10001", "10110", "10000"],
+}
+
+
+def grid(ch):
+    code = ord(ch)
+    return [[FONT[5 * code + x] >> y & 1 for x in range(5)] for y in range(8)]
+
+
+def glyph(ch):
+    if ch in DRAWN:
+        return [[int(c) for c in row] for row in DRAWN[ch]]
+    base, mark = LETTERS[ch]
+    g = grid(base)
+    if base == "A" and (mark in MARKS_CAP or mark == "circ"):
+        g = [[int(c) for c in row] for row in ROUND_A]
+    if mark in MARKS_CAP and base.isupper():
+        drop = DROP.get(base, 1)
+        g = [[0] * 5] + [g[r] for r in range(7) if r != drop] + [g[7]]      # bottom on the line, top one row lower
+        for x, y in MARKS_CAP[mark]:
+            g[y][x] = 1
+        return g
+    if mark == "circ" and base.isupper():
+        drop = DROP_CIRC.get(base, (1, 2))
+        g = [[0] * 5, [0] * 5] + [g[r] for r in range(7) if r not in drop] + [g[7]]
+    elif mark in ("acute", "grave", "circ", "uml", "dot") and base in "ij":
+        g[0], g[1] = [0] * 5, [0] * 5                       # the dot of i gives way to the mark
+    for x, y in MARKS[mark]:
+        g[y][x] = 1
+    return g
+
+
+def columns(g):
+    return bytes(sum(g[y][x] << y for y in range(8)) for x in range(5))
+
+
+def show(ch, g):
+    print(ch)
+    for row in g:
+        print("  " + "".join("#" if v else "." for v in row))
+
+
+def main():
+    chars = list(LETTERS) + list(DRAWN)
+    glyphs = {ch: glyph(ch) for ch in chars}
+    if "--write" not in sys.argv:
+        for ch in chars:
+            show(ch, glyphs[ch])
+        return
+    data = b"".join(columns(glyphs[ch]) for ch in chars)
+    with open(os.path.join(APP, "drivers", "glcdfont_latin.py"), "w", encoding="utf-8") as f:
+        f.write("# glcdfont_latin.py - accented letters for the 5x7 font of drivers/glcdfont.py (Polish, German, French)\n")
+        f.write("# Generated by tools/fonts/make_latin_glyphs.py; do not edit.  CHARS[i] is drawn by DATA[5 * i:5 * i + 5]\n")
+        f.write("# (one byte per column, bit 0 = the top row), like FONT.  Constants: frozen, they stay in flash.\n")
+        f.write("CHARS = %r\n" % "".join(chars))
+        f.write("DATA = %r\n" % data)
+    print("drivers/glcdfont_latin.py: %d letters" % len(chars))
+
+
+if __name__ == "__main__":
+    main()

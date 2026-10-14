@@ -187,3 +187,23 @@ class TouchList:
         Lcd.setTextColor(theme["BG"], theme["WARNING"])
         text = text[:(w - 8) // 12]
         Lcd.drawString(text, (w - 12 * len(text)) // 2, h - 22)
+
+
+def header_tapped(keypad):
+    """A tap / long press on the title row of a full-height touch screen (the "<" header): the way back."""
+    xy = getattr(keypad, "tap_xy", None)
+    return xy is not None and xy[1] < TouchList.HEADER
+
+
+def button_height():
+    return max(mm(MIN_TARGET_MM), 36)
+
+
+def draw_centered(text, y, size, color, bg, max_w=None):
+    """text centred on the screen; a size smaller when it would not fit in max_w (the screen's width by default)."""
+    w = Lcd.screen_size()[0]
+    while size > 1 and 6 * size * len(text) > (max_w or w):
+        size -= 1
+    Lcd.setTextSize(size)
+    Lcd.setTextColor(color, bg)
+    Lcd.drawString(text, max(0, (w - 6 * size * len(text)) // 2), y)

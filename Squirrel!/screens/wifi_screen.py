@@ -15,6 +15,7 @@ import nuts
 from screens.base_screen import BaseScreen
 from line_editor import LineEditor
 from wifi_profiles import WifiProfiles, MAX_SSID, MAX_PASSWORD, MAX_NETWORKS
+from i18n import _
 
 _ADD = "+ [Add network]"
 _VISIBLE = 5
@@ -57,7 +58,7 @@ class WifiScreen(BaseScreen):
         self._notice_until = time.ticks_add(time.ticks_ms(), _NOTICE_MS)
 
     def _rows(self):
-        return [_ADD] + [ssid for ssid, _pw in self._profiles.all()]
+        return [_(_ADD)] + [ssid for ssid, _pw in self._profiles.all()]
 
     def _move(self, delta):
         count = len(self._rows())
@@ -95,7 +96,7 @@ class WifiScreen(BaseScreen):
     def _open_row(self):
         if self.sel == 0:
             if self._profiles.is_full():
-                self._notify("List full (%d)" % MAX_NETWORKS)
+                self._notify(_("List full (%d)") % MAX_NETWORKS)
                 return
             self._index, name, password = None, "", ""
         else:
@@ -116,7 +117,7 @@ class WifiScreen(BaseScreen):
                 self._profiles.delete(self.sel - 1)
                 self._move(0)
                 self.sel = min(self.sel, len(self._rows()) - 1)
-                self._notify("Deleted")
+                self._notify(_("Deleted"))
         else:
             self._delete = None                  # ESC or any other key cancels
 
@@ -128,7 +129,7 @@ class WifiScreen(BaseScreen):
             if self.mode == "name":
                 name = self._editor.buf.strip()
                 if not name:
-                    self.error = "The name is required"
+                    self.error = _("The name is required")
                     return
                 self._name = name
                 self._editor = LineEditor(self._password, MAX_PASSWORD, secret=True)
@@ -145,12 +146,12 @@ class WifiScreen(BaseScreen):
         if self._index is None:
             known = any(ssid == self._name for ssid, _pw in self._profiles.all())
             if not self._profiles.add(self._name, password):
-                self._finish_edit("Not saved")
+                self._finish_edit(_("Not saved"))
                 return
-            self._finish_edit("Updated" if known else "Saved")
+            self._finish_edit(_("Updated") if known else _("Saved"))
         else:
             ok = self._profiles.update(self._index, self._name, password)
-            self._finish_edit("Saved" if ok else "Not saved")
+            self._finish_edit(_("Saved") if ok else _("Not saved"))
 
     def _finish_edit(self, notice=None):
         self._text_mode(False)
@@ -168,7 +169,7 @@ class WifiScreen(BaseScreen):
 
     def render(self, renderer):
         if self.mode == "list":
-            renderer.render_menu("WiFi networks", self._rows(), self.sel, self.top, _VISIBLE)
+            renderer.render_menu(_("WiFi networks"), self._rows(), self.sel, self.top, _VISIBLE)
             if self._delete is not None:
                 renderer.render_delete_confirm(self._delete, self._rows()[self.sel])
             elif self._notice is not None:
@@ -184,14 +185,14 @@ class WifiScreen(BaseScreen):
         theme = renderer.theme
         Lcd.setTextSize(renderer.fonts["MENU_ITEM"])
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("# " + ("New network" if self._index is None else "Edit network"), 5, 5)
+        Lcd.drawString("# " + (_("New network") if self._index is None else _("Edit network")), 5, 5)
         renderer.render_keypad_mode_indicator(getattr(self.app, "keypad", None))
-        Lcd.drawString("Name" if self.mode == "name" else "Password for " + self._name[:16], 5, 22)
+        Lcd.drawString(_("Name") if self.mode == "name" else _("Password for ") + self._name[:16], 5, 22)
         Lcd.drawRect(5, 38, 230, 28, theme["ACCENT"])
         Lcd.drawString(self._editor.view(35), 10, 48)
         if self.error:
             Lcd.setTextColor(theme["ERROR"], theme["BG"])
             Lcd.drawString(self.error, 5, 76)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("[ENTER] " + ("Next" if self.mode == "name" else "Save") + "  [ESC] Cancel", 5, 104)
-        Lcd.drawString("FN + arrows: cursor", 5, 118)
+        Lcd.drawString(_("[ENTER] ") + (_("Next") if self.mode == "name" else _("Save")) + _("  [ESC] Cancel"), 5, 104)
+        Lcd.drawString(_("FN + arrows: cursor"), 5, 118)

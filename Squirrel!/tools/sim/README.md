@@ -7,7 +7,7 @@ Mind Dump, records and plays a voice note, runs the focus timer and a Pomodoro, 
 logs and writes is recorded.
 
 The point: **a refactoring that does not change behaviour gives an identical trace.**  That is how the ports
-refactoring (stage 0 of `PORTING_PL.md`) was checked before it reached a device.
+refactoring was checked before it reached a device.
 
 ## Once: build the MicroPython unix port
 

@@ -10,15 +10,22 @@
 #   "soon"   - placeholder for a feature that is not built yet
 # Numbers in front of the labels are added automatically.
 
+from features import has as _has
+import port_config as _pc
+_CHIP = getattr(_pc, "CLOCK_DRIVER", None)
+RTC_CHIP = _CHIP.upper() if isinstance(_CHIP, str) else None       # "DS1302" on the Cardputer, "PCF8563" on the watch:
+                                                                   # menu_screen adds it to "Sync RTC", untranslated
+_BLUETOOTH = "BLE_HUB" if _has("ble_hub") else "BLE_SYNC"      # the head manages its devices; a node waits for it
+
 MENUS = {
     "MAIN": ("Squirrel", [
-        ("Focus Tools", "menu", "FOCUS"),
+        ("Focus tools", "menu", "FOCUS"),
         ("Notes", "menu", "NOTES_ROOT"),
-        ("To-Do List", "menu", "TODO"),
+        ("To-Do list", "menu", "TODO"),
         ("Settings", "menu", "SETTINGS"),
     ]),
-    "FOCUS": ("Focus Tools", [
-        ("Cuckoo Clock", "screen", ("PERSONALIZE", {"groups": ("Cuckoo",), "title": "Cuckoo Clock",
+    "FOCUS": ("Focus tools", [
+        ("Cuckoo clock", "screen", ("PERSONALIZE", {"groups": ("Cuckoo",), "title": "Cuckoo clock",
                                                    "back": ("MENU", {"menu_name": "FOCUS"})})),
         ("Routines", "screen", "ROUTINES"),
         ("Pomodoro", "screen", ("INTERVALS", {"mode": "pomodoro"})),
@@ -28,17 +35,18 @@ MENUS = {
         ("Statistics", "screen", "FOCUS_STATS"),
     ]),
     "NOTES_ROOT": ("Notes", [
-        ("Text Notes", "menu", "NOTES"),
-        ("Mind Dump", "menu", "MIND"),
-        ("Voice Notes", "menu", "RECORDS"),
+        ("Text notes", "menu", "NOTES"),
+        ("Mind dump", "menu", "MIND"),
+        ("Voice notes", "menu", "RECORDS"),
     ]),
     "SETTINGS": ("Settings", [
         ("Personalize", "screen", "PERSONALIZE"),
         ("Connections", "menu", "CONNECTIONS"),
         ("Time and date", "menu", "TIME_DATE"),
+        ("Bluetooth", "screen", _BLUETOOTH),
         ("Silent mode", "menu", "SILENT"),
         ("Reload config", "action", "reload_config"),
-        ("Key Calibration", "screen", "CALIBRATOR"),
+        ("Key calibration", "screen", "CALIBRATOR"),
         ("Experimental", "menu", "EXPERIMENTAL"),
     ]),
     "CONNECTIONS": ("Connections", [
@@ -49,9 +57,10 @@ MENUS = {
     ]),
     "TIME_DATE": ("Time and date", [
         ("Time via WiFi", "screen", "TIME_SYNC"),
-        ("Sync RTC (DS1302)", "action", "sync_rtc"),
-        ("Set Time", "screen", "SET_TIME"),
-        ("Upcoming alarms", "screen", "ALARMS"),          # only where the clock has an alarm (features.toml: deep_sleep)
+        ("Sync RTC", "action", "sync_rtc"),
+        ("Time from a device", "screen", ("BLE_HUB", {"mode": "time"})),
+        ("Set time", "screen", "SET_TIME"),
+        ("Planned alarms", "screen", "ALARMS"),          # only where the clock has an alarm (features.toml: deep_sleep)
         # the settings of the Time group (UTC offset, summer time, sync at start-up)
         ("Time settings", "screen", ("PERSONALIZE", {"groups": ("Time",), "title": "Time settings",
                                                     "back": ("MENU", {"menu_name": "TIME_DATE"})})),
@@ -59,8 +68,9 @@ MENUS = {
     # Silent hours, separately for the speaker and the buzzer (QUIET_* settings, see quiet_hours.py)
     "SILENT": ("Silent mode", [
         ("Sound", "screen", ("SILENT_MODE", {"channel": "sound"}), "quiet:sound"),
-        ("Buzzer", "screen", ("SILENT_MODE", {"channel": "buzzer"}), "quiet:buzzer"),
-        ("LED", "screen", ("SILENT_MODE", {"channel": "led"}), "quiet:led"),
+        # "groups": the channel's settings group - a device without that hardware hides the row (features.toml)
+        ("Buzzer", "screen", ("SILENT_MODE", {"channel": "buzzer", "groups": ("Buzzer",)}), "quiet:buzzer"),
+        ("LED", "screen", ("SILENT_MODE", {"channel": "led", "groups": ("LED",)}), "quiet:led"),
     ]),
     # The buzzer soldered to a GPIO (nuts.BUZZER_*): a try of every mode.  Which features may use it, and whether
     # it works at all, is shown in Personalize -> Buzzer.
@@ -102,12 +112,12 @@ MENUS = {
     ]),
 }
 
-# File-backed lists: id -> (title, file extension).  Their first row is always "+ [New Item]".
+# File-backed lists: id -> (title, file extension).  Their first row is always "+ [New item]".
 COLLECTIONS = {
-    "TODO": ("TODOs", ".txt"),
-    "NOTES": ("NOTES", ".txt"),
-    "MIND": ("Mind Dump", ".txt"),
-    "RECORDS": ("RECORDS", ".wav"),
+    "TODO": ("To-Do list", ".txt"),
+    "NOTES": ("Text notes", ".txt"),
+    "MIND": ("Mind dump", ".txt"),
+    "RECORDS": ("Voice notes", ".wav"),
 }
 
 # Where ESC / LEFT leads from each menu (MAIN has no parent: it goes back to the clock).

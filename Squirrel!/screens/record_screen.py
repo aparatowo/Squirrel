@@ -1,6 +1,6 @@
 # screens/record_screen.py — Voice recording screen (manual, and the quick recorder on G0)
 #
-# Opened from Voice Notes ("+ [New Item]") or by the G0 button from the clock / a menu.
+# Opened from Voice notes ("+ [New item]") or by the G0 button from the clock / a menu.
 #   ENTER or G0 - start, or stop and save
 #   ESC         - while recording: discard the take; otherwise just leave
 # After saving or discarding it returns to where it was opened from.
@@ -9,6 +9,7 @@ import time
 from gfx import Lcd
 from screens.base_screen import BaseScreen
 from nuts import BASE_DIR
+from i18n import _
 
 _TICK_MS = 500   # blink period and timer granularity
 _DEFAULT_RETURN = ("MENU", {"menu_name": "RECORDS"})
@@ -61,7 +62,7 @@ class RecordScreen(BaseScreen):
         if action == 'ESC':
             if self.app.audio.is_recording():
                 self.app.audio.cancel_recording()
-                self.app.renderer.render_alert("Discarded")
+                self.app.renderer.render_alert(_("Discarded"))
                 time.sleep(0.5)
             self._leave()
             return
@@ -74,7 +75,7 @@ class RecordScreen(BaseScreen):
         fname = f"REC_{dt[0]:04d}{dt[1]:02d}{dt[2]:02d}_{dt[3]:02d}{dt[4]:02d}{dt[5]:02d}.wav"
         folder = f"{BASE_DIR}/records"
         try:
-            os.mkdir(folder)       # a fresh card has none until Voice Notes is opened: the quick recorder (G0) comes first
+            os.mkdir(folder)       # a fresh card has none until Voice notes is opened: the quick recorder (G0) comes first
         except OSError:
             pass                   # it is there already
         self._filepath = f"{folder}/{fname}"
@@ -82,15 +83,15 @@ class RecordScreen(BaseScreen):
         if ok:
             self._start_ticks = time.ticks_ms()
         else:
-            self.app.renderer.render_alert("Rec Error!")
+            self.app.renderer.render_alert(_("Rec Error!"))
             time.sleep(0.8)
             self._leave()
 
     def _stop(self):
         if self.app.audio.stop_recording():
-            self.app.renderer.render_options("Saved!")
+            self.app.renderer.render_options(_("Saved!"))
         else:
-            self.app.renderer.render_alert("Too short - not saved")
+            self.app.renderer.render_alert(_("Too short - not saved"))
         time.sleep(0.6)
         self._leave()
 
@@ -105,9 +106,9 @@ class RecordScreen(BaseScreen):
 
         if not recording:
             Lcd.setTextColor(theme["FG"], theme["BG"])
-            Lcd.drawString("# Voice Recorder", 5, 5)
-            Lcd.drawString("ENTER or G0 to start", 5, 40)
-            Lcd.drawString("ESC to go back", 5, 58)
+            Lcd.drawString(_("# Voice Recorder"), 5, 5)
+            Lcd.drawString(_("ENTER or G0 to start"), 5, 40)
+            Lcd.drawString(_("ESC to go back"), 5, 58)
             return
 
         bucket = self._bucket()
@@ -118,10 +119,10 @@ class RecordScreen(BaseScreen):
         dot_col = theme["ERROR"] if blink_on else theme["BG"]
         Lcd.fillCircle(15, 18, 8, dot_col)
         Lcd.setTextColor(theme["ERROR"], theme["BG"])
-        Lcd.drawString("REC", 30, 11)
+        Lcd.drawString(_("REC"), 30, 11)
 
         Lcd.setTextColor(theme["FG"], theme["BG"])
         Lcd.drawString(f"{elapsed // 60:02d}:{elapsed % 60:02d}", 100, 11)
         if self._filepath:
             Lcd.drawString(self._filepath.split("/")[-1][:26], 5, 38)
-        Lcd.drawString("[G0/ENTER] Save  [ESC] Discard", 5, 115)
+        Lcd.drawString(_("[G0/ENTER] Save  [ESC] Discard"), 5, 115)

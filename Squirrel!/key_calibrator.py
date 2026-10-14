@@ -8,6 +8,7 @@ import json
 import time
 from gfx import Lcd
 from screens.base_screen import BaseScreen
+from i18n import _
 
 TARGET_KEYS = [
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -64,10 +65,10 @@ class CalibrationScreen(BaseScreen):
             with open(self.save_path, "w") as f:
                 json.dump(self.keymap, f)
             print(f"[CALIBRATOR] Saved the map to {self.save_path}")
-            self.app.renderer.render_options("Saved Keymap!")
+            self.app.renderer.render_options(_("Saved Keymap!"))
         except Exception as e:
             print(f"[CALIBRATOR ERROR] Save failed: {e}")
-            self.app.renderer.render_alert("Save Error!")
+            self.app.renderer.render_alert(_("Save Error!"))
 
         time.sleep(1.0)
         self.app.set_screen("MENU", menu_name="SETTINGS")
@@ -77,11 +78,11 @@ class CalibrationScreen(BaseScreen):
         theme = renderer.theme
         Lcd.setTextSize(renderer.fonts["MENU_ITEM"])
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("# Key Calibration", 5, 5)
-        Lcd.drawString(f"Step {self.current_step + 1}/{len(TARGET_KEYS)}", 5, 28)
+        Lcd.drawString(_("# Key calibration"), 5, 5)
+        Lcd.drawString(_("Step %d/%d") % (self.current_step + 1, len(TARGET_KEYS)), 5, 28)
         Lcd.setTextColor(theme["WARNING"], theme["BG"])
         Lcd.setTextSize(2)
-        Lcd.drawString(f"Press: {_label(self.current_target)}", 5, 55)
+        Lcd.drawString(_("Press: %s") % _label(self.current_target), 5, 55)
         Lcd.setTextSize(renderer.fonts["MENU_ITEM"])
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("[G0] Exit without saving", 5, 115)
+        Lcd.drawString(_("[G0] Exit without saving"), 5, 115)

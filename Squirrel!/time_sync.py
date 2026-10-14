@@ -15,6 +15,13 @@ _NTP_RETRY_GAP_MS = 1500
 _NTP_ATTEMPTS = 3
 
 
+# The messages stay English here; the screen shows them with i18n.fill(message, MESSAGE_TEMPLATES).
+MESSAGE_TEMPLATES = ("Looking for a network...", "no saved WiFi network", "WiFi scan failed: %s", "no saved network in range",
+                     "WiFi start failed: %s", "Connecting...", "Getting time...", "connection failed",
+                     "connection timeout (is the hotspot on?)", "NTP failed: %s", "clock write failed: %s",
+                     "Synced %02d:%02d %02d-%02d-%04d")
+
+
 class TimeSyncService:
     def __init__(self, rtc, net, utc_offset_min=60, eu_dst=True):
         self._rtc = rtc

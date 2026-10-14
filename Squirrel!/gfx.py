@@ -7,8 +7,9 @@
 #     (Processing font format, made by tools/make_vlw.py) to M5.Lcd.setFont(), which the UIFlow 2
 #     firmware documents as supported.  The built-in font only has ASCII;
 #   * while no such font is loaded, drawString() folds the text to ASCII (ą -> a, ł -> l ...), so that
-#     a Polish note shows as readable plain letters instead of garbage.  Nothing is lost: the text
-#     itself is stored and edited with the real letters.
+#     a Polish note shows as readable plain letters instead of garbage - except the letters the display
+#     driver draws itself (`glyphs`: the watch's bitmap font has the Polish, German and French ones).
+#     Nothing is lost: the text itself is stored and edited with the real letters.
 #
 # All other calls go straight to the real display (the hot ones are bound once, so they cost nothing extra).
 #
@@ -44,6 +45,7 @@ class Display:
         # with _needs_flush.  M5.Lcd draws straight onto the panel: flush() does nothing there.
         self._flush = lcd.flush if getattr(lcd, "_needs_flush", False) else None
         self.font_active = False
+        self._glyphs = getattr(lcd, "glyphs", "")          # letters beyond ASCII the driver draws without a font
         self.font_path = None
         self.last_error = ""
         for name in _DIRECT:
@@ -73,7 +75,7 @@ class Display:
         if not self.font_active:
             try:
                 if len(text.encode()) != len(text):
-                    text = charmap.fold(text)
+                    text = charmap.fold(text, self._glyphs)
             except Exception:
                 pass
         return self._lcd.drawString(text, x, y, *rest)

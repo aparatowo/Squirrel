@@ -1,6 +1,6 @@
 # port.toml - the LilyGo T-Watch 2020 V3: its hardware, wiring and features (read on the PC by build_firmware.py,
 # which writes port_config.py from it; see ports/cardputer_adv/port.toml for the conventions).
-# Every value below was confirmed on the watch on 2026-10-10 (tools/hwtest/README_PL.md, "Wyniki").
+# Every value below was confirmed on the watch on 2026-10-10 (tools/hwtest/README.md, "Results").
 
 [port]
 name     = "twatch2020_v3"
@@ -19,6 +19,7 @@ height = 240
 layout_height = 135                         # the screens are still laid out for the Cardputer's 240 x 135: shown centred
 madctl = 0xC0                               # rotated 180 degrees ...
 row_offset = 80                             # ... the panel's RAM has 320 rows
+clock_footer = "Squirrel! is watching"     # the default text under the clock (CLOCK_FOOTER_TEXT); never translated
 spi_id   = 2
 sck      = 18
 mosi     = 19                               # routed through the GPIO matrix: 26.67 MHz at most (40 MHz panics)
@@ -85,6 +86,7 @@ addrs  = [0x19, 0x18]
 
 [radio]
 wifi = true
+ble  = true                                 # the Bluetooth sync (features.toml: ble_sync)
 
 [power_mgmt]
 wake_pins   = [35, 38]                      # light sleep: the side button (AXP INT), touch INT - both active low

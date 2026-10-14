@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Squirrel! Bluetooth</title>
+<!--
+  squirrel_ble.html - the Squirrel! devices over Web Bluetooth (Chrome / Edge on Android, Windows, macOS, Linux).
+  Connected to the boss (the Cardputer: Settings -> Bluetooth -> Be visible) the page edits everything: To-Dos with
+  their ">" checklists, routines, notes, settings.  Connected to a node (the watch: Settings -> Bluetooth) it only ticks
+  and switches routines on / off - the content belongs to the boss (docs/implementation/en/bluetooth.md).  Records: data-format.md;
+  codec: squirrel_protocol.js (next to this file).  Needs https or http://localhost (see README.md here).
+-->
+<style>
+  :root { --bg: #000; --panel: #141414; --line: #333; --fg: #ffa500; --text: #eee; --dim: #999; --accent: #3c3;
+          --warn: #ff0; --err: #f44; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--fg); }
+  header h1 { margin: 0; font-size: 20px; color: var(--fg); flex: 1; }
+  main { max-width: 720px; margin: 0 auto; padding: 0 16px 48px; }
+  button { background: none; color: var(--fg); border: 1px solid var(--fg); border-radius: 6px; padding: 8px 14px;
+           font: inherit; cursor: pointer; }
+  button.primary { color: var(--accent); border-color: var(--accent); }
+  button.danger { color: var(--err); border-color: var(--err); }
+  button:disabled { opacity: .4; cursor: default; }
+  #status { color: var(--dim); font-size: 14px; padding: 8px 0; min-height: 1.4em; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+  .card h2 { margin: 0 0 8px; font-size: 17px; color: var(--fg); display: flex; justify-content: space-between; align-items: center; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .row:first-of-type { border-top: 0; }
+  .row .grow { flex: 1; min-width: 0; }
+  .muted { color: var(--dim); font-size: 14px; }
+  .done { text-decoration: line-through; color: var(--dim); }
+  .items { margin: 4px 0 0 30px; }
+  .items label { display: block; padding: 3px 0; }
+  input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
+  textarea, input[type=text], input[type=time], input[type=number] { width: 100%; background: #000; color: var(--text);
+           border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: inherit; }
+  textarea { min-height: 120px; }
+  .days label { margin-right: 8px; white-space: nowrap; }
+  .edit { padding: 8px 0; }
+  .edit .buttons { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .hidden { display: none; }
+  .pill { font-size: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 1px 8px; color: var(--dim); }
+  @media (max-width: 480px) { header h1 { font-size: 17px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐿️ Squirrel!</h1>
+  <button id="connect" class="primary">Connect</button>
+</header>
+<main>
+  <div id="status">Open Settings → Bluetooth on the device, then Connect.</div>
+  <div id="app" class="hidden">
+    <section class="card" id="device"></section>
+    <section class="card" id="todos"></section>
+    <section class="card" id="routines"></section>
+    <section class="card hidden" id="notes"></section>
+    <section class="card" id="settings"></section>
+  </div>
+</main>
+<script src="squirrel_protocol.js"></script>
+<script>
+"use strict";
+const P = window.SquirrelProtocol;
+const ROOM = 180;                       // bytes per CONTROL write: below what Chrome and the devices agree on
+const DAYS = "MTWTFSS";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pad = (n) => String(n).padStart(2, "0");
+
+let dev = null, server = null, chars = {}, info = null, head = false, keepalive = null;
+let answers = [], waiting = null, busy = Promise.resolve();
+const data = { todo: [], routines: [], notes: [], settings: {} };
+
+function status(text, error) { $("status").textContent = text; $("status").style.color = error ? "var(--err)" : ""; }
+
+// ------------------------------------------------------------------------------------------------- the radio
+async function connect() {
+  dev = await navigator.bluetooth.requestDevice({ filters: [{ services: [P.UUID.SERVICE] }] });
+  dev.addEventListener("gattserverdisconnected", () => { status("Disconnected. Open Bluetooth on the device again to reconnect."); stopKeepalive(); $("connect").disabled = false; });
+  status("Connecting to " + dev.name + "…");
+  server = await dev.gatt.connect();
+  const service = await server.getPrimaryService(P.UUID.SERVICE);
+  for (const [name, uuid] of [["info", P.UUID.INFO], ["time", P.UUID.TIME], ["control", P.UUID.CONTROL]]) {
+    chars[name] = await service.getCharacteristic(uuid);
+  }
+  chars.control.addEventListener("characteristicvaluechanged", (e) => {
+    answers.push(new Uint8Array(e.target.value.buffer.slice(0)));
+    if (waiting) waiting();
+  });
+  await chars.control.startNotifications();
+  info = P.unpackInfo(new Uint8Array((await chars.info.readValue()).buffer));
+  head = info.caps.includes("hub");
+  $("connect").disabled = true;
+  await authenticate();
+  startKeepalive();
+  await loadAll();
+}
+
+// pairing (ble/auth.py): the first time, the code the device shows; then a proof in every session.  The key stays in
+// this browser (localStorage, per device).
+function loadKey() {
+  try { const h = localStorage.getItem("squirrel-key-" + dev.id); return h ? Uint8Array.from(h.match(/../g), (x) => parseInt(x, 16)) : null; }
+  catch (e) { return null; }
+}
+function saveKey(key) {
+  try { localStorage.setItem("squirrel-key-" + dev.id, [...key].map((b) => b.toString(16).padStart(2, "0")).join("")); }
+  catch (e) { /* private window: pair again next time */ }
+}
+async function prove(key) {
+  const challenge = await ask(P.CMD.AUTH_CHALLENGE, P.SET.INFO);
+  await ask(P.CMD.AUTH_PROVE, P.SET.INFO, 0, await P.sessionProof(key, challenge));
+}
+async function authenticate() {
+  const known = loadKey();
+  if (known) {
+    try { await prove(known); return; }
+    catch (e) { if (!String(e.message).includes("(" + P.ERR.NOT_AUTH + ")")) throw e; }
+  }
+  status("Pairing with " + dev.name + "…");
+  const headNonce = P.randomBytes(P.NONCE_LEN);
+  const nodeNonce = await ask(P.CMD.AUTH_HELLO, P.SET.INFO, 0, headNonce);
+  const code = (prompt("Type the code shown on " + dev.name) || "").replace(/\D/g, "");
+  const key = await P.pairKey(code, headNonce, nodeNonce);
+  try { await ask(P.CMD.AUTH_CONFIRM, P.SET.INFO, 0, await P.confirmProof(key, nodeNonce)); }
+  catch (e) { throw new Error(String(e.message).includes("(" + P.ERR.BAD_CODE + ")") ? "Wrong code - connect again for a new one." : e.message); }
+  saveKey(key);
+  await prove(key);
+}
+
+function nextAnswer(ms) {
+  if (answers.length) return Promise.resolve(answers.shift());
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => { waiting = null; reject(new Error("the device did not answer")); }, ms);
+    waiting = () => { clearTimeout(t); waiting = null; resolve(answers.shift()); };
+  });
+}
+
+// one request at a time: the device answers them in order
+function ask(code, which, id = 0, payload = new Uint8Array()) {
+  const run = async () => {
+    answers = [];
+    for (const f of P.frames(code, which, id, payload, ROOM)) await chars.control.writeValueWithResponse(f);
+    const parts = [];
+    for (;;) {
+      const fr = P.parseFrame(await nextAnswer(10000));
+      if (fr.which !== which || fr.id !== id) continue;
+      if (fr.code === P.ANS.ACK) return new Uint8Array();
+      if (fr.code === P.ANS.ERR) throw new Error("the device refused (" + fr.data[0] + ")");
+      parts.push(fr.data);
+      if (fr.last) {
+        const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+        let o = 0;
+        for (const p of parts) { out.set(p, o); o += p.length; }
+        return out;
+      }
+    }
+  };
+  const p = busy.then(run, run);
+  busy = p.catch(() => {});
+  return p;
+}
+
+function startKeepalive() {             // the device closes a session after 60 s without a request
+  stopKeepalive();
+  keepalive = setInterval(() => ask(P.CMD.LIST, P.SET.EVENTS, 0, new P.Writer().u32(0xffffffff).bytes()).catch(() => {}), 30000);
+}
+function stopKeepalive() { if (keepalive) clearInterval(keepalive); keepalive = null; }
+
+async function records(which) {
+  const { entries } = P.unpackList(which, await ask(P.CMD.LIST, which));
+  const out = [];
+  for (const e of entries) out.push(P.unpackRecord(which, await ask(P.CMD.GET, which, e.id)));
+  return out;
+}
+const put = (which, r) => ask(P.CMD.PUT, which, r.id, P.packRecord(which, r));
+
+async function loadAll() {
+  try {
+    status("Reading…");
+    await renderDevice();
+    if (info.caps.includes("todo")) data.todo = await records(P.SET.TODO);
+    if (info.caps.includes("routines")) data.routines = await records(P.SET.ROUTINES);
+    if (info.caps.includes("notes")) data.notes = await records(P.SET.NOTES);
+    data.settings = P.unpackSettings(await ask(P.CMD.GET, P.SET.SETTINGS));
+    $("app").classList.remove("hidden");
+    renderTodos(); renderRoutines(); renderNotes(); renderSettings();
+    status(head ? "Connected to the squirrel: you can edit everything." : "Connected to a watch: ticking and on / off only (the content comes from the squirrel).");
+  } catch (e) { status(e.message, true); }
+}
+
+async function act(what, fn) {
+  try { status(what + "…"); await fn(); status("Saved."); }
+  catch (e) { status(what + ": " + e.message, true); }
+}
+
+// ------------------------------------------------------------------------------------------------- device and time
+async function renderDevice() {
+  const t = P.unpackTime(new Uint8Array((await chars.time.readValue()).buffer));
+  const d = new Date(t.time * 1000), phone = P.wireNow(), off = t.time - phone;
+  $("device").innerHTML = `<h2>${esc(info.name)} <span class="pill">${head ? "squirrel" : "slot " + info.slot}</span></h2>
+    <div class="muted">Time on the device: ${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}
+      ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} (${t.source}${Math.abs(off) > 2 ? ", " + off + " s from this phone" : ""})</div>
+    <div class="edit buttons"><button id="settime">Set the device's time from this phone</button></div>`;
+  $("settime").onclick = () => act("Setting the time", async () => {
+    await chars.time.writeValueWithResponse(P.packTime({ time: P.wireNow(), offset: -new Date().getTimezoneOffset(), source: "ntp" }));
+    await renderDevice();
+  });
+}
+
+// ------------------------------------------------------------------------------------------------- To-Dos
+function todoTitle(r) { return r.t.split("\n")[0] || "(untitled)"; }
+
+function renderTodos() {
+  const box = $("todos");
+  if (!info.caps.includes("todo")) { box.classList.add("hidden"); return; }
+  box.innerHTML = `<h2>To-Do ${head ? '<button id="newtodo">New</button>' : ""}</h2>` + (data.todo.length ? "" : '<div class="muted">Nothing to do.</div>');
+  data.todo.forEach((r, n) => {
+    const items = r.items || [];
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.flexWrap = "wrap";
+    const progress = items.length ? `<span class="pill">${items.filter((i) => i.done).length}/${items.length}</span>` : "";
+    row.innerHTML = `<input type="checkbox" ${r.done ? "checked" : ""} ${items.length ? "disabled" : ""}>
+      <div class="grow"><span class="${r.done ? "done" : ""}">${esc(todoTitle(r))}</span> ${progress}</div>
+      ${head ? '<button class="edit-btn">Edit</button>' : ""}`;
+    row.querySelector("input").onchange = (e) => act("Ticking", async () => {
+      r.done = e.target.checked; r.c = P.wireNow();
+      await put(P.SET.TODO, r); renderTodos();
+    });
+    if (items.length) {
+      const list = document.createElement("div");
+      list.className = "items";
+      list.style.flexBasis = "100%";
+      items.forEach((it) => {
+        const l = document.createElement("label");
+        l.innerHTML = `<input type="checkbox" ${it.done ? "checked" : ""}> <span class="${it.done ? "done" : ""}">${esc(it.t)}</span>`;
+        l.querySelector("input").onchange = (e) => act("Ticking", async () => {
+          it.done = e.target.checked; it.c = P.wireNow();
+          const all = items.every((i) => i.done);
+          if (all !== r.done) { r.done = all; r.c = it.c; }
+          await put(P.SET.TODO, r); renderTodos();
+        });
+        list.appendChild(l);
+      });
+      row.appendChild(list);
+    }
+    if (head) row.querySelector(".edit-btn").onclick = () => editTodo(row, r);
+    box.appendChild(row);
+  });
+  if (head) $("newtodo").onclick = () => editTodo(null, null);
+}
+
+function editTodo(row, r) {
+  const form = document.createElement("div");
+  form.className = "edit";
+  form.innerHTML = `<textarea placeholder="Title on the first line; lines starting with > are items to tick">${r ? esc(r.t) : ""}</textarea>
+    <div class="buttons"><button class="primary save">Save</button><button class="cancel">Cancel</button>
+    ${r ? '<button class="danger del">Delete</button>' : ""}</div>`;
+  if (row) row.after(form); else $("todos").appendChild(form);
+  form.querySelector(".cancel").onclick = () => form.remove();
+  form.querySelector(".save").onclick = () => act("Saving", async () => {
+    const text = form.querySelector("textarea").value.trim();
+    if (!text) return;
+    const now = P.wireNow(), old = new Map(((r && r.items) || []).map((i) => [i.t, i]));
+    const rec = r ? Object.assign({}, r) : { id: P.nextId(data.todo), done: false, c: 0 };
+    rec.t = text; rec.e = now;
+    const items = P.checklistItems(text).map((t) => old.get(t) || { t, done: false, c: 0 });
+    if (items.length) rec.items = items; else delete rec.items;
+    await put(P.SET.TODO, rec);
+    if (r) Object.assign(r, rec); else data.todo.push(rec);
+    renderTodos();
+  });
+  if (r) form.querySelector(".del").onclick = () => act("Deleting", async () => {
+    await ask(P.CMD.DELETE, P.SET.TODO, r.id);
+    data.todo = data.todo.filter((x) => x !== r); renderTodos();
+  });
+}
+
+// ------------------------------------------------------------------------------------------------- routines
+function daysText(mask) { return [...DAYS].map((c, n) => (mask >> n & 1 ? c : "·")).join(""); }
+
+function renderRoutines() {
+  const box = $("routines");
+  if (!info.caps.includes("routines")) { box.classList.add("hidden"); return; }
+  box.innerHTML = `<h2>Routines ${head ? '<button id="newroutine">New</button>' : ""}</h2>` + (data.routines.length ? "" : '<div class="muted">No routines.</div>');
+  data.routines.filter((r) => !r.del).forEach((r) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<input type="checkbox" ${r.on ? "checked" : ""} title="on / off">
+      <div class="grow"><b>${pad(r.h)}:${pad(r.m)}</b> ${esc(r.t)}<div class="muted">${daysText(r.d)}</div></div>
+      ${head ? '<button class="edit-btn">Edit</button>' : ""}`;
+    row.querySelector("input").onchange = (e) => act("Switching", async () => {
+      r.on = e.target.checked; r.c = P.wireNow(); await put(P.SET.ROUTINES, r);
+    });
+    if (head) row.querySelector(".edit-btn").onclick = () => editRoutine(row, r);
+    box.appendChild(row);
+  });
+  if (head) $("newroutine").onclick = () => editRoutine(null, null);
+}
+
+function editRoutine(row, r) {
+  const form = document.createElement("div");
+  form.className = "edit";
+  const d = r ? r.d : 127;
+  form.innerHTML = `<input type="text" maxlength="50" placeholder="What to do" value="${r ? esc(r.t) : ""}">
+    <div style="margin:8px 0"><input type="time" value="${r ? pad(r.h) + ":" + pad(r.m) : "08:00"}" style="width:auto"></div>
+    <div class="days">${[...DAYS].map((c, n) => `<label><input type="checkbox" data-n="${n}" ${d >> n & 1 ? "checked" : ""}> ${c}</label>`).join("")}</div>
+    <div class="buttons"><button class="primary save">Save</button><button class="cancel">Cancel</button>
+    ${r ? '<button class="danger del">Delete</button>' : ""}</div>`;
+  if (row) row.after(form); else $("routines").appendChild(form);
+  form.querySelector(".cancel").onclick = () => form.remove();
+  form.querySelector(".save").onclick = () => act("Saving", async () => {
+    const [h, m] = form.querySelector("input[type=time]").value.split(":").map(Number);
+    let mask = 0;
+    form.querySelectorAll(".days input").forEach((c) => { if (c.checked) mask |= 1 << Number(c.dataset.n); });
+    const rec = r ? Object.assign({}, r) : { id: P.nextId(data.routines), on: true, to: 255, c: 0 };
+    Object.assign(rec, { t: form.querySelector("input[type=text]").value.trim() || "Routine", h, m, d: mask || 127, e: P.wireNow() });
+    await put(P.SET.ROUTINES, rec);
+    if (r) Object.assign(r, rec); else data.routines.push(rec);
+    renderRoutines();
+  });
+  if (r) form.querySelector(".del").onclick = () => act("Deleting", async () => {
+    await ask(P.CMD.DELETE, P.SET.ROUTINES, r.id);
+    data.routines = data.routines.filter((x) => x !== r); renderRoutines();
+  });
+}
+
+// ------------------------------------------------------------------------------------------------- notes
+function renderNotes() {
+  const box = $("notes");
+  if (!info.caps.includes("notes")) return;
+  box.classList.remove("hidden");
+  box.innerHTML = `<h2>Notes ${head ? '<button id="newnote">New</button>' : ""}</h2>` + (data.notes.length ? "" : '<div class="muted">No notes.</div>');
+  data.notes.forEach((r) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<div class="grow">${esc(r.t.split("\n")[0])}<div class="muted">${esc(r.t.split("\n").slice(1).join(" ").slice(0, 80))}</div></div>
+      ${head ? '<button class="edit-btn">Edit</button>' : ""}`;
+    if (head) row.querySelector(".edit-btn").onclick = () => editNote(row, r);
+    box.appendChild(row);
+  });
+  if (head) $("newnote").onclick = () => editNote(null, null);
+}
+
+function editNote(row, r) {
+  const form = document.createElement("div");
+  form.className = "edit";
+  form.innerHTML = `<textarea placeholder="Title on the first line">${r ? esc(r.t) : ""}</textarea>
+    <div class="buttons"><button class="primary save">Save</button><button class="cancel">Cancel</button>
+    ${r ? '<button class="danger del">Delete</button>' : ""}</div>`;
+  if (row) row.after(form); else $("notes").appendChild(form);
+  form.querySelector(".cancel").onclick = () => form.remove();
+  form.querySelector(".save").onclick = () => act("Saving", async () => {
+    const text = form.querySelector("textarea").value.trim();
+    if (!text) return;
+    const rec = r ? Object.assign({}, r) : { id: P.nextId(data.notes) };
+    rec.t = text; rec.e = P.wireNow();
+    await put(P.SET.NOTES, rec);
+    if (r) Object.assign(r, rec); else data.notes.push(rec);
+    renderNotes();
+  });
+  if (r) form.querySelector(".del").onclick = () => act("Deleting", async () => {
+    await ask(P.CMD.DELETE, P.SET.NOTES, r.id);
+    data.notes = data.notes.filter((x) => x !== r); renderNotes();
+  });
+}
+
+// ------------------------------------------------------------------------------------------------- settings
+const LABELS = {
+  CUCKOO_ENABLED: "Cuckoo", CUCKOO_QUARTERS: "Cuckoo: quarters", CUCKOO_QUARTER_VOLUME: "Cuckoo: quarters volume (%)",
+  POMODORO_WORK_MIN: "Pomodoro work (min)", POMODORO_BREAK_MIN: "Pomodoro break (min)",
+  POMODORO_LONG_BREAK_MIN: "Long break (min)", POMODORO_CYCLES: "Pomodoro blocks", ROUTINE_SNOOZE_MIN: "Routine snooze (min)",
+  QUIET_SOUND_FROM: "Silent from", QUIET_SOUND_TO: "Silent until", QUIET_SOUND_DAYS: "Silent days (MTWTFSS, . = not)",
+  TRAINING_PLAN: "Training plan (colour:seconds, …)",
+  BLE_AUTO_SYNC_MIN: "Auto sync (min; 0 = on demand)",
+};
+function renderSettings() {
+  const box = $("settings");
+  const keys = Object.keys(data.settings);
+  box.innerHTML = "<h2>Settings</h2>" + keys.map((k) => {
+    const v = data.settings[k];
+    const field = v === "true" || v === "false"
+      ? `<input type="checkbox" data-k="${k}" ${v === "true" ? "checked" : ""}>`
+      : `<input type="text" data-k="${k}" value="${esc(v)}">`;
+    return `<div class="row"><div class="grow">${esc(LABELS[k] || k)}</div><div style="flex:1">${field}</div></div>`;
+  }).join("") + '<div class="edit buttons"><button class="primary" id="savesettings">Save settings</button></div>';
+  $("savesettings").onclick = () => act("Saving the settings", async () => {
+    const changed = {};
+    box.querySelectorAll("[data-k]").forEach((el) => {
+      const v = el.type === "checkbox" ? (el.checked ? "true" : "false") : el.value.trim();
+      if (v !== data.settings[el.dataset.k]) changed[el.dataset.k] = v;
+    });
+    if (!Object.keys(changed).length) return;
+    await ask(P.CMD.PUT, P.SET.SETTINGS, 0, P.packSettings(changed));
+    data.settings = P.unpackSettings(await ask(P.CMD.GET, P.SET.SETTINGS));
+    renderSettings();
+  });
+}
+
+$("connect").onclick = () => {
+  if (!navigator.bluetooth) { status("This browser has no Web Bluetooth: use Chrome or Edge (https or localhost).", true); return; }
+  connect().catch((e) => status(e.message, true));
+};
+</script>
+</body>
+</html>

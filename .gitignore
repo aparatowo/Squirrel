@@ -24,3 +24,5 @@ venv/
 # System
 .DS_Store
 Thumbs.db
+# screenshots (shots/) are part of the repository; only the log of the watch's screenshot tool is not
+shots/**/log.txt

@@ -5,8 +5,8 @@
 
 PORT = 'cardputer_adv'
 BOARD_MODULE = 'ports.cardputer_adv.board'
-HARDWARE = frozenset(('audio_in', 'audio_out', 'buttons', 'buttons.quick', 'clock', 'display', 'i2c', 'i2c.sys', 'input', 'input.keyboard', 'motion', 'power', 'power_mgmt', 'radio', 'radio.wifi', 'signal', 'signal.buzzer', 'signal.led', 'storage', 'storage.removable', ))
-FEATURES = frozenset(('buzzer', 'hw_clock', 'key_calibration', 'led', 'notes', 'text_edit', 'voice_notes', 'wifi_ntp', ))
+HARDWARE = frozenset(('audio_in', 'audio_out', 'buttons', 'buttons.quick', 'clock', 'display', 'i2c', 'i2c.sys', 'input', 'input.keyboard', 'motion', 'power', 'power_mgmt', 'radio', 'radio.ble', 'radio.wifi', 'signal', 'signal.buzzer', 'signal.led', 'storage', 'storage.removable', ))
+FEATURES = frozenset(('ble_hub', 'ble_sync', 'buzzer', 'hw_clock', 'key_calibration', 'led', 'notes', 'text_edit', 'voice_notes', 'wifi_ntp', ))
 # what the app hides because a feature is not built (features.toml)
 HIDDEN_MENUS = frozenset(())
 HIDDEN_SCREENS = frozenset(('ALARMS', ))
@@ -27,6 +27,7 @@ DISPLAY_DRIVER = 'm5_display'
 DISPLAY_WIDTH = 240
 DISPLAY_HEIGHT = 135
 DISPLAY_FONTS = 'vlw'
+DISPLAY_CLOCK_FOOTER = 'no need to go nuts'
 
 I2C_SYS_ID = 0
 I2C_SYS_SDA = 8
@@ -78,6 +79,7 @@ MOTION_BUS = 'sys'
 MOTION_ADDRS = (105, 104)
 
 RADIO_WIFI = True
+RADIO_BLE = True
 
 POWER_MGMT_WAKE_PINS = (0, 11)
 POWER_MGMT_SLOW_CPU_HZ = 80000000

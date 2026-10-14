@@ -2,7 +2,7 @@
 #
 # The Cardputer ADV has one on the keyboard's I2C bus.  The app does not use it yet, and it draws current when left
 # on, so it is switched off at start-up.  (Motion features - waking up when picked up, face down = silent - need the
-# sensor's ~8 KB configuration file to be loaded first; see PORTING_PL.md.)
+# sensor's ~8 KB configuration file to be loaded first.)
 
 _PWR_CTRL = 0x7D                # bits: aux, gyr, acc, temp enable - 0 = all off
 

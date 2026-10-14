@@ -12,6 +12,8 @@ _MAX_CONSECUTIVE_ERRORS = 5
 
 
 class ServiceManager:
+    paused = False              # True while a Bluetooth session runs (screens/ble_*_screen.py): the services wait
+
     def __init__(self):
         self._entries = []      # [service, consecutive_errors, disabled]
 
@@ -21,6 +23,12 @@ class ServiceManager:
         return service
 
     def tick(self):
+        # Paused for the few seconds of a Bluetooth session: MicroPython runs the radio's IRQ handler under the same
+        # lock as this loop, so a loop busy with the services (files on the card, ...) keeps the radio waiting.
+        # (It was first taken for the cause of the Cardputer's resets during a sync; that was ble/central.py keeping
+        # the IRQ's own tuple - 2026-10-13.)
+        if self.paused:
+            return
         for entry in self._entries:
             if entry[2]:
                 continue

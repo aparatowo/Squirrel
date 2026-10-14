@@ -1,0 +1,27 @@
+--- a/extmod/nimble/modbluetooth_nimble.c	2026-10-13 10:25:08.463449938 +0200
++++ b/extmod/nimble/modbluetooth_nimble.c	2026-10-13 10:25:08.477364421 +0200
+@@ -1216,6 +1216,24 @@
+             reverse_addr_byte_order(addr, event->disconnect.conn.peer_id_addr.val);
+             mp_bluetooth_gap_on_connected_disconnected(MP_BLUETOOTH_IRQ_PERIPHERAL_DISCONNECT, event->disconnect.conn.conn_handle, event->disconnect.conn.peer_id_addr.type, addr);
+             return 0;
++
++        // Squirrel!: pairing while this device is the central.  Upstream handles these two events only in
++        // central_gap_event_cb (this device as the peripheral), so a central never got _IRQ_PASSKEY_ACTION and
++        // pairing with a passkey could not complete.
++        case BLE_GAP_EVENT_REPEAT_PAIRING: {
++            int rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc);
++            if (rc == 0) {
++                ble_store_util_delete_peer(&desc.peer_id_addr);
++            }
++            return BLE_GAP_REPEAT_PAIRING_RETRY;
++        }
++
++        case BLE_GAP_EVENT_PASSKEY_ACTION: {
++            #if MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
++            mp_bluetooth_gap_on_passkey_action(event->passkey.conn_handle, event->passkey.params.action, event->passkey.params.numcmp);
++            #endif
++            return 0;
++        }
+     }
+ 
+     return commmon_gap_event_cb(event, arg);

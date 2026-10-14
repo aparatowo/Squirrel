@@ -25,8 +25,11 @@ def _state():
 
 
 class RadioManager:
+    ble_in_use = False          # a Bluetooth sync is on (screens/ble_*_screen.py): power_down() leaves BLE alone
+
     def power_down(self, tag=""):
-        """Disconnect and switch off Wi-Fi (station + access point) and BLE."""
+        """Disconnect and switch off Wi-Fi (station + access point) and BLE - BLE not while a sync uses it (the Wi-Fi
+        time sync at start-up ends with a power_down(); a Bluetooth session started meanwhile lost its radio)."""
         before = _state()
         try:
             import network
@@ -45,7 +48,7 @@ class RadioManager:
         try:
             import bluetooth
             ble = bluetooth.BLE()
-            if ble.active():
+            if ble.active() and not self.ble_in_use:
                 ble.active(False)
         except Exception as e:
             log(f"[RADIO] BLE power-down problem: {e}")

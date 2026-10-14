@@ -29,13 +29,14 @@ def is_ascii(text):
         return False
 
 
-def fold(text):
-    """Same length, ASCII only: ą -> a, ł -> l, ß -> s ... (anything unknown becomes '?')."""
+def fold(text, keep=""):
+    """Same length, ASCII only: ą -> a, ł -> l, ß -> s ... (anything unknown becomes '?').  `keep`: letters the display
+    can draw after all (the watch's font has the Polish, German and French ones) - those stay."""
     if is_ascii(text):
         return text
     out = []
     for ch in text:
-        if ord(ch) < 128:
+        if ord(ch) < 128 or ch in keep:
             out.append(ch)
         else:
             i = _SRC.find(ch)
@@ -64,3 +65,10 @@ def compose(action, layout):
     if len(action) == 5 and action.startswith("ALT+"):
         return LAYOUTS.get(layout, {}).get(action[4], action)
     return action
+
+
+def pad(text, width):
+    """text filled with spaces to `width` characters.  MicroPython has no str.ljust, and its "%-10s" counts bytes,
+    so a label with ą or é would come out short and the columns after it would not line up."""
+    n = width - len(text)
+    return text + " " * n if n > 0 else text

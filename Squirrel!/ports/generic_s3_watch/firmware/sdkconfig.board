@@ -1,0 +1,14 @@
+# A generic ESP32-S3 smartwatch: 8 MB of flash at least (app ~2 MB, the rest a file system), PSRAM octal or quad
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-8MiB.csv"
+CONFIG_LWIP_LOCAL_HOSTNAME="squirrel-watch"
+# the console on USB-Serial/JTAG (see mpconfigboard.h)
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+# PSRAM: whichever the module has; a module without one still starts (the display then uses strips)
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
+CONFIG_SPIRAM_MEMTEST=n
+CONFIG_BOOTLOADER_LOG_LEVEL_INFO=
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+CONFIG_BOOTLOADER_LOG_LEVEL=2

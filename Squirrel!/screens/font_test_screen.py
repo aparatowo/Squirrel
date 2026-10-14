@@ -16,6 +16,7 @@ from gfx import Lcd
 from boot_log import log
 from appconfig import cfg
 from screens.base_screen import BaseScreen
+from i18n import _
 
 TRY_SECONDS = 15
 
@@ -46,7 +47,7 @@ class FontTestScreen(BaseScreen):
         self.state = "restarting"
         log("[FONT] restarting")
         try:
-            self.app.renderer.render_options("Restarting...")
+            self.app.renderer.render_options(_("Restarting..."))
         except Exception:
             pass
         time.sleep(0.4)
@@ -63,7 +64,7 @@ class FontTestScreen(BaseScreen):
             if action == 'OPT':
                 cfg.set("FONT_ENABLED", True)
                 self.state = "idle"
-                self.message = "Kept: used at every start"
+                self.message = _("Kept: used at every start")
                 log("[FONT] accepted by the user")
             else:
                 self._do_restart()                 # undo: the font is only gone after a restart
@@ -79,7 +80,7 @@ class FontTestScreen(BaseScreen):
                 self._deadline = time.ticks_add(time.ticks_ms(), TRY_SECONDS * 1000)
                 self.message = ""
             else:
-                self.message = "Not loaded: " + Lcd.last_error
+                self.message = _("Not loaded: ") + Lcd.last_error
 
     def _seconds_left(self):
         left = time.ticks_diff(self._deadline, time.ticks_ms())
@@ -99,20 +100,20 @@ class FontTestScreen(BaseScreen):
     def _file_line(self):
         path = Lcd.find_font(nuts.FONT_FILES)
         if path is None:
-            return "File: not found (fonts/squirrel.vlw)"
+            return _("File: not found (fonts/squirrel.vlw)")
         try:
-            return "File: %d bytes" % os.stat(path)[6]
+            return _("File: %d bytes") % os.stat(path)[6]
         except OSError:
-            return "File: found"
+            return _("File: found")
 
     def render(self, renderer):
         renderer.clear()
         theme = renderer.theme
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("Font test", 5, 4)
+        Lcd.drawString(_("Font test"), 5, 4)
         Lcd.setTextColor(theme["ACCENT"] if Lcd.font_active else theme["WARNING"], theme["BG"])
-        Lcd.drawString("Font in use" if Lcd.font_active else "No font loaded: plain letters", 5, 18)
+        Lcd.drawString(_("Font in use") if Lcd.font_active else _("No font loaded: plain letters"), 5, 18)
         Lcd.setTextColor(theme["FG"], theme["BG"])
         Lcd.drawString(self._file_line(), 5, 32)
         y = 46
@@ -122,15 +123,15 @@ class FontTestScreen(BaseScreen):
         Lcd.drawString(RULER, 5, y)
         Lcd.drawRect(4, y - 1, 6 * len(RULER) + 3, 12, theme["ACCENT"])
         layout = cfg.get("KEYBOARD_LAYOUT")
-        Lcd.drawString("Type: ALT+a = %s (layout %s)" % ("ą" if layout == "pl" else ("ä" if layout == "de" else "a"), layout), 5, y + 15)
+        Lcd.drawString(_("Type: ALT+a = %s (layout %s)") % ("ą" if layout == "pl" else ("ä" if layout == "de" else "a"), layout), 5, y + 15)
         if self.state == "trying":
             self._drawn = self._seconds_left()
             Lcd.setTextColor(theme["WARNING"], theme["BG"])
-            Lcd.drawString("OPT = keep it (%ds)" % self._drawn, 5, 108)
-            Lcd.drawString("any other key = undo", 5, 120)
+            Lcd.drawString(_("OPT = keep it (%ds)") % self._drawn, 5, 108)
+            Lcd.drawString(_("any other key = undo"), 5, 120)
         else:
             Lcd.setTextColor(theme["ERROR"] if self.message.startswith("Not") else theme["ACCENT"], theme["BG"])
             if self.message:
                 Lcd.drawString(self.message[:36], 5, 108)
             Lcd.setTextColor(theme["FG"], theme["BG"])
-            Lcd.drawString("[ENTER] %s  [ESC] Back" % ("Switch off" if Lcd.font_active else "Try the font"), 5, 120)
+            Lcd.drawString(_("[ENTER] %s  [ESC] Back") % (_("Switch off") if Lcd.font_active else _("Try the font")), 5, 120)

@@ -1,0 +1,126 @@
+--- a/ports/esp32/panichandler.c	2026-10-13 18:25:52.051451262 +0200
++++ b/ports/esp32/panichandler.c	2026-10-13 18:25:52.105146277 +0200
+@@ -41,6 +41,115 @@
+ #define MICROPY_WRAP_PANICHANDLER_STR(s) (s)
+ #endif
+ 
++
++// Squirrel!: a panic leaves its reason, task and backtrace in RTC memory (RTC_NOINIT survives the restart), for a
++// console that cannot show the panic's own output - the Cardputer's is TinyUSB, which takes the USB port.  Read it
++// with Squirrel!/tools/hwtest/panic_record.py (finds `squirrel_panic` in the firmware's ELF).
++#include <string.h>
++#include "esp_attr.h"
++#include "esp_cpu_utils.h"
++#include "esp_debug_helpers.h"
++#include "esp_private/panic_internal.h"
++#include "freertos/FreeRTOS.h"
++#include "freertos/task.h"
++#include "esp_private/freertos_debug.h"
++#include "xtensa_context.h"
++#include "mphalport.h"
++
++#define SQUIRREL_PANIC_MAGIC 0x5351504eu      // "SQPN"
++#define SQUIRREL_PANIC_DEPTH 24
++
++typedef struct {
++    uint32_t magic;
++    uint32_t count;                           // panics since the record was last cleared
++    uint32_t core;
++    uint32_t exception;                       // panic_exception_t
++    uint32_t exccause;
++    uint32_t excvaddr;
++    uint32_t pc;
++    uint32_t depth;
++    uint32_t backtrace[SQUIRREL_PANIC_DEPTH];
++    char task[16];
++    char reason[96];                          // the exception's name, or abort() / assert details
++    uint32_t main_depth;                      // when another task panicked (a watchdog): where mp_task was
++    uint32_t main_backtrace[SQUIRREL_PANIC_DEPTH];
++} squirrel_panic_t;
++
++RTC_NOINIT_ATTR squirrel_panic_t squirrel_panic;
++
++static void copy_text(char *dst, const char *src, size_t room) {
++    size_t i = 0;
++    if (src != NULL) {
++        for (; i + 1 < room && src[i]; i++) {
++            dst[i] = src[i];
++        }
++    }
++    dst[i] = 0;
++}
++
++static uint32_t walk(esp_backtrace_frame_t frame, uint32_t *out) {
++    uint32_t n = 0;
++    out[n++] = esp_cpu_process_stack_pc(frame.pc);
++    while (n < SQUIRREL_PANIC_DEPTH && frame.next_pc != 0 && esp_backtrace_get_next_frame(&frame)) {
++        out[n++] = esp_cpu_process_stack_pc(frame.pc);
++    }
++    return n;
++}
++
++static void squirrel_panic_record(panic_info_t *info) {
++    squirrel_panic_t *r = &squirrel_panic;
++    uint32_t count = r->magic == SQUIRREL_PANIC_MAGIC ? r->count + 1 : 1;
++    memset(r, 0, sizeof(*r));
++    r->count = count;
++    r->core = info->core;
++    r->exception = info->exception;
++    copy_text(r->reason, g_panic_abort ? g_panic_abort_details : info->reason, sizeof(r->reason));
++    TaskHandle_t task = xTaskGetCurrentTaskHandleForCore(info->core);
++    copy_text(r->task, task != NULL ? pcTaskGetName(task) : "?", sizeof(r->task));
++    r->magic = SQUIRREL_PANIC_MAGIC;          // from here on the record is valid, even if the walk below faults
++    const XtExcFrame *f = (const XtExcFrame *)info->frame;
++    if (f != NULL) {
++        r->exccause = f->exccause;
++        r->excvaddr = f->excvaddr;
++        r->pc = f->pc;
++        esp_backtrace_frame_t frame = {.pc = f->pc, .sp = f->a1, .next_pc = f->a0, .exc_frame = f};
++        r->depth = walk(frame, r->backtrace);
++    }
++    // Another task panicked - a watchdog timeout, say: the main task was blocked somewhere, and its saved frame
++    // tells where (as esp_backtrace_print_all_tasks() does it).
++    TaskSnapshot_t snap;
++    if (mp_main_task_handle != NULL && mp_main_task_handle != task && vTaskGetSnapshot(mp_main_task_handle, &snap) == pdTRUE) {
++        const XtExcFrame *m = (const XtExcFrame *)snap.pxTopOfStack;
++        esp_backtrace_frame_t frame = {.pc = m->pc, .sp = m->a1, .next_pc = m->a0, .exc_frame = NULL};
++        r->main_depth = walk(frame, r->main_backtrace);
++    }
++}
++
++// The task watchdog's interrupt calls this before it aborts: a record of the core it runs on (core 0 - its interrupt
++// was allocated there) and of what that core was doing when the interrupt came.  A frozen main loop is often the
++// other core's fault: a flash operation of the main task waits for core 0, which never answers.
++typedef struct {
++    uint32_t magic;
++    uint32_t core;
++    char task[16];                            // the task running on that core
++    uint32_t depth;
++    uint32_t backtrace[SQUIRREL_PANIC_DEPTH]; // from the watchdog's interrupt down into what it interrupted
++} squirrel_twdt_t;
++
++RTC_NOINIT_ATTR squirrel_twdt_t squirrel_twdt;
++
++void esp_task_wdt_isr_user_handler(void) {
++    squirrel_twdt_t *r = &squirrel_twdt;
++    r->core = xPortGetCoreID();
++    TaskHandle_t task = xTaskGetCurrentTaskHandleForCore(r->core);
++    copy_text(r->task, task != NULL ? pcTaskGetName(task) : "?", sizeof(r->task));
++    r->magic = SQUIRREL_PANIC_MAGIC;
++    esp_backtrace_frame_t frame = {0};
++    esp_backtrace_get_start(&frame.pc, &frame.sp, &frame.next_pc);
++    r->depth = 0;
++    r->depth = walk(frame, r->backtrace);
++}
++
+ void __real_esp_panic_handler(void *);
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 2)
+ void esp_panic_handler_enable_rtc_wdt(uint32_t timeout_ms);
+@@ -55,6 +164,7 @@
+ #else
+     esp_panic_handler_reconfigure_wdts(1000);
+ #endif
++    squirrel_panic_record((panic_info_t *)info);
+ 
+     const static char *msg = MICROPY_WRAP_PANICHANDLER_STR(
+         "\r\n"

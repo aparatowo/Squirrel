@@ -3,13 +3,15 @@ from boot_log import log
 from gfx import Lcd
 from screens.base_screen import BaseScreen
 from appconfig import cfg
-from menu_tree import MENUS, COLLECTIONS, PARENTS
+from menu_tree import MENUS, COLLECTIONS, PARENTS, RTC_CHIP
 from features import has
 from ui.touch import has_touch, TouchList
+from i18n import _
+from charmap import pad
 
 # A touch screen (the watch): rows a finger can hit, on the whole panel; a tap on a row opens it, a tap on the title
 # goes back, a long press ticks a To-Do (ui/touch.py: TouchList).  The Cardputer's view is untouched.
-# what "+ [New Item]" of a file list needs; without it the row is not shown at all
+# what "+ [New item]" of a file list needs; without it the row is not shown at all
 _ADD_NEEDS = {"TODO": "text_edit", "NOTES": "text_edit", "MIND": "text_edit", "RECORDS": "voice_notes"}
 
 # DEL presses needed after the warning appears (same as in the note viewer and the player)
@@ -61,7 +63,7 @@ class MenuScreen(BaseScreen):
         return self._touch
 
     def _first(self):
-        """The first row that can be chosen: 1 in a file list whose "+ [New Item]" the device cannot do (no editor)."""
+        """The first row that can be chosen: 1 in a file list whose "+ [New item]" the device cannot do (no editor)."""
         need = _ADD_NEEDS.get(self.current_menu)
         return 1 if need is not None and not has(need) else 0
 
@@ -72,7 +74,7 @@ class MenuScreen(BaseScreen):
 
     # Position memory: going BACK to a menu (ESC / LEFT from a submenu, or a screen that returns here) lands on the
     # row the user left it from; going INTO a menu starts at its first row.  Every menu and file list works the same
-    # way, so the whole path back is remembered (a note -> Text Notes on that note -> Notes on "Text Notes" ...).
+    # way, so the whole path back is remembered (a note -> Text notes on that note -> Notes on "Text notes" ...).
     # A file list is matched by the row's text first, because files may have been added or deleted meanwhile.
 
     def _open(self, menu, restore):
@@ -112,7 +114,7 @@ class MenuScreen(BaseScreen):
         if self._items_cache is not None and self._items_cache_menu == self.current_menu:
             return self._items_cache
 
-        items = ["+ [New Item]"]
+        items = [_("+ [New item]")]
         extension = COLLECTIONS[self.current_menu][1]
         items.extend(self.app.storage.list_items(self.current_menu, extension=extension))
         if self.current_menu == "TODO":
@@ -124,18 +126,23 @@ class MenuScreen(BaseScreen):
     def _label(self, entry):
         """The label of a menu entry, with its summary when it has one (the 4th item, see menu_tree.py)."""
         if len(entry) < 4:
-            return entry[0]
-        return "%-7s %s" % (entry[0], self._summary(entry[3]))
+            if entry[2] == "sync_rtc" and RTC_CHIP and not self._touch:     # the watch's rows are too narrow
+                return "%s (%s)" % (_(entry[0]), RTC_CHIP)
+            return _(entry[0])
+        return "%s %s" % (pad(_(entry[0]), 7), self._summary(entry[3], compact=self._touch))
 
     @staticmethod
-    def _summary(what):
-        """'quiet:<channel>': the days of that channel's quiet hours ("M T W T F - -"), or "off"."""
+    def _summary(what, compact=False):
+        """'quiet:<channel>': the days of that channel's quiet hours ("M T W T F - -"; compact - a touch screen's size-2
+        rows have less room - "MTWTF.."), or "off"."""
         if what.startswith("quiet:"):
             from quiet_hours import keys
-            from appconfig import days_shown
+            from appconfig import days_shown, days_text
             k_from, k_to, k_days = keys(what[6:])
             days = cfg.get(k_days)
-            return "off" if cfg.get(k_from) == cfg.get(k_to) or not days else days_shown(days)
+            if cfg.get(k_from) == cfg.get(k_to) or not days:
+                return _("off")
+            return days_shown(days).replace(" ", "") if compact else days_shown(days)
         return ""
 
     def _clamp_selection(self):
@@ -149,7 +156,7 @@ class MenuScreen(BaseScreen):
         self.scroll_offset = max(0, min(self.scroll_offset, max(0, total - self.max_visible)))
 
     def _begin_delete(self, items):
-        """DEL on a file row opens the warning; on '+ [New Item]' or in a tree menu it does nothing."""
+        """DEL on a file row opens the warning; on '+ [New item]' or in a tree menu it does nothing."""
         if self.current_menu not in COLLECTIONS or self.selected_index == 0:
             return
         extension = COLLECTIONS[self.current_menu][1]
@@ -176,7 +183,7 @@ class MenuScreen(BaseScreen):
         self._delete_confirm = None
         self._delete_target = None
         self._items_cache = None                  # the folder changed: read it again
-        self.app.renderer.render_alert("Deleted!" if ok else "Delete failed!")
+        self.app.renderer.render_alert(_("Deleted!") if ok else _("Delete failed!"))
         time.sleep(0.6)
         self._clamp_selection()
 
@@ -247,7 +254,7 @@ class MenuScreen(BaseScreen):
         from scheduler import valid_now, day_key
         t = valid_now()
         if t is None:
-            self.app.renderer.render_alert("Set time first!")        # a done date needs a real clock
+            self.app.renderer.render_alert(_("Set time first!"))        # a done date needs a real clock
             time.sleep(0.8)
             return
         self.app.todo_editor.toggle_done(self.selected_index - 1, day_key(t))
@@ -266,7 +273,7 @@ class MenuScreen(BaseScreen):
         elif kind == "action":
             self._run_action(arg)
         else:   # "soon"
-            self.app.renderer.render_alert("Coming soon")
+            self.app.renderer.render_alert(_("Coming soon"))
             time.sleep(0.6)
 
     def _run_action(self, name):
@@ -274,14 +281,14 @@ class MenuScreen(BaseScreen):
             # Re-read config.txt now (it is also checked in the background every few seconds)
             result = cfg.reload()
             if result is None:
-                self.app.renderer.render_alert("No config file")
+                self.app.renderer.render_alert(_("No config file"))
             else:
-                self.app.renderer.render_options("Config: %d changed, %d bad" % result)
+                self.app.renderer.render_options(_("Config: %d changed, %d bad") % result)
             time.sleep(1.2)
         elif name.startswith("buzz:"):
             from hw.buzzer import buzzer
             played = buzzer.play(name[5:])
-            self.app.renderer.render_options("Buzzer: " + name[5:] if played else (buzzer.problem or "Silent (recording)"))
+            self.app.renderer.render_options(_("Buzzer: ") + name[5:] if played else (buzzer.problem or _("Silent (recording)")))
             end = time.ticks_add(time.ticks_ms(), 800)
             while buzzer.busy or time.ticks_diff(end, time.ticks_ms()) > 0:     # the main loop waits: keep the signal in time
                 buzzer.tick()
@@ -289,7 +296,7 @@ class MenuScreen(BaseScreen):
         elif name.startswith("led:"):
             from hw.led import led
             played = led.play(name[4:], "green")
-            self.app.renderer.render_options("LED: " + name[4:] if played else led.status())
+            self.app.renderer.render_options(_("LED: ") + name[4:] if played else led.status())
             end = time.ticks_add(time.ticks_ms(), 800)
             while led.busy or time.ticks_diff(end, time.ticks_ms()) > 0:        # the main loop waits: keep the light in time
                 led.tick()
@@ -297,31 +304,34 @@ class MenuScreen(BaseScreen):
                 time.sleep_ms(5)
         elif name == "test_sound":
             played = self.app.audio.beep("notify", force=True)          # a test sounds in the silent hours too
-            self.app.renderer.render_options("Signal played" if played else "Muted (sound off / recording)")
+            self.app.renderer.render_options(_("Signal played") if played else _("Muted (sound off / recording)"))
             time.sleep(0.8)
         elif name == "test_notification":
             from notifier import Notification
             self.app.notifier.post(Notification(
-                "This is a test. OPT = done, DEL = cancel", title="Test notification", timeout_s=15,
+                _("This is a test. OPT = done, DEL = cancel"), title=_("Test notification"), timeout_s=15,
                 on_done=lambda: log("[NOTIFY] test: done"),
                 on_cancel=lambda: log("[NOTIFY] test: cancelled"),
                 on_timeout=lambda: log("[NOTIFY] test: timed out")))
         elif name == "sync_rtc":
             # Read the time from a DS1302 that is plugged in right now
-            self.app.renderer.render_options("Connecting RTC...")
+            self.app.renderer.render_options(_("Connecting RTC..."))
             ok, msg = self.app.rtc.sync_from_hardware()
             if ok:
                 self.app.renderer.render_options(msg[:32])
             else:
-                self.app.renderer.render_alert("No RTC found!")
+                self.app.renderer.render_alert(_("No RTC found!"))
             time.sleep(1.5)
 
     def _open_collection_item(self, items):
         file_index = self.selected_index - 1
         item_name = items[self.selected_index]
         if self.current_menu == "TODO":
-            item_name = item_name.replace("[ ] ", "", 1).replace("[X] ", "", 1)      # the viewer's title has no mark
+            item_name = self.app.todo_editor.strip_mark(item_name)                  # the viewer's title has no mark
         self._remember_position()
+        if self.current_menu == "TODO" and self.app.todo_editor.has_checklist_at(file_index):
+            self.app.set_screen("CHECKLIST", file_index=file_index, title=item_name.split(". ", 1)[-1])
+            return
         if self.current_menu == "RECORDS":
             # Build full filepath for playback
             filepath = self.app.storage._get_filepath_by_index(
@@ -347,16 +357,16 @@ class MenuScreen(BaseScreen):
 
     def render(self, renderer):
         if self.current_menu in MENUS:
-            title = MENUS[self.current_menu][0]
+            title = _(MENUS[self.current_menu][0])
         else:
-            title = COLLECTIONS[self.current_menu][0]
+            title = _(COLLECTIONS[self.current_menu][0])
         items = self._get_current_items()
         if self._touch:
             return self._render_touch(renderer, title, items)
         renderer.render_menu(title, items, self.selected_index, self.scroll_offset, self.max_visible)
         if self.current_menu == "TODO" and self._delete_confirm is None:
             Lcd.setTextColor(renderer.theme["ACCENT"], renderer.theme["BG"])
-            Lcd.drawString("OPT = done", 5, 124)
+            Lcd.drawString(_("OPT = done"), 5, 124)
         if self._delete_confirm is not None:
             renderer.render_delete_confirm(self._delete_confirm, self._delete_target[1])
 
@@ -370,7 +380,7 @@ class MenuScreen(BaseScreen):
         lst = self._list
         lst.draw_header(theme, title, "%d/%d" % (self.selected_index - first + 1, shown) if shown > self.max_visible else None)
         if shown <= 0:
-            lst.draw_row(theme, 0, "(empty)", False)
+            lst.draw_row(theme, 0, _("(empty)"), False)
             return
         if self.scroll_offset < first:
             self.scroll_offset = first
@@ -379,10 +389,11 @@ class MenuScreen(BaseScreen):
             if i >= len(items):
                 break
             text = items[i]
-            if self.current_menu in MENUS and ". " in text:
+            if ". " in text and text.split(". ", 1)[0].isdigit():
                 text = text.split(". ", 1)[1]                 # no numbers: the row is tapped, not typed
             lst.draw_row(theme, row, text, i == self.selected_index)
         if self.current_menu == "TODO":
             Lcd.setTextSize(1)
             Lcd.setTextColor(theme["ACCENT"], theme["BG"])
-            Lcd.drawString("hold = done", w - 4 - 66, h - 10)
+            hint = _("hold = done")
+            Lcd.drawString(hint, w - 4 - 6 * len(hint), h - 10)       # right-aligned, whatever its length

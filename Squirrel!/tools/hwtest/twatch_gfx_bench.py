@@ -190,7 +190,7 @@ def timed(fn):
 
 
 ORANGE_, GREEN_, BLACK_, DARK_, YELLOW_ = 0xFFA500, 0x00FF00, 0x000000, 0x444444, 0xFFFF00
-MENU = ("1. Focus Tools", "2. Notes", "3. To-Do List", "4. Settings", "5. Statistics")
+MENU = ("1. Focus tools", "2. Notes", "3. To-Do list", "4. Settings", "5. Statistics")
 
 
 def draw_menu(d, selected):
@@ -287,8 +287,8 @@ def t02_clock():
     result("t02_clock", "PASS" if avg < 20 else "INFO", "one minute digit changed: %.1f ms on average, %d bytes sent (vs 115200 for the whole screen)" % (avg, times[0][1]))
 
 
-TEXT = ("Kupic orzechy dla", "wiewiorki i sprawdzic", "czy karmnik jest", "pelny. Zadzwonic do", "Tomka w sprawie", "wyjazdu w sobote.",
-        "Oddac ksiazke do", "biblioteki do konca", "tygodnia. Pomodoro:", "4 bloki po 25 min.", "Nie zapomniec o", "przerwach! :)", "-- koniec --")
+TEXT = ("Buy nuts for the", "squirrel and check", "if the feeder is", "full. Call Tom", "about the trip on", "Saturday.",
+        "Take the book back", "to the library by", "Friday. Pomodoro:", "4 blocks of 25 min.", "Do not forget the", "breaks! :)", "-- the end --")
 
 
 def t03_text():

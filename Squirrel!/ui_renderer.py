@@ -1,6 +1,19 @@
 from gfx import Lcd, SCREEN_W, SCREEN_H
 from nuts import THEME, FONTS_THEME, named_color
 from appconfig import cfg
+from i18n import _
+from text_layout import wrap_line
+
+VIEW_WIDTH = 26                 # characters in a row of the viewer's box (the font is wider than 6 px)
+
+
+def view_rows(content):
+    """The viewer's rows: each line of the text wrapped at spaces."""
+    rows = []
+    for line in content.split("\n"):
+        for a, b in wrap_line(line, VIEW_WIDTH):
+            rows.append(line[a:b])
+    return rows
 
 # theme entry -> setting that holds its colour name
 _COLOR_SETTINGS = (("BG", "COLOR_BG"), ("FG", "COLOR_FG"), ("ACCENT", "COLOR_ACCENT"),
@@ -207,13 +220,18 @@ class UIRenderer:
                                offset_x=cfg.get("CLOCK_TIME_OFFSET_X"), offset_y=cfg.get("CLOCK_TIME_OFFSET_Y"),
                                digit_w=digit_h * 42 // 100, digit_h=digit_h, spacing=digit_h // 10,
                                colon_w=digit_h // 6, thickness=max(5, digit_h // 11))
-        footer = cfg.get("CLOCK_FOOTER_TEXT")
+        footer = cfg.get("CLOCK_FOOTER_TEXT")            # the device's motto: deliberately not translated
         size = 2 if 12 * len(footer) <= w - 24 else 1
         self._draw_centered_string(footer, y=h * 70 // 100, size=size,
                                    offset_x=cfg.get("CLOCK_FOOTER_OFFSET_X"), offset_y=cfg.get("CLOCK_FOOTER_OFFSET_Y"))
-        if status:
-            Lcd.setTextColor(self.theme["ACCENT"], self.theme["BG"])
-            self._draw_centered_string(status, y=h * 87 // 100, size=1)
+        if status:                                      # (text, colour) pairs, each in the colour of its bar
+            gap = 3
+            x = max(0, (w - 6 * (sum(len(t) for t, _c in status) + gap * (len(status) - 1))) // 2)
+            for text, color in status:
+                Lcd.setTextColor(self._cell_color(color), self.theme["BG"])
+                Lcd.setTextSize(1)
+                Lcd.drawString(text, x, h * 87 // 100)
+                x += 6 * (len(text) + gap)
 
     def render_menu(self, title, items, selected_index, scroll_offset, max_visible=5):
         self.clear()
@@ -241,7 +259,7 @@ class UIRenderer:
 
         for idx, item in enumerate(visible_items):
             actual_index = scroll_offset + idx
-            display_text = item[:32] if len(item) > 32 else item
+            display_text = item[:36]                           # "> " + 36 characters: the width of the screen
 
             if actual_index == selected_index:
                 Lcd.setTextColor(self.theme["ACCENT"], self.theme["BG"])
@@ -298,7 +316,7 @@ class UIRenderer:
         
         Lcd.drawString(f"# {prompt[:20]}", 5, 10)
 
-        # Rysowanie znacznika w prawym górnym rogu
+        # the keyboard mode mark in the top right corner
         self.render_keypad_mode_indicator(keypad)
 
         Lcd.drawRect(5, 28, 230, 78, self.theme["ACCENT"])
@@ -313,15 +331,14 @@ class UIRenderer:
         for line in lines:
             if line_y > 92:
                 break
-            for i in range(0, max(1, len(line)), 26):
+            for a, b in wrap_line(line, VIEW_WIDTH):
                 if line_y > 92:
                     break
-                chunk = line[i:i+26]
-                Lcd.drawString(chunk, 10, line_y)
+                Lcd.drawString(line[a:b], 10, line_y)
                 line_y += 14
 
         Lcd.setTextColor(self.theme["FG"], self.theme["BG"])
-        Lcd.drawString("[CTRL+S] Save | [ESC] Exit", 5, 112)
+        Lcd.drawString(_("[CTRL+S] Save | [ESC] Exit"), 5, 112)
 
     def render_view_item(self, title, content, scroll_offset=0):
         self.clear()
@@ -332,10 +349,7 @@ class UIRenderer:
         Lcd.drawString(f"== {title_disp} ==", 5, 5)
         Lcd.drawRect(5, 23, 230, 85, self.theme["FG"])
         
-        all_lines = []
-        for line in content.split("\n"):
-            for chunk_start in range(0, max(1, len(line)), 26):
-                all_lines.append(line[chunk_start:chunk_start+26])
+        all_lines = view_rows(content)
                 
         visible_lines = all_lines[scroll_offset:scroll_offset + 5]
         
@@ -347,12 +361,14 @@ class UIRenderer:
         fx = cfg.get("VIEW_FOOTER_OFFSET_X")
         fy = cfg.get("VIEW_FOOTER_OFFSET_Y")
         
-        Lcd.setTextColor(self.theme["FG"], self.theme["BG"])
-        Lcd.drawString("[ESC] Back", fx, fy)
-        Lcd.setTextColor(self.theme["ERROR"], self.theme["BG"])
-        Lcd.drawString("[DEL] Delete", fx + 75, fy)
-        Lcd.setTextColor(self.theme["ACCENT"], self.theme["BG"])
-        Lcd.drawString("[ENTER] Edit", fx + 158, fy)
+        parts = ((_("[ESC] Back"), "FG"), (_("[DEL] Delete"), "ERROR"), (_("[ENTER] Edit"), "ACCENT"))
+        free = SCREEN_W - 6 * sum(len(text) for text, _k in parts)      # spread over the row, whatever the language
+        gap = max(6, free // 2) if free >= 12 else max(0, free // 2)
+        x = fx if free >= 12 else 0
+        for text, key in parts:
+            Lcd.setTextColor(self.theme[key], self.theme["BG"])
+            Lcd.drawString(text, x, fy)
+            x += 6 * len(text) + gap
 
     def render_options(self, text):
         Lcd.fillRect(20, 40, 200, 45, self.theme["WARNING"])
@@ -387,10 +403,10 @@ class UIRenderer:
         Lcd.drawRect(15, 35, 210, 65, self.theme["ERROR"])
         Lcd.setTextColor(self.theme["ERROR"], self.theme["BG"])
         Lcd.setTextSize(self.fonts["ALERT"])
-        Lcd.drawString("!! DELETE !!  Press DEL:", 20, 42)
-        remaining_str = f"   {presses_left}x more  (ESC = cancel)"
+        Lcd.drawString(_("!! DELETE !!  Press DEL:"), 20, 42)
+        remaining_str = _("   %dx more  (ESC = cancel)") % presses_left
         Lcd.drawString(remaining_str, 20, 60)
-        Lcd.drawString(name[:26] if name else "ESC to cancel", 20, 78)
+        Lcd.drawString(name[:26] if name else _("ESC to cancel"), 20, 78)
 
     def draw_focus_indicator(self, state):
         """Small dot in the top-right corner while the focus timer is counting.

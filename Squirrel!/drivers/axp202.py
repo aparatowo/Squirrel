@@ -1,6 +1,6 @@
 # axp202.py - the AXP202 power chip (T-Watch 2020): the supplies, the battery, the side button (its power key)
 #
-# Facts measured on the T-Watch 2020 V3 (tools/hwtest/README_PL.md): LDO2 = the display and its backlight; LDO4 = the
+# Facts measured on the T-Watch 2020 V3 (tools/hwtest/README.md): LDO2 = the display and its backlight; LDO4 = the
 # audio amplifier, at 3.3 V (LilyGo's library sets it so; it may come up at 1.8 V); LDO3 is unused; DCDC3 / DCDC2 feed
 # the ESP32 itself and are never touched here.  A pending interrupt holds the INT line low until its flag is cleared.
 #

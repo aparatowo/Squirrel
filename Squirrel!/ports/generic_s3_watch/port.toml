@@ -1,0 +1,85 @@
+# port.toml - a generic ESP32-S3 smartwatch (EXPERIMENTAL: not yet tried on the device)
+#
+# For the watches sold as "ESP32-S3 smartwatch": an ESP32-S3 (with PSRAM or without), a small SPI panel (ST7789), a CST816 touch
+# controller, a battery on an ADC pin, one button.  The values below are those of a common board of this kind (1.69"
+# 240 x 280, CST816T) - every pin is to be checked on the watch itself (its schematic, or tools/hwtest/ scans) before
+# the first build.  What the watch does not have: set `installed = false` in that section (the features that need it
+# are then left out, see features.toml).  Conventions: ports/cardputer_adv/port.toml.
+
+[port]
+name     = "generic_s3_watch"
+title    = "ESP32-S3 smartwatch"
+mcu      = "esp32s3"                         # PSRAM or not: without it the display is drawn in strips (19 KB, a bit slower)
+firmware = "micropython-esp32"               # plain MicroPython v1.25.0 (vendor/micropython), as the T-Watch
+board    = "firmware"                        # ports/generic_s3_watch/firmware/
+idf      = "v5.4.2"
+machine  = "ESP32-S3 smartwatch"             # part of sys.implementation._machine (mpconfigboard.h)
+
+[display]
+driver = "st7789_fb"                         # a frame buffer (the whole panel with PSRAM, strips without), changes only sent
+width  = 240
+height = 280                                 # CHECK: 240 x 280 (1.69"), 240 x 240 (1.3" / 1.54")
+layout_height = 135                          # screens still laid out for the Cardputer's 240 x 135 are centred
+madctl = 0x00                                # CHECK: rotation / mirroring of the panel
+row_offset = 20                              # CHECK: 20 for most 240 x 280 ST7789 panels, 0 or 80 for 240 x 240
+clock_footer = "Squirrel! is watching"      # the default text under the clock; never translated
+spi_id   = 2
+sck      = 6                                 # CHECK every pin
+mosi     = 7
+cs       = 5
+dc       = 4
+rst      = 8                                 # pulsed low before the panel is set up
+baud     = 40_000_000                        # the S3's SPI reaches the pins directly (the classic ESP32 did not)
+backlight = 15                               # PWM
+fonts  = "bitmap"
+ppi    = 220                                 # 1.69" 240 x 280: touch targets and gestures in millimetres
+
+[i2c.touch]
+id   = 0
+sda  = 11                                    # CHECK
+scl  = 10
+freq = 400_000
+
+[input]
+driver   = "cst816"                          # drivers/cst816.py; gestures -> actions: hw/touch_input.py
+keyboard = false
+touch    = true
+swap_xy  = false                             # CHECK: the chip's coordinates -> the picture's
+mirror_x = false
+mirror_y = false
+bus      = "touch"
+addr     = 0x15
+int      = 14
+rst      = 13
+
+[buttons.back]                               # a side button to GND (short press = back / wake)
+driver = "gpio_button"
+pin    = 0                                   # CHECK: often the BOOT button (GPIO0)
+
+[power]
+driver  = "adc_battery"                      # drivers/adc_battery.py: the voltage through a divider
+pin     = 1                                  # CHECK
+divider = 3.0                                # CHECK: battery voltage / pin voltage
+
+[storage]
+driver    = "flash_storage"
+removable = false
+base_dir  = "/Squirrel"                      # on the internal flash
+flash_root = ""                              # plain MicroPython mounts the flash at the root
+
+[clock]                                      # a PCF85063 is common, but has no driver yet: the time comes from Wi-Fi
+installed = false                            # or from the Bluetooth head (Time from a device)
+
+[motion]                                     # a QMI8658 is common; not used by the app yet
+installed = false
+
+[radio]
+wifi = true
+ble  = true                                  # the Bluetooth sync (features.toml: ble_sync)
+
+[power_mgmt]
+wake_pins   = [0, 14]                        # light sleep: the button, the touch INT - both active low
+slow_cpu_hz = 80_000_000
+
+[features]
+wifi_ntp = true                              # no hardware clock: the time over Wi-Fi at start-up

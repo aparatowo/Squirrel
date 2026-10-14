@@ -1,7 +1,7 @@
 # alarms.py - the coming moments at which the device has something to do (routines, the cuckoo, snoozed routines)
 #
 # Sources register a function  events(now, until) -> [(epoch seconds, label), ...]  (epoch: time.time()'s, local).
-# AlarmQueue merges them: upcoming() for the "Upcoming alarms" screen, next() for the deep sleep (deep_sleep.py), which
+# AlarmQueue merges them: upcoming() for the "Planned alarms" screen, next() for the deep sleep (deep_sleep.py), which
 # writes it into the hardware clock's alarm - when it comes, the device wakes, the source does its job (the scheduler
 # fires the routine as usual), and before the next sleep the next one is written.  Nothing here touches hardware.
 import time

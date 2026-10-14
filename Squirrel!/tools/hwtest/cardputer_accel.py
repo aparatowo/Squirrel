@@ -46,9 +46,9 @@ def screen(*lines):
 
 def countdown(seconds, *lines):
     for s in range(seconds, 0, -1):
-        screen(*(lines + ("za %d s" % s,)))
+        screen(*(lines + ("in %d s" % s,)))
         time.sleep(1)
-    screen(*(lines + ("POMIAR - nie ruszaj",)))
+    screen(*(lines + ("MEASURING - keep still",)))
 
 
 def bus():
@@ -148,7 +148,7 @@ def t02_still():
     if _addr is None and not t01_identify():
         return
     sensor_on()
-    countdown(5, "Test 2: spoczynek", "Poloz plasko,", "ekranem do gory")
+    countdown(5, "Test 2: at rest", "Lay it flat,", "screen up")
     s = sample(2)
     m = mean(s)
     noise = tuple(math.sqrt(sum((x[i] - m[i]) ** 2 for x in s) / len(s)) for i in range(3))
@@ -160,14 +160,14 @@ def t02_still():
         result("t02_still", "PASS" if same else "FAIL", "M5.Imu.getAccel: " + fmt(mm) + (" (agrees)" if same else " (DIFFERENT axes or scale)"))
     except Exception as e:
         result("t02_still", "INFO", "M5.Imu.getAccel unavailable: %s" % e)
-    screen("Test 2: koniec")
+    screen("Test 2: done")
 
 
 POSES = (
-    ("screen_up", ("Test 3 (1/4)", "Plasko,", "ekranem do GORY")),
-    ("screen_down", ("Test 3 (2/4)", "Plasko,", "ekranem w DOL")),
-    ("standing", ("Test 3 (3/4)", "Pionowo, ekran do", "Ciebie, klawiatura", "na dole")),
-    ("left_edge", ("Test 3 (4/4)", "Na LEWYM boku", "(ekran do Ciebie)")),
+    ("screen_up", ("Test 3 (1/4)", "Flat,", "screen UP")),
+    ("screen_down", ("Test 3 (2/4)", "Flat,", "screen DOWN")),
+    ("standing", ("Test 3 (3/4)", "Upright, screen", "facing you, keyboard", "at the bottom")),
+    ("left_edge", ("Test 3 (4/4)", "On its LEFT edge", "(screen facing you)")),
 )
 
 
@@ -187,15 +187,15 @@ def t03_orientation():
     ok = abs(up[axis]) > 0.8 and abs(down[axis]) > 0.8 and up[axis] * down[axis] < 0
     result("t03_orientation", "PASS" if ok else "FAIL",
            "face down detectable: axis %s is %+.2f g screen up, %+.2f g screen down" % ("xyz"[axis], up[axis], down[axis]))
-    screen("Test 3: koniec")
+    screen("Test 3: done")
 
 
 def t04_shake():
     if _addr is None and not t01_identify():
         return
     sensor_on()
-    countdown(4, "Test 4: wstrzas", "Za chwile POTRZASNIJ", "przez 5 sekund")
-    screen("Test 4: TRZASNIJ!", "teraz, 5 s")
+    countdown(4, "Test 4: shake", "In a moment SHAKE it", "for 5 seconds")
+    screen("Test 4: SHAKE!", "now, 5 s")
     peak_a, peak_g, end = 0, 0, time.ticks_add(time.ticks_ms(), 5000)
     while time.ticks_diff(end, time.ticks_ms()) > 0:
         peak_a = max(peak_a, norm(raw_acc()))
@@ -206,7 +206,7 @@ def t04_shake():
         time.sleep_ms(10)
     result("t04_shake", "PASS" if peak_a > 2.0 else "FAIL", "peak |a| = %.2f g (shaking should give > 2 g)" % peak_a)
     result("t04_shake", "INFO", "peak rotation %.0f deg/s (M5.Imu.getGyro)" % peak_g)
-    screen("Test 4: koniec")
+    screen("Test 4: done")
 
 
 def t05_off():
@@ -215,7 +215,7 @@ def t05_off():
     wr(REG_PWR_CTRL, 0x00)
     v = rd(REG_PWR_CTRL)[0]
     result("t05_off", "PASS" if v == 0 else "FAIL", "PWR_CTRL 0x%02x after switching off (as Squirrel! leaves it)" % v)
-    screen("Testy akcelerometru", "zakonczone.", "Restart...")
+    screen("Accelerometer tests", "finished.", "Restart...")
 
 
 def run(names):
