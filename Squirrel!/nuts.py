@@ -90,13 +90,13 @@ import port_config as _port
 # is never translated (ui_renderer draws it as it is)
 CLOCK_FOOTER_TEXT = getattr(_port, "DISPLAY_CLOCK_FOOTER", "no need to go nuts")
 CLOCK_DATE_OFFSET_X = 0
-CLOCK_DATE_OFFSET_Y = 5
+CLOCK_DATE_OFFSET_Y = 7
 CLOCK_TIME_OFFSET_X = -5
 CLOCK_TIME_OFFSET_Y = 10
 # 10:00 - 19:59 moved by this (the leading '1' is only its right side; half its empty part centres it); 0 = off
 CLOCK_ONE_OFFSET_X = -10 if _port.DISPLAY_HEIGHT < 200 else -16        # Cardputer digits 26 px wide, watch 40
 CLOCK_FOOTER_OFFSET_X = 5
-CLOCK_FOOTER_OFFSET_Y = 10
+CLOCK_FOOTER_OFFSET_Y = 3
 
 VIEW_FOOTER_OFFSET_X = 0
 VIEW_FOOTER_OFFSET_Y = 115

@@ -40,6 +40,10 @@ SETTINGS = (
     ("COLOR_BG",      "color", "Display", "Background colour", None),
     ("LANGUAGE",      "choice", "Display", "Language", ("en", "pl", "fr", "de")),
     ("FONT_ENABLED",  "bool",  "Display", "Use font", None),
+    ("SCREEN_DIM_CLOCK_SECONDS", "int", "Display", "Dim clock after", (0, 600, 5)),
+    ("SCREEN_DIM_OTHER_SECONDS", "int", "Display", "Dim others after", (0, 600, 5)),
+    ("BRIGHTNESS",         "int", "Display", "Brightness", (0, 255, 5)),
+    ("DIM_BRIGHTNESS",     "int", "Display", "Dimmed brightness", (0, 100, 5)),
     ("CLOCK_FOOTER_TEXT",     "text", "Display", "Clock footer text", 30),
     ("CLOCK_DATE_OFFSET_X",   "int", "Display", "Clock date X", (-40, 40, 1)),
     ("CLOCK_DATE_OFFSET_Y",   "int", "Display", "Clock date Y", (-40, 40, 1)),
@@ -90,10 +94,6 @@ SETTINGS = (
     ("FOCUS_RED_PCT",      "int",  "Bars", "Focus: red", (5, 95, 5)),
     ("FOCUS_YELLOW_PCT",   "int",  "Bars", "Focus: yellow", (10, 99, 5)),
     # ---- Screen ----
-    ("SCREEN_DIM_CLOCK_SECONDS", "int", "Screen", "Dim clock after", (0, 600, 5)),
-    ("SCREEN_DIM_OTHER_SECONDS", "int", "Screen", "Dim others after", (0, 600, 5)),
-    ("BRIGHTNESS",         "int", "Screen", "Brightness", (0, 255, 5)),
-    ("DIM_BRIGHTNESS",     "int", "Screen", "Dimmed brightness", (0, 100, 5)),
     # ---- Time ----
     ("TIMESYNC_AT_BOOT",    "bool", "Time", "WiFi sync at start", None),
     ("TIME_UTC_OFFSET_MIN", "int",  "Time", "UTC offset", (-720, 840, 30)),

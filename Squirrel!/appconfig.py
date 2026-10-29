@@ -28,6 +28,8 @@ from appconfig_schema import SETTINGS, help_of
 PREVIOUS_DEFAULTS = {
     "CLOCK_FOOTER_TEXT": ("no need to go nuts", "I'm just squirreling around"),   # 2.0: each port has its own
                                                                                     # (the watch: Squirrel! is watching)
+    "CLOCK_DATE_OFFSET_Y": (5,),        # 2.1: 7
+    "CLOCK_FOOTER_OFFSET_Y": (10,),     # 2.1: 3
 }
 
 _TRUE = ("true", "on", "yes", "1")
