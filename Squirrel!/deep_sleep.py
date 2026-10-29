@@ -8,8 +8,8 @@
 # (the scheduler checks the current minute at once) and the device goes back to sleep soon (QUICK_S after the screen
 # dims), not after the full POWER_DEEP_SLEEP_MIN.
 #
-# Never while Pomodoro / Training or the metronome run (or are paused), a notification is up, a screen keeps itself on,
-# or anything else keeps the app busy (sound, signals, a time sync).
+# Never while Pomodoro / Training, the hourglass or the metronome run (or are paused), a notification is up, a screen
+# keeps itself on, or anything else keeps the app busy (sound, signals, a time sync).
 import json
 import os
 import time
@@ -74,6 +74,9 @@ class DeepSleep:
             return "pomodoro"
         if app._metronome is not None and app._metronome.running:
             return "metronome"
+        hourglass = getattr(app, "_hourglass", None)
+        if hourglass is not None and hourglass.state != "idle":
+            return "hourglass"
         if app._power_busy():
             return "busy"
         return None

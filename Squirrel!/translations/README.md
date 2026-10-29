@@ -19,7 +19,14 @@ Synced %d of %d	Zsynchronizowano %d z %d
 - `\n` is a line break inside a text (the help of a setting), `\t` a tab.
 - `%d`, `%s`, `%02d` ... are filled in by the app: keep the same ones, in the same order.
 - An empty translation is shown in English.
-- Keep it short: a setting's name has at most 18 characters, a line of the Cardputer's screen 38-40.
+- Keep it short: a setting's name has at most 18 characters, a line of help 38 (`check.py` says when one
+  is longer), a line of the Cardputer's screen 38-40.
+
+## English
+
+The English texts are the code's own. `en.tsv` holds only the few that the English screens show differently - a word
+play the code need not carry (*Notifications* → *Nutifications*: a squirrel's notifications). It is built like the
+others; any text it does not list stays as the code has it.
 
 ## Improving a translation
 

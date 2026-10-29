@@ -23,10 +23,11 @@ jako modyfikatory (Aa = wielkie litery, ALT + litera = polska / niemiecka litera
 | Cardputer | Zegarek | Co robi |
 |---|---|---|
 | każdy inny klawisz | stuknięcie | menu główne |
-| OPT | przytrzymanie | włącz / wstrzymaj licznik skupienia |
+| OPT | podwójne / potrójne stuknięcie | włącz / wstrzymaj licznik skupienia (zegarek: podwójne stuknięcie włącza, potrójne wstrzymuje - na zapalonym ekranie: stuknięcie w ciemny tylko go budzi) |
 | **Aa** | **przesunięcie w dół** | **szybka synchronizacja**: Cardputer synchronizuje każde urządzenie Bluetooth i wraca; zegarek czeka na Cardputera i wraca |
 | CTRL, potem T | — | nowe zadanie (klawisz po klawiszu) |
 | CTRL, potem N | — | nowa notatka tekstowa |
+| CTRL, potem J | — | dzisiejszy dziennik sukcesu (z gotową nową linią) |
 | **TAB** | — | **menu TAB** (niżej) |
 
 ### Menu TAB (Cardputer)
@@ -38,6 +39,7 @@ Małe menu nad zegarem. **TAB** albo UP / DOWN przesuwają, ENTER otwiera, ESC z
 | M | Mind dump — szybka myśl, ENTER ją zapisuje i wracasz na zegar |
 | T | Lista To-Do |
 | N | Notatki tekstowe |
+| J | Dziennik sukcesu - dzisiejsza lista |
 | V | Notatki głosowe |
 | S | Szybka synchronizacja (jak Aa) |
 
@@ -63,9 +65,10 @@ Małe menu nad zegarem. **TAB** albo UP / DOWN przesuwają, ENTER otwiera, ESC z
 | Ekran | Klawisze |
 |---|---|
 | Pomodoro, Trening | ENTER start / pauza, DEL stop, ESC wyjście (timer liczy dalej). Trening: RIGHT edytuje bloki (UP / DOWN blok, LEFT / RIGHT krócej / dłużej, ENTER kolor, DEL usuń, ESC zapisz) |
-| Metronom | LEFT / RIGHT odstęp, UP / DOWN głośność, ENTER start / stop |
+| Klepsydra | UP / DOWN minuta więcej / mniej, LEFT / RIGHT pięć, cyfry wpisują minuty, ENTER start / pauza, DEL stop, ESC wyjście (liczy dalej). Zegarek: − / + (przytrzymaj: szybciej), Start, Pauza, Stop |
+| Metronom | LEFT / RIGHT odstęp, UP / DOWN głośność, S pisk / klik, ENTER start / stop |
 | Oddychanie | LEFT / RIGHT ćwiczenie, ENTER start / stop |
-| Statystyki | ENTER start / pauza licznika skupienia; LEFT / RIGHT: to urządzenie / każde zsynchronizowane / razem |
+| Statystyki | ENTER start / pauza licznika skupienia; **-** odejmuje 15 minut (rozproszenie), DEL dwa razy zeruje dzień (zegarek: *-15*, *Zeruj* stuknięte dwa razy); LEFT / RIGHT: to urządzenie / każde zsynchronizowane / razem |
 | Rutyny | ENTER otwórz / nowa; w rutynie ENTER edytuje wiersz (czas: LEFT / RIGHT godzina albo minuty, UP / DOWN zmiana; dni: LEFT / RIGHT dzień, ENTER zaznacz). Zegarek: stuknięcie włącza / wyłącza rutynę |
 | Pora rutyny | OPT zrobione, DEL pomiń; brak odpowiedzi przez 30 s = wróci później |
 

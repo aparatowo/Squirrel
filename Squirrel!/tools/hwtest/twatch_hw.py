@@ -16,7 +16,7 @@
 # IRQ enable); 0x48-0x4C (IRQ status: writing 1 only clears a pending flag).  LDO3 is unused on the V3 (LilyGo: "No use").
 # The voltage registers, DCDC2 / DCDC3 (the ESP32's own supply) and the shutdown settings are only read.
 #
-#   READING ONLY:  t01_system  t02_i2c  t03_axp  t08_rtc  t13_mic
+#   READING ONLY:  t01_system  t02_i2c  t03_axp  t08_rtc  t13_mic  t14_charging (unplug / plug the USB when told)
 #   CHANGES:       t04_backlight / t04b_backlight_pin12   LDO2 on, PWM on the backlight pin      (ASK: backlight pulses?)
 #                  t05_display / t06_display_rot180        ST7789 init, colour fills, a marker     (ASK: colours, corner)
 #                  t07_touch                              digits 1-5 in the corners / centre, then 2x tap, then hold (on screen)
@@ -495,6 +495,29 @@ def t12_battery():
     result("t12_battery", "INFO", "USB %.0f mV, charging %.1f mA, discharging %.1f mA, fuel gauge %s" % (
         vbus, ichg, idis, "%d %% (raw 0x%02x)" % (pct & 0x7F, pct)))
     result("t12_battery", "INFO", "ADC enable 0x82: 0x%02x -> 0x%02x (left on: a few uA)" % (old, axp(0x82)))
+
+
+def t14_charging():
+    """What the app reads as "charging" (drivers/axp202.py): 0x00 bit 7 ACIN / bit 5 VBUS present, 0x01 bit 6
+    charging, bit 5 battery present; 0x33 bit 7 = charging enabled.  Read every second for 30 s: plug the USB in and
+    out meanwhile - each change is printed."""
+    require_watch()
+    result("t14_charging", "INFO", "0x33 charge control 0x%02x (bit 7 = charging enabled: %s)" % (
+        axp(0x33), "yes" if axp(0x33) & 0x80 else "NO"))
+    print("   >> plug the USB in and out during the next 30 s")
+    last, seen = None, set()
+    for _ in range(30):
+        r0, r1 = axp(0x00), axp(0x01)
+        state = (bool(r0 & 0x80), bool(r0 & 0x20), bool(r1 & 0x40), bool(r1 & 0x20))
+        if state != last:
+            last = state
+            seen.add(state[1] or state[0])
+            result("t14_charging", "INFO", "0x00=0x%02x 0x01=0x%02x: ACIN %s, VBUS %s, charging %s, battery %s" % (
+                (r0, r1) + tuple("yes" if b else "no" for b in state)))
+        time.sleep(1)
+    result("t14_charging", "PASS" if seen == {True, False} else "INFO",
+           "USB seen both in and out" if seen == {True, False} else "the USB was not both in and out during the test")
+    result("t14_charging", "ASK", "did VBUS / charging follow the cable?")
 
 
 def run(names):

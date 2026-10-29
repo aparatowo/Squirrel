@@ -30,7 +30,7 @@ from ui.touch import has_touch, TouchList, TouchPanel, Button
 _NOTICE_MS = 2500
 _VISIBLE = 5                     # rows the menu renderer shows
 _RESET_ALL = "Reset all to defaults"
-_ELSEWHERE = ("Time", "Network", "Cuckoo", "Silent")          # groups that are reached from other menus, not from the main list
+_ELSEWHERE = ("Time", "Network", "Cuckoo", "Silent", "Experimental", "Hidden")   # groups that are reached from other menus (Hidden: from none), not from the main list
 _SETTINGS_MENU = ("MENU", {"menu_name": "SETTINGS"})
 from port_config import HIDDEN_GROUPS, HIDDEN_KEYS             # settings of features this device does not have
 from i18n import _
@@ -345,10 +345,16 @@ class PersonalizeScreen(BaseScreen):
         elif self.mode == "pick":
             label = _(cfg.describe(self.key)[2])
             renderer.render_menu(label, [text for text, _v in self.options], self.p, self.p_top, _VISIBLE)
-            help_text = _(cfg.help(self.key)).split("\n")[0]
-            if help_text:                     # the help's first line under the options, clear of the [n/m] counter
-                Lcd.setTextColor(renderer.theme["ACCENT"], renderer.theme["BG"])
-                Lcd.drawString(help_text[:31], 5, 119)
+            help_lines = [line for line in _(cfg.help(self.key)).split("\n") if line]
+            Lcd.setTextColor(renderer.theme["ACCENT"], renderer.theme["BG"])
+            if help_lines and len(self.options) <= 3:
+                # few options (on / off ...): the whole help fits under them, above the [n/m] counter's row
+                y = 44 + 15 * len(self.options)
+                for line in help_lines[:(122 - y) // 12]:
+                    Lcd.drawString(line[:38], 5, y)
+                    y += 12
+            elif help_lines:                  # the help's first line under the options, clear of the [n/m] counter
+                Lcd.drawString(help_lines[0][:31], 5, 119)
             if cfg.describe(self.key)[0] == "color":
                 for row, (_text, name) in enumerate(self.options[self.p_top:self.p_top + _VISIBLE]):
                     Lcd.fillRect(205, 40 + 15 * row, 24, 9, named_color(name))
@@ -387,7 +393,7 @@ class PersonalizeScreen(BaseScreen):
         theme = renderer.theme
         Lcd.setTextSize(renderer.fonts["MENU_ITEM"])
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString("# " + label[:26], 5, 5)
+        Lcd.drawString("# " + _(label)[:26], 5, 5)
         renderer.render_keypad_mode_indicator(getattr(self.app, "keypad", None))
         if kind == "int":
             hint = _("%d to %d   default %s") % (extra[0], extra[1], cfg.default(self.key))

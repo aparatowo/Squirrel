@@ -20,6 +20,9 @@ _COLOR_SETTINGS = (("BG", "COLOR_BG"), ("FG", "COLOR_FG"), ("ACCENT", "COLOR_ACC
                    ("WARNING", "COLOR_WARNING"), ("ERROR", "COLOR_ERROR"),
                    ("KEY_SHIFT", "COLOR_KEY_SHIFT"), ("KEY_FN", "COLOR_KEY_FN"), ("KEY_OPT", "COLOR_KEY_OPT"))
 
+# the charging mark by the clock's battery bar: a lightning of 5 x 8 pixels, (first column, last column) of each row
+_BOLT = ((2, 4), (1, 3), (0, 2), (0, 4), (2, 4), (1, 3), (0, 2), (0, 0))
+
 _V_CELLS = SCREEN_H // 8   # '#' characters in a vertical bar (8 px each: 128 px of the 135 px Cardputer screen)
 _SCREEN_W = SCREEN_W
 # The menu header lines and the horizontal bars are measured in pixels with the font in use (Lcd.textWidth), not counted
@@ -52,6 +55,9 @@ class UIRenderer:
         self.bars = None               # bars.StatusBars, set by the app
         self._bar_cache = {}           # what each bar currently shows on screen: only changes are redrawn
         self._bars_kind = None         # which bars the screen that was drawn last has: "clock" | "menu"
+        self._list = None              # the list on screen (render_menu): (what it shows, the selected row) or None
+        self.epoch = 0                 # +1 whenever what is on screen may have been painted over: a screen that redraws
+                                       # only parts of itself draws all of it when this changed since its last frame
         self._apply_colors()
         cfg.on_change(self._on_setting_changed)
 
@@ -74,6 +80,16 @@ class UIRenderer:
         Lcd.fillScreen(self.theme["BG"])
         self._bar_cache = {}           # the screen is blank again, so nothing of the bars is on it
         self._bars_kind = None
+        self._painted_over()
+
+    def forget_list(self):
+        """Something else was drawn over the screen (another screen, a notification): render_menu (and every screen
+        that redraws only parts of itself, see epoch) draws all of it."""
+        self._painted_over()
+
+    def _painted_over(self):
+        self._list = None
+        self.epoch += 1
 
     # ---- status bars ('#' characters; see bars.py) ----
 
@@ -108,16 +124,43 @@ class UIRenderer:
         self._bar_cache[bar_id] = list(cells)
 
     def draw_bars_clock(self):
-        """Vertical bars at both sides of the clock: battery on the left, focus progress on the right (as tall as the
-        screen the clock draws on: 16 cells on the Cardputer, 30 on the watch's full panel)."""
-        if self.bars is None or not cfg.get("BARS_CLOCK"):
+        """The clock's bars.  Vertical, at both sides (BARS_CLOCK): battery on the left, focus progress on the right, as
+        tall as the screen the clock draws on (16 cells on the Cardputer, 30 on the watch's full panel).  Horizontal, in
+        their first and last rows and between them (BARS_TOP, BARS_BOTTOM): the hourglass / the hour at the top, the
+        quarter hour at the bottom."""
+        if self.bars is None:
             return
         x, y = cfg.get("BARS_OFFSET_X"), cfg.get("BARS_OFFSET_Y")
         w, h = Lcd.screen_size()
         n = h // 8 if h > SCREEN_H else _V_CELLS
-        self._paint_bar("L", self.bars.battery_cells(n, from_top=True), [(x, y + 8 * i) for i in range(n)])
-        self._paint_bar("R", self.bars.focus_cells(n), [(w - 6 - x, y + 8 * i) for i in range(n)])
+        sides = cfg.get("BARS_CLOCK")
+        if sides:
+            self._paint_bar("L", self.bars.battery_cells(n, from_top=True), [(x, y + 8 * i) for i in range(n)])
+            self._paint_bar("R", self.bars.focus_cells(n, vertical=True), [(w - 6 - x, y + 8 * i) for i in range(n)])
+        Lcd.setTextSize(1)
+        cell = max(1, _text_width("#"))
+        margin = x + 6 if sides else 0                  # clear of the side bars
+        cells = max(1, (w - 2 * margin) // cell)
+        x0 = margin + (w - 2 * margin - cells * cell) // 2
+        self._charging_mark((x + 8) if sides else 2, y + 10)
+        top, bottom = self.bars.top_cells(cells), self.bars.bottom_cells(cells)
+        if top is not None:
+            self._paint_line("HT", top, y, cell, x0)
+        if bottom is not None:
+            self._paint_line("HB", bottom, y + 8 * (n - 1), cell, x0)
         self._bars_kind = "clock"
+
+    def _charging_mark(self, x, y):
+        """The lightning by the battery bar while it charges; drawn / wiped only when that changes."""
+        on = self.bars.charging()
+        if self._bar_cache.get("CHG", False) == on:
+            return
+        self._bar_cache["CHG"] = on
+        if not on:
+            Lcd.fillRect(x, y, 5, 8, self.theme["BG"])
+            return
+        for row, (a, b) in enumerate(_BOLT):
+            Lcd.fillRect(x + a, y + row, b - a + 1, 1, self.theme["WARNING"])
 
     def _draw_menu_bars(self):
         Lcd.setTextSize(1)
@@ -176,6 +219,10 @@ class UIRenderer:
                           digit_w=26, digit_h=50, spacing=8, colon_w=14, thickness=5):
         total_w = (4 * digit_w) + (3 * spacing) + colon_w
         start_x = ((SCREEN_W - total_w) // 2) + offset_x
+        if time_str[:1] == "1":
+            # a '1' is only its two right-hand segments: the empty left of its cell makes 10:00 - 19:59 look shifted
+            # to the right.  Half of that empty part, (digit_w - thickness) // 2, centres what is drawn (10 px here)
+            start_x += cfg.get("CLOCK_ONE_OFFSET_X")
         y = base_y + offset_y
 
         curr_x = start_x
@@ -233,13 +280,50 @@ class UIRenderer:
                 Lcd.drawString(text, x, h * 87 // 100)
                 x += 6 * (len(text) + gap)
 
+    def _band(self, y, h):
+        """Blank one band of the screen right before it is drawn again.  A list is painted band by band, top to
+        bottom, instead of after a clear() of the whole screen: on a display drawn directly (the Cardputer's M5.Lcd -
+        the watch draws into a frame buffer) a full clear shows as a black flash while the text comes back, each
+        letter of the .vlw font drawn one by one.  The bands cover the whole screen, so nothing of what was there
+        before (another screen, a warning over the list) is left."""
+        Lcd.fillRect(0, y, SCREEN_W, h, self.theme["BG"])
+
+    def _menu_row(self, y, text, selected):
+        self._band(y - 2, 15)
+        Lcd.setTextColor(self.theme["ACCENT" if selected else "FG"], self.theme["BG"])
+        Lcd.drawString(("> " if selected else "  ") + text[:36], 5, y)   # "> " + 36 characters: the screen's width
+
+    def _menu_bottom(self, y, selected_index, total_items):
+        self._band(y - 2, SCREEN_H - (y - 2))                   # under the rows, to the bottom
+        Lcd.setTextColor(self.theme["FG"], self.theme["BG"])
+        pos_info = f"[{selected_index + 1}/{total_items}]"
+        Lcd.drawString(pos_info, 236 - 6 * len(pos_info), 124)          # where we are in the list, bottom right
+
     def render_menu(self, title, items, selected_index, scroll_offset, max_visible=5):
-        self.clear()
+        """A list with a title.  When only the selection moved since the last call (the same rows, scrolled the same,
+        nothing drawn over them since: see forget_list), only the row it left, the row it came to and the [n/m]
+        counter are painted again - not the whole screen."""
+        t = self.theme
+        visible = tuple(items[scroll_offset : scroll_offset + max_visible])
+        what = (title, visible, len(items), scroll_offset, self.fonts["MENU_ITEM"], t["FG"], t["BG"], t["ACCENT"],
+                self.bars is not None and cfg.get("BARS_MENU"))
+        last, self._list = self._list, (what, selected_index)
+        if last is not None and last[0] == what:
+            Lcd.setTextSize(self.fonts["MENU_ITEM"])
+            for index in (last[1], selected_index) if last[1] != selected_index else ():
+                row = index - scroll_offset
+                if 0 <= row < len(visible):
+                    self._menu_row(40 + 15 * row, visible[row], index == selected_index)
+            self._menu_bottom(40 + 15 * len(visible), selected_index, len(items))
+            if what[-1]:
+                self._draw_menu_bars()                     # only the '#' cells that changed
+            return
+        self._bar_cache = {}                               # as clear() would: the bars are drawn anew below
+        self._bars_kind = None
+        self._band(0, 38)                                  # the header: '#' lines and the title
         Lcd.setTextSize(self.fonts["MENU_ITEM"])
         Lcd.setTextColor(self.theme["FG"], self.theme["BG"])
 
-        total_items = len(items)
-        pos_info = f"[{selected_index + 1}/{total_items}]"
         title = title[:34]
         title_x = max(0, (_SCREEN_W - _text_width(title)) // 2)          # centred in pixels, whatever the font
 
@@ -254,24 +338,9 @@ class UIRenderer:
             Lcd.drawString(title, title_x, 12)
             Lcd.drawString(line, x0, 24)
 
-        y = 40
-        visible_items = items[scroll_offset : scroll_offset + max_visible]
-
-        for idx, item in enumerate(visible_items):
-            actual_index = scroll_offset + idx
-            display_text = item[:36]                           # "> " + 36 characters: the width of the screen
-
-            if actual_index == selected_index:
-                Lcd.setTextColor(self.theme["ACCENT"], self.theme["BG"])
-                Lcd.drawString(f"> {display_text}", 5, y)
-            else:
-                Lcd.setTextColor(self.theme["FG"], self.theme["BG"])
-                Lcd.drawString(f"  {display_text}", 5, y)
-            
-            y += 15
-
-        Lcd.setTextColor(self.theme["FG"], self.theme["BG"])
-        Lcd.drawString(pos_info, 236 - 6 * len(pos_info), 124)          # where we are in the list, bottom right
+        for row, item in enumerate(visible):
+            self._menu_row(40 + 15 * row, item, scroll_offset + row == selected_index)
+        self._menu_bottom(40 + 15 * len(visible), selected_index, len(items))
 
     def render_keypad_mode_indicator(self, keypad=None):
         """Draws the keyboard mode indicator in the top-right corner.
@@ -371,6 +440,7 @@ class UIRenderer:
             x += 6 * len(text) + gap
 
     def render_options(self, text):
+        self._painted_over()           # over the screen: it is drawn whole again once this is gone
         Lcd.fillRect(20, 40, 200, 45, self.theme["WARNING"])
         Lcd.setTextColor(self.theme["BG"], self.theme["WARNING"])
         Lcd.setTextSize(self.fonts["ALERT"])
@@ -378,6 +448,7 @@ class UIRenderer:
         Lcd.flush()                    # shown at once: the callers pause right after it
 
     def render_alert(self, text):
+        self._painted_over()
         Lcd.fillRect(20, 40, 200, 45, self.theme["BG"])
         Lcd.drawRect(20, 40, 200, 45, self.theme["ERROR"])
         Lcd.setTextColor(self.theme["ERROR"], self.theme["BG"])
@@ -399,6 +470,7 @@ class UIRenderer:
             What is being deleted.  Lists pass it because the modal covers the highlighted
             row; without it the third line just repeats how to cancel.
         """
+        self._painted_over()
         Lcd.fillRect(15, 35, 210, 65, self.theme["BG"])
         Lcd.drawRect(15, 35, 210, 65, self.theme["ERROR"])
         Lcd.setTextColor(self.theme["ERROR"], self.theme["BG"])
@@ -409,15 +481,11 @@ class UIRenderer:
         Lcd.drawString(name[:26] if name else _("ESC to cancel"), 20, 78)
 
     def draw_focus_indicator(self, state):
-        """Small dot in the top-right corner while the focus timer is counting.
+        """Small dot in the top-right corner while the focus timer is counting (the accent colour), nothing otherwise.
 
-        Green = running, yellow = paused, nothing when stopped.  Drawn after every
-        full render (which clears the screen), so it never needs erasing.
+        Paused shows no dot: the timer has no "stopped" once started (OPT only pauses it), so a dot for a pause stayed
+        on for the rest of the day.  Drawn after every full render (which clears the screen), so it never needs erasing.
         """
-        if state == "running":
-            color = self.theme["ACCENT"]
-        elif state == "paused":
-            color = self.theme["WARNING"]
-        else:
+        if state != "running":
             return
-        Lcd.fillCircle(233, 6, 3, color)
+        Lcd.fillCircle(236, 2, 2, self.theme["ACCENT"])     # in the very corner: clear of the status texts at y = 5

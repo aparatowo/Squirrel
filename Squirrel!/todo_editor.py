@@ -16,13 +16,14 @@ from timeutil import days_from_civil
 ITEM_MARK = ">"
 
 
-def checklist_items(content):
-    """The items of a To-Do: its lines (after the title) that start with ">", without the ">"; empty ones left out."""
+def checklist_items(content, marks=(ITEM_MARK,)):
+    """The items of a To-Do: its lines (after the title) that start with ">", without the ">"; empty ones left out.
+    marks: the characters that start an item (the success journal, success_log.py, takes "-" too)."""
     out = []
     for line in content.split("\n")[1:]:
         text = line.strip()
-        if text.startswith(ITEM_MARK):
-            text = text[len(ITEM_MARK):].strip()
+        if text[:1] in marks:
+            text = text[1:].strip()
             if text:
                 out.append(text)
     return out

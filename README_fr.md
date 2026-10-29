@@ -55,6 +55,7 @@ quiconque a besoin d'un outil calme et patient qui ne culpabilise pas *« d'avoi
 |---|---|
 | **M5Stack Cardputer ADV** | l'ordinateur de poche avec clavier - le Squirrel! principal, celui où l'on écrit |
 | **LilyGo T-Watch 2020 V3** | au poignet : lit et coche ce que le Cardputer lui donne, routines et minuteurs, vibration |
+| **M5Stack Cardputer** (le premier) | *expérimental*, pas encore essayé sur un appareil : le même Squirrel! que sur l'ADV, sans le buzzer |
 | **Montres connectées ESP32-S3** | *expérimental*, pas encore essayé sur un appareil |
 
 ## Premiers pas
@@ -65,6 +66,7 @@ cd "Squirrel/Squirrel!"
 python3 build_firmware.py --install-idf                     # once
 python3 build_firmware.py --flash /dev/ttyACM0              # Cardputer ADV
 python3 build_firmware.py --port twatch2020_v3 --flash /dev/ttyACM0     # T-Watch 2020 V3
+python3 build_firmware.py --port cardputer --flash /dev/ttyACM0         # Cardputer (the first one)
 ```
 
 Toutes les étapes : [premiers pas](docs/guides/fr/getting-started.md).

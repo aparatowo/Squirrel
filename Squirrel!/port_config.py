@@ -5,8 +5,8 @@
 
 PORT = 'cardputer_adv'
 BOARD_MODULE = 'ports.cardputer_adv.board'
-HARDWARE = frozenset(('audio_in', 'audio_out', 'buttons', 'buttons.quick', 'clock', 'display', 'i2c', 'i2c.sys', 'input', 'input.keyboard', 'motion', 'power', 'power_mgmt', 'radio', 'radio.ble', 'radio.wifi', 'signal', 'signal.buzzer', 'signal.led', 'storage', 'storage.removable', ))
-FEATURES = frozenset(('ble_hub', 'ble_sync', 'buzzer', 'hw_clock', 'key_calibration', 'led', 'notes', 'text_edit', 'voice_notes', 'wifi_ntp', ))
+HARDWARE = frozenset(('audio_in', 'audio_out', 'buttons', 'buttons.quick', 'clock', 'clock.ds1302', 'clock.ds3231', 'clock.optional', 'display', 'i2c', 'i2c.grove', 'i2c.sys', 'input', 'input.keyboard', 'motion', 'power', 'power.voltage_only', 'power_mgmt', 'radio', 'radio.ble', 'radio.wifi', 'signal', 'signal.buzzer', 'signal.led', 'storage', 'storage.removable', ))
+FEATURES = frozenset(('ble_hub', 'ble_sync', 'buzzer', 'charge_guess', 'clock_module', 'hw_clock', 'key_calibration', 'led', 'notes', 'text_edit', 'voice_notes', 'wifi_ntp', ))
 # what the app hides because a feature is not built (features.toml)
 HIDDEN_MENUS = frozenset(())
 HIDDEN_SCREENS = frozenset(('ALARMS', ))
@@ -33,6 +33,10 @@ I2C_SYS_ID = 0
 I2C_SYS_SDA = 8
 I2C_SYS_SCL = 9
 I2C_SYS_FREQ = 400000
+I2C_GROVE_ID = 1
+I2C_GROVE_SDA = 2
+I2C_GROVE_SCL = 1
+I2C_GROVE_FREQ = 400000
 
 INPUT_DRIVER = 'tca8418_keypad'
 INPUT_KEYBOARD = True
@@ -55,12 +59,16 @@ STORAGE_FREQ = 1000000
 STORAGE_BASE_DIR = '/sd/Squirrel'
 STORAGE_FLASH_ROOT = '/flash'
 
-CLOCK_DRIVER = 'ds1302'
-CLOCK_CLK = 6
-CLOCK_DAT = 4
-CLOCK_RST = 3
+CLOCK_OPTIONAL = True
+CLOCK_DS3231_DRIVER = 'ds3231'
+CLOCK_DS3231_BUS = 'grove'
+CLOCK_DS1302_DRIVER = 'ds1302'
+CLOCK_DS1302_CLK = 6
+CLOCK_DS1302_DAT = 4
+CLOCK_DS1302_RST = 3
 
 POWER_DRIVER = 'm5_power'
+POWER_VOLTAGE_ONLY = True
 
 AUDIO_OUT_DRIVER = 'm5_audio'
 AUDIO_IN_DRIVER = 'm5_audio'
@@ -81,5 +89,6 @@ MOTION_ADDRS = (105, 104)
 RADIO_WIFI = True
 RADIO_BLE = True
 
-POWER_MGMT_WAKE_PINS = (0, 11)
+POWER_MGMT_LIGHT_SLEEP = False
+POWER_MGMT_WAKE_PINS = (11,)
 POWER_MGMT_SLOW_CPU_HZ = 80000000

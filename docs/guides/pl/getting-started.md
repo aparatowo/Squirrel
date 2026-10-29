@@ -9,11 +9,14 @@ Od nowego urządzenia do Squirrel! na nim. Wersja 2.0.
 | Urządzenie | Co to jest | Czego potrzebujesz |
 |---|---|---|
 | **M5Stack Cardputer ADV** | kieszonkowy komputer z klawiaturą (ESP32-S3) - główne urządzenie Squirrel!, *szef* synchronizacji Bluetooth | karty microSD (FAT32) na Twoje dane |
+| **M5Stack Cardputer** (pierwszy, v1.0 / v1.1) | *eksperymentalnie*: ten sam kieszonkowy komputer sprzed wersji ADV - jeszcze niesprawdzony na urządzeniu | karty microSD (FAT32); do czasu bez Wi-Fi - modułu DS3231 na porcie Grove |
 | **LilyGo T-Watch 2020 V3** | zegarek z ekranem dotykowym (ESP32) - czyta i odhacza to, co dostał od Cardputera, rutyny i timery na nadgarstku | niczego więcej |
 | **Ogólny smartwatch z ESP32-S3** | *eksperymentalnie*: tanie zegarki sprzedawane jako "ESP32-S3 smartwatch" - jeszcze niesprawdzone na urządzeniu | najpierw sprawdzenia jego pinów ([porty](../../implementation/pl/ports.md)) |
 
 Co działa na którym: Cardputer ma wszystko; zegarek nie ma klawiatury (nie pisze notatek ani zadań - czyta je i
-odhacza) ani na razie dźwięku i mikrofonu, za to wibruje, śpi głęboko i ma sprzętowy zegar.
+odhacza) ani na razie dźwięku i mikrofonu, za to wibruje, śpi głęboko i ma sprzętowy zegar. Pierwszy Cardputer ma
+wszystko poza brzęczykiem (nie ma na niego wolnego pinu); z lekkiego snu budzi go tylko jeden rząd klawiszy
+(Aa, S, F, H, K, UP, ENTER).
 
 ## Na komputerze
 
@@ -40,6 +43,9 @@ python3 build_firmware.py --flash /dev/ttyACM0
 
 # T-Watch 2020 V3
 python3 build_firmware.py --port twatch2020_v3 --flash /dev/ttyACM0
+
+# Cardputer (the first one, not ADV) - experimental
+python3 build_firmware.py --port cardputer --flash /dev/ttyACM0
 ```
 
 Pierwsze budowanie kompiluje całe ESP-IDF i trwa kilka minut; następne są szybsze. Skrypt buduje obraz (w `dist/`),
@@ -61,6 +67,8 @@ uruchamia nowe firmware.
 - **Czas:** Cardputer ustawia zegar przez Wi-Fi przy starcie - dodaj sieć w *Ustawienia → Połączenia → Sieci WiFi*
   (hotspot telefonu też się nada; 2,4 GHz). Albo ustaw go ręcznie (*Ustawienia → Czas i data → Ustaw czas*), albo
   weź go z zegarka przez Bluetooth.
+- **Moduł zegara** (DS3231 / DS1302) trzyma czas bez Wi-Fi: podłącz go i wybierz w *Ustawienia → Czas i data →
+  Ustawienia czasu → Moduł zegara* (do tego czasu jest wyłączony).
 - **Język:** *Ustawienia → Personalizacja → Ekran → Język* - English, Polski, Français, Deutsch.
 - **Zegarek i Cardputer razem:** sparuj je raz ([synchronizacja Bluetooth](bluetooth.md)).
 

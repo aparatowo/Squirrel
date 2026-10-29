@@ -5,10 +5,12 @@
 #   bma423          the BMA423 accelerometer (only switched off so far)
 #   bmi270          the BMI270 motion sensor (only switched off so far)
 #   ds1302          the DS1302 clock chip (3-wire bus)
+#   ds3231          the DS3231 clock chip (I2C), with an alarm
 #   flash_storage   the app's folder on the internal flash (no SD card)
 #   ft6336          the FT6336U touch controller: read_point() only (gestures: hw/touch_input.py)
 #   glcdfont        the classic 5x7 font of Adafruit GFX (M5GFX's default font) - used by st7789_fb
 #   gpio_button     a button wired straight to a GPIO
+#   hc138_keypad    a key matrix on GPIOs behind a 74HC138 (the first Cardputer); the same key codes as tca8418_keypad
 #   m5_audio        M5.Mic / M5.Speaker of the UIFlow 2 firmware
 #   m5_display      M5.Lcd of the UIFlow 2 firmware
 #   m5_power        M5.Power of the UIFlow 2 firmware (battery level, charging, voltage)

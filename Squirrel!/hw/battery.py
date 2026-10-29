@@ -1,7 +1,12 @@
 # battery.py - battery level, read every now and then in the background
 #
 # Where the numbers come from is the port's: the board gives level(), charging() and millivolts() (on the Cardputer
-# drivers/m5_power.py; each returns None when it cannot tell).
+# drivers/m5_power.py; each returns None when it cannot tell), and maybe usb_host().
+#
+# Charging.  The watch's power chip says it (drivers/axp202.py).  The Cardputers cannot: their battery is only measured
+# through the ADC, the charger's status pins go to its LED, not to the ESP32, and the ESP32-S3 cannot see a USB supply
+# without data (it has no VBUS pin - only a host's frames show).  For them there is a guess (the setting CHARGE_GUESS,
+# Settings -> Experimental): ChargeGuess below, from the voltage and - when a computer is on the USB - its frames.
 
 import time
 
@@ -10,15 +15,74 @@ def _unknown():
     return None
 
 
-class BatteryMonitor:
-    """Service: polls the fuel gauge every `interval_ms`.  level() is None when it cannot be read."""
+_GUESS_MS = 10000               # the poll while guessing: the voltage is followed more closely
 
-    def __init__(self, read=None, charging=None, interval_ms=30000):
+
+class ChargeGuess:
+    """Charging guessed from the battery voltage, read every few seconds.
+
+    A charger lifts the battery's voltage at once (its current through the cell's resistance) and lets it fall when it
+    goes: a jump of STEP_MV or more that is still there at the next reading says "plugged in" / "unplugged".  A slow
+    rise of RISE_MV within WINDOW readings says "charging" too (a nearly full battery takes little current - no jump);
+    a slow fall of FALL_MV says it is not.  A computer's frames on the USB (usb=True) say it at once.  Load changes (the
+    radio, the speaker) make jumps too, but brief ones: they are gone at the next reading."""
+    STEP_MV = 60
+    RISE_MV = 20
+    FALL_MV = 15
+    WINDOW = 30                  # readings: 5 minutes at one every 10 s
+    PLUGGED_MV = 4200            # at start-up: a battery above this is on a charger (it rests lower)
+
+    def __init__(self):
+        self.charging = None     # True / False; None before the first reading
+        self._history = []       # the last WINDOW readings, mV
+        self._jump = 0           # +1 / -1: a jump was seen at the last reading and waits to be confirmed
+
+    def feed(self, mv, usb=None):
+        if usb:
+            self.charging = True
+        if mv is None:
+            return self.charging
+        h = self._history
+        if self.charging is None:
+            self.charging = mv >= self.PLUGGED_MV
+        if h:
+            d = mv - h[-1]
+            if self._jump and (mv - h[-2] if len(h) > 1 else d) * self._jump >= self.STEP_MV * 2 // 3:
+                self.charging = self._jump > 0          # the jump is still there: the charger came / went
+                self._jump = 0
+                del h[:-1]                              # the trend starts again from here
+            else:
+                self._jump = 1 if d >= self.STEP_MV else (-1 if d <= -self.STEP_MV else 0)
+        h.append(mv)
+        del h[:-self.WINDOW]
+        if len(h) == self.WINDOW and not self._jump:
+            early = (h[0] + h[1] + h[2]) // 3
+            late = (h[-1] + h[-2] + h[-3]) // 3
+            if late - early >= self.RISE_MV:
+                self.charging = True
+            elif early - late >= self.FALL_MV and not usb:
+                self.charging = False
+        return self.charging
+
+
+class BatteryMonitor:
+    """Service: polls the fuel gauge every `interval_ms`.  level() is None when it cannot be read.
+
+    charging: True / False, or None when the device cannot tell - unless guess() is true (CHARGE_GUESS): then the
+    guess (charging_guessed = True).  millivolts: the last voltage read, or None."""
+
+    def __init__(self, read=None, charging=None, interval_ms=30000, millivolts=None, usb_host=None, guess=None):
         self._read = read or _unknown
         self._charging = charging or _unknown
+        self._mv = millivolts or _unknown
+        self._usb = usb_host or _unknown
+        self._guess_on = guess or (lambda: False)
+        self._guess = None           # a ChargeGuess while guessing
         self._interval = interval_ms
         self.level_pct = None
         self.charging = None             # True / False, or None: this device cannot tell
+        self.charging_guessed = False
+        self.millivolts = None
         self._next = 0
         self._poll()
 
@@ -30,7 +94,6 @@ class BatteryMonitor:
             self._poll()
 
     def _poll(self):
-        self._next = time.ticks_add(time.ticks_ms(), self._interval)
         try:
             value = self._read()
         except Exception:
@@ -40,10 +103,32 @@ class BatteryMonitor:
         else:
             self.level_pct = int(value)
         try:
+            self.millivolts = self._mv()
+        except Exception:
+            self.millivolts = None
+        try:
             value = self._charging()
             self.charging = None if value is None else bool(value)
         except Exception:
             self.charging = None
+        guessing = False
+        if self.charging is None:
+            try:
+                guessing = bool(self._guess_on())
+            except Exception:
+                pass
+        if guessing:
+            if self._guess is None:
+                self._guess = ChargeGuess()
+            try:
+                usb = self._usb()
+            except Exception:
+                usb = None
+            self.charging = self._guess.feed(self.millivolts, usb)
+        else:
+            self._guess = None
+        self.charging_guessed = guessing
+        self._next = time.ticks_add(time.ticks_ms(), _GUESS_MS if guessing else self._interval)
 
 
 HEADER = "time,level_pct,charging,mv,screen,mode,dim_s,slowcpu_s,sleeps,led_s,speaker_s,radio_s"

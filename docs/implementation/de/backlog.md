@@ -56,6 +56,29 @@ ersetzt den Schlüssel des Cardputers, und der Cardputer verlangt bei der nächs
 umgekehrt). Für Nutzer beschrieben; eine Korrektur würde ein paar Schlüssel halten und den Beweis jedes davon annehmen -
 ohne Änderung in der Luft oder an der Seite.
 
+### F. Der Leichtschlaf ist auf dem Cardputer ADV ausgeschaltet (zu lösen)
+
+Seit 2026-10-22 hat der Port `cardputer_adv` in seiner `port.toml` `[power_mgmt] light_sleep = false`: der *Schlafmodus*
+ist aus den Einstellungen verschwunden, und `hw/power.py` schläft nicht, selbst mit `POWER_SLEEP = light` in
+`config.txt`. Der Code des Leichtschlafs bleibt (der erste Cardputer und die Uhr nutzen ihn). Was der Cardputer ADV mit
+ihm tat:
+
+- **die Hintergrundbeleuchtung** - statt beim Dimmen dunkel zu werden, wurde sie heller und blitzte bei jedem
+  Schlafzyklus (~0,8 s): die PWM der Beleuchtung steht im Leichtschlaf, ihr Pin bleibt in einem zufälligen Zustand;
+- **G0** - im Schlaf und kurz danach als gedrückt gelesen (gemessen: 500 von 500 Lesungen low, IO-MUX-Register richtig,
+  3,3 V nur am Akku bei ausgeschaltetem Schlaf): das Schnell-Diktiergerät startete von selbst (`[BTN0] quick recorder
+  from ClockScreen, dimmed (pin 0)` im Log), daher auch der blitzende Bildschirm; im Schlaf tat G0 gar nichts;
+- **der Lautsprecher** - nach dem ersten Ton ein Ticken bei jedem Einschlafen und Aufwachen; `Speaker.end()` vor dem
+  Schlaf dämpft es auf das, was man am Ohr hört, den ES8311 per Register auszuschalten macht ihn still, aber der
+  Lautsprecher kommt erst nach einer Stromunterbrechung zurück;
+- **USB** - die Konsole antwortet im Schlaf nicht, und nach einer Reihe von Schlafzyklen wird USB bis zu einem Reset
+  nicht mehr erkannt;
+- mit G0 als Weckquelle (ext0) ging sein Pad zum RTC und verlor den Pull-up (schon geändert: die Tastatur, G11, weckt).
+
+Zu versuchen: die Pin-Konfiguration für den Schlaf (`gpio_sleep_sel` / Schlaf-Pulls für G0 und den Beleuchtungs-Pin,
+`gpio_hold` der Beleuchtung auf 0), den ES8311 nach dem Aufwachen neu initialisieren, `esp_sleep_pd_config` für die
+Versorgungsdomänen. Werkzeuge: die Zeilen `[POWER] light sleep` und `[BTN0]` in `boot_log.txt`.
+
 ## Noch nicht gebaut
 
 - **Änderungen auf einem Knoten** (ein Handy, das mit der Uhr verbunden ist): als Vorschläge mit der Version
@@ -69,7 +92,29 @@ ohne Änderung in der Luft oder an der Seite.
   (`tools/hwtest/web_e2e.py`); Bearbeiten von der Seite aus ist noch nicht ausprobiert. Veröffentlichen auf GitHub
   Pages für Handys: `.github/workflows/web-page.yml`, bereit, nicht eingeschaltet.
 - **Die allgemeine ESP32-S3-Uhr** (`ports/generic_s3_watch`): lässt sich bauen, noch nicht auf einer Uhr ausprobiert.
-- **Ton und Mikrofon der Uhr, der Beschleunigungssensor** (wird weiter nur beim Start ausgeschaltet).
+- **Der erste Cardputer** (`ports/cardputer`): lässt sich bauen, noch nicht auf einem Gerät ausprobiert. Zuerst zu
+  prüfen: die Pins des Grove-Ports (G2 = SDA, G1 = SCL), die LED an G21 und ihre Versorgung, jede Taste
+  (Einstellungen → Tastenkalibrierung zeigt die Codes), das Aufwachen aus dem leichten Schlaf, Ton und Aufnahme über
+  M5.Speaker / M5.Mic.
+- **Der DS3231** (`drivers/ds3231.py`): an einem nachgebildeten Bus getestet (`tools/tests/test_cardputer_hw.py`),
+  noch nicht an einem Modul. Das Uhrmodul wird in den Einstellungen gewählt (`RTC_CHIP`, standardmäßig aus).
+- **Die LED braucht einen hellen Bildschirm** (Cardputer ADV, gemessen am 2026-10-20 mit
+  `tools/hwtest/cardputer_hw.py t09_screen_off`): sie bekommt Strom über den Schalter der Hintergrundbeleuchtung, bleibt
+  also bei ausgeschaltetem Bildschirm dunkel, und ein schwaches Signal (Laden, schwacher Akku) würde den Bildschirm
+  mit einschalten. Verworfen: Laden ist ein Zeichen neben dem Akkubalken, ein schwacher Akku eine Benachrichtigung mit
+  einem normalen LED-Signal.
+- **Die Ladeerkennung** (Cardputer, experimentell): die Schwellen von ChargeGuess in `hw/battery.py` stammen aus dem
+  üblichen Verhalten einer Li-Ion-Zelle, nicht aus Messungen - mit `cardputer_hw.py t06_charging` und dem Akku-Log
+  prüfen.
+- **Das Laden der Uhr**: als nicht funktionierend gemeldet; die Bits des AXP202 werden jetzt zusammen mit der
+  USB-Anwesenheit gelesen - mit `tools/hwtest/twatch_hw.py t14_charging` prüfen.
+- **Module, die der Nutzer einschaltet** (standardmäßig eine einfache Version, *Einstellungen → Funktionen*): ein
+  Vorschlag mit Analyse, [modules-proposal.md](../en/modules-proposal.md) (auf Englisch).
+- **Das Erfolgstagebuch über Bluetooth**: seine Tage (`wins/`) bleiben auf dem Cardputer; die Uhr zeigt sie nicht, die
+  Erfolge sind noch nicht in der synchronisierten Statistik.
+- **Lautsprecher und Mikrofon der Uhr, der Beschleunigungssensor**: die T-Watch hat einen Lautsprecher (I2S, über
+  LDO4 versorgt), aber die Signale - das Metronom (Piep / Klick), Benachrichtigungen, die Sanduhr - vibrieren auf der
+  Uhr bisher nur; der Beschleunigungssensor wird nur beim Start ausgeschaltet.
 - **Ideen aus der Planung:**
   - der Filter *Heute* in der Aufgabenliste;
   - Gefühls-Tags an einem Eintrag (🔥 dringend, 💡 Idee, 😰 Stress, 🕑 irgendwann);

@@ -59,6 +59,7 @@ _LAZY_SCREENS = {
     "WIFI_NETWORKS": ("screens.wifi_screen", "WifiScreen", ()),
     "ROUTINES": ("screens.routines_screen", "RoutinesScreen", ()),
     "INTERVALS": ("screens.interval_screen", "IntervalScreen", ()),
+    "HOURGLASS": ("screens.hourglass_screen", "HourglassScreen", ()),
     "METRONOME": ("screens.rhythm_screens", "MetronomeScreen", ()),
     "BREATHING": ("screens.rhythm_screens", "BreathingScreen", ()),
     "FONT_TEST": ("screens.font_test_screen", "FontTestScreen", ()),
@@ -116,6 +117,7 @@ class SquirrelApp:
         # Settings come next: they live on the card, and everything below reads them.
         cfg.load(nuts.CONFIG_FILE)
         self._config_changed = False
+        self._drawn = None                  # (screen, focus dot) of the last frame: see _render_active
         cfg.on_change(self._on_config_changed)
 
         # 2. Hardware and helper layers
@@ -135,8 +137,9 @@ class SquirrelApp:
         wanted = cfg.get('FONT_ENABLED') or cfg.get('LANGUAGE') != "en"
         log(f"[FONT] start-up: {gfx.start(wanted, nuts.FONT_FILES, skip=held)}")
         cfg.on_change(self._language_font)
-        self.rtc = RTCManager(*board.clock_chip())
-        self.rtc.sync_on_boot()      # one-time read of a permanently attached hardware clock (DS1302 on the Cardputer)
+        self.rtc = RTCManager(*board.clock_chip(cfg.get("RTC_CHIP")))
+        self.rtc.sync_on_boot()      # one-time read of a permanently attached hardware clock (the module chosen on a Cardputer)
+        cfg.on_change(self._clock_module)
         self.audio = board.make_audio()
         self.storage = StorageManager(nuts.BASE_DIR)
 
@@ -149,10 +152,13 @@ class SquirrelApp:
 
         # Status bars, screen dimming and notifications (all ticked by the main loop)
         source = board.power_source()
-        self.battery = self.services.add(BatteryMonitor(read=source.level, charging=source.charging))
+        self.battery = self.services.add(BatteryMonitor(
+            read=source.level, charging=source.charging, millivolts=getattr(source, "millivolts", None),
+            usb_host=getattr(source, "usb_host", None), guess=lambda: has("charge_guess") and cfg.get("CHARGE_GUESS")))
         board.begin_led(led, self.battery)            # dark at once; then signals, Breathing, the charging light
         self.services.add(led)
-        self.bars = StatusBars(cfg, self.battery, self.focus)
+        self.bars = StatusBars(cfg, self.battery, self.focus, clock=lambda: self.rtc.get_datetime(),
+                               hourglass=lambda: self._hourglass)
         self.renderer.bars = self.bars
         self.dimmer = self.services.add(ScreenDimmer(Lcd, cfg, self._can_dim,
                                                      lambda: self.active_screen is self.screens["CLOCK"],
@@ -161,12 +167,20 @@ class SquirrelApp:
         self.battery_log = self.services.add(BatteryLogger(cfg, self.battery, self.dimmer, nuts.BASE_DIR + "/battery.csv",
                                                            voltage=source.millivolts))
         self.notifier = self.services.add(Notifier(self, self.audio))
+        self._battery_alerts = None
+        self._battery_warnings("BATTERY_WARN", cfg.get("BATTERY_WARN"))     # loaded only while they are on
+        cfg.on_change(self._battery_warnings)
 
         # Radios stay off unless a network task needs them.  Without a working hardware clock the
         # clock is set once over Wi-Fi + NTP (network saved by UIFlow); otherwise power down now.
         self.radio = RadioManager()
         self.timesync = None
         if has("wifi_ntp"):
+            try:
+                from wifi_profiles import adopt_fallback
+                adopt_fallback(cfg, nuts.WIFI_PROFILES_FILE)     # the old single fallback joins the saved networks
+            except Exception as e:
+                log(f"[WIFI] fallback network not moved: {e}")
             from wifi_ntp import WifiNtpClient
             from time_sync import TimeSyncService
             self.timesync = self.services.add(TimeSyncService(
@@ -175,9 +189,8 @@ class SquirrelApp:
                               lambda: cfg.get("WIFI_SSID"), lambda: cfg.get("WIFI_PASSWORD")),
                 utc_offset_min=lambda: cfg.get("TIME_UTC_OFFSET_MIN"),
                 eu_dst=lambda: cfg.get("TIME_EU_DST")))
-        clock_chip = board.clock_chip()[1]
         want_sync = (self.timesync is not None and cfg.get("TIMESYNC_AT_BOOT")
-                     and (clock_chip is None or self.rtc.last_sync_source != clock_chip))
+                     and not self.rtc.chip_synced)
         if want_sync:
             self.timesync.start("boot")     # switches the radios off when it ends - or fails to start
         else:
@@ -188,14 +201,17 @@ class SquirrelApp:
         self.todos_done = DayCounter(nuts.BASE_DIR + "/focus/todos.txt")
         self.todo_editor = TodoEditor(self.storage, self.todos_done)
         self.note_editor = NoteEditor(self.storage)
+        from success_log import SuccessLog
+        self.success_log = SuccessLog(self.storage)      # the success journal (Notes); a few lines, no state
 
         # Routines, the cuckoo clock and the daily clean-up of done To-Dos
         self.routines = RoutineStore(nuts.ROUTINES_FILE)
         self.scheduler = self.services.add(Scheduler(self.routines, self.notifier, self.audio, cfg,
                                                      self.routines_done, self.todo_editor,
                                                      events=EventLog(nuts.BASE_DIR + "/focus/events.txt")))
-        self._runner = None             # Pomodoro / Training and the metronome are created when first used
+        self._runner = None             # Pomodoro / Training, the metronome and the hourglass are created when first used
         self._metronome = None
+        self._hourglass = None
 
         # A device whose clock has an alarm sleeps for real (POWER_SLEEP = deep): the coming routines / cuckoo are the
         # alarms that wake it (deep_sleep.py, alarms.py); what was going on before the sleep is put back here.
@@ -224,7 +240,9 @@ class SquirrelApp:
         self.power = self.services.add(PowerManager(cfg, self.dimmer, self._power_busy, machine, self.keypad,
                                                     wake_pins=port_config.POWER_MGMT_WAKE_PINS,
                                                     slow_hz=port_config.POWER_MGMT_SLOW_CPU_HZ,
-                                                    arm_wake=getattr(board, "arm_light_sleep_wake", None)))
+                                                    arm_wake=getattr(board, "arm_light_sleep_wake", None),
+                                                    before_sleep=self.audio.release_speaker,
+                                                    light_sleep=getattr(port_config, "POWER_MGMT_LIGHT_SLEEP", True)))
         self.power.start(board.motion_off)
         # what the energy log times, now that every part exists (see hw/battery.py)
         self.battery_log.attach(slow=lambda: self.power.slow, led=lambda: led.backlight_floor() > 0,
@@ -256,6 +274,25 @@ class SquirrelApp:
             from intervals import Metronome
             self._metronome = self.services.add(Metronome(self.audio, cfg))
         return self._metronome
+
+    def hourglass(self):
+        """The hourglass (Focus tools; a background service), created on first use."""
+        if self._hourglass is None:
+            from hourglass import Hourglass
+            self._hourglass = self.services.add(Hourglass(self.notifier))
+        return self._hourglass
+
+    def _battery_warnings(self, key, value):
+        """The low-battery warnings switched on: load them (switched off, they stay loaded but quiet till a restart)."""
+        if key == "BATTERY_WARN" and value and self._battery_alerts is None:
+            from battery_alerts import BatteryAlerts
+            self._battery_alerts = self.services.add(BatteryAlerts(cfg, self.battery, self.notifier))
+
+    def _clock_module(self, key, value):
+        """Another clock module chosen in the settings (RTC_CHIP): use it now, and take the time from it."""
+        if key == "RTC_CHIP":
+            self.rtc.use_chip(*board.clock_chip(value))
+            self.rtc.sync_on_boot()
 
     @staticmethod
     def _language_font(key, value):
@@ -398,15 +435,23 @@ class SquirrelApp:
         Screens that hold unsaved input (editors, time entry) ignore the button."""
         screen = self.active_screen
         handler = getattr(screen, "on_quick_button", None)
+        # In the log for good (not only on the console): a recording nobody asked for shows when and where G0 fired,
+        # whether the screen had just woken, and the pin's level right after (1 = released, as after a real press)
+        try:
+            level = self.buttons["quick"]._pin.value()
+        except Exception:
+            level = "?"
+        where = "%s, %s" % (type(screen).__name__, "dimmed" if getattr(self, "_button_woke", False) else "lit")
         if handler is not None:
+            log(f"[BTN0] on {where} (pin {level}): the screen's own action")
             handler()
             self._render_active()
             return
         if not has("voice_notes") or not getattr(screen, "quick_record_from", False):
-            trace(f"[BTN0] ignored on {type(screen).__name__}")
+            log(f"[BTN0] ignored on {where} (pin {level})")
             return
         target = self._return_target(screen)
-        trace(f"[BTN0] quick recorder from {target[0]}")
+        log(f"[BTN0] quick recorder from {where} (pin {level})")
         self.set_screen("RECORD", autostart=True, return_to=target)
 
     def _on_config_changed(self, key, value):
@@ -420,13 +465,19 @@ class SquirrelApp:
         """Render the active screen (or the notification over it), then the focus dot / bars on top."""
         self.renderer.forget_bars()
         if self.overlay is not None:
+            self._drawn = None
             self.overlay.render(self.renderer)
             Lcd.flush()
             return
-        self.active_screen.render(self.renderer)
         # The focus dot is optional (Personalize) and never on the main screen
-        if cfg.get("FOCUS_DOT") and getattr(self.active_screen, "shows_focus_dot", True):
-            self.renderer.draw_focus_indicator(self.focus.indicator())
+        dot = cfg.get("FOCUS_DOT") and getattr(self.active_screen, "shows_focus_dot", True)
+        drawn = (self.active_screen, dot and self.focus.indicator())
+        if drawn != self._drawn:
+            self._drawn = drawn
+            self.renderer.forget_list()        # another screen, or a dot to take away: a list is drawn whole
+        self.active_screen.render(self.renderer)
+        if dot:
+            self.renderer.draw_focus_indicator(drawn[1])
         if getattr(self.active_screen, "shows_bars", False):
             self.renderer.draw_bars_clock()
         Lcd.flush()                    # a frame-buffer display (the watch) shows it now; M5.Lcd: nothing to do
@@ -509,6 +560,7 @@ class SquirrelApp:
         self._tick_bars()
         for role, button in self._button_list:
             if button.pressed():
+                self._button_woke = self.dimmer.dimmed      # for the log line of _on_quick_button
                 self.dimmer.wake()     # a button lights the screen up AND acts (G0: the quick-recorder button)
                 if self.deep_sleep is not None:
                     self.deep_sleep.user_active()

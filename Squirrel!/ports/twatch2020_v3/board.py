@@ -84,7 +84,8 @@ def make_buttons():
     return {"back": PekButton(axp())}
 
 
-def clock_chip():
+def clock_chip(choice=None):
+    """The PCF8563, always (it is part of the watch: `choice`, the setting RTC_CHIP of the Cardputers, is not used)."""
     def open_pcf8563():
         from drivers.pcf8563 import PCF8563TimeProvider
         return PCF8563TimeProvider(_buses.get("sys") or open_i2c("sys"))

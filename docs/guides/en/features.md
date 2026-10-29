@@ -10,9 +10,20 @@ Pictures: the Cardputer on the left, the watch on the right (where it has the sc
 ## 🕐 The clock
 
 The home screen is a clock: big digits, the date, and a line of your own at the bottom (*no need to go nuts* on the
-Cardputer, *Squirrel! is watching* on the watch - change it in Personalize, or leave it). The bars at the edges
-are the battery (left) and today's focus time against your goal (right). The watch also shows the weekday and, in
-words, the focus time and the battery.
+Cardputer, *Squirrel! is watching* on the watch - change it in Personalize, or leave it). The bars of `#` around it
+show time passing at a glance:
+
+- **left** - the battery; **right** - today's focus time against your goal, rising from the bottom (*Focus bar from:
+  top* fills it the classic way, from the top);
+- **top** - the hour going by, filling from the left; while the [hourglass](#-hourglass) runs, its time instead (the
+  leading `#` blinks);
+- **bottom** - the quarter hour, filling from the right; it starts again at :00, :15, :30 and :45.
+
+Each of them can be a plain bar or switched off (*Personalize → Bars*). The watch also shows the weekday and, in words,
+the focus time and the battery.
+
+Times from 10:00 to 19:59 start with a "1", drawn by its right side only, so the clock then moves 10 pixels to the
+left (16 on the watch) to look centred (*Personalize → Display → Clock 1x:xx X*; 0 turns it off).
 
 <img src="../../../shots/cardputer/en/clock.png" width="360"> <img src="../../../shots/twatch/en/clock.png" width="240">
 
@@ -21,9 +32,12 @@ opens a small menu of the things you reach for most:
 
 <img src="../../../shots/cardputer/en/tab-menu.png" width="360">
 
-The time comes from a hardware clock where there is one (the watch's PCF8563, an optional DS1302 on the Cardputer),
-from Wi-Fi at start-up, or from another Squirrel! device over Bluetooth (*Settings → Time and date → Time from a
-device*).
+On the watch: a **double tap** starts the focus timer, a **triple tap** pauses it, a single tap opens the menu - all on a lit screen (a tap on a dark one only wakes it).
+
+The time comes from a hardware clock where there is one (the watch's PCF8563; on the Cardputer an optional clock
+module - a DS3231 on the Grove port, or a DS1302 on the ADV's EXT header - once you say which one in *Settings → Time
+and date → Time settings → Clock module*; until then its code is not even loaded), from Wi-Fi at start-up, or from
+another Squirrel! device over Bluetooth (*Settings → Time and date → Time from a device*).
 
 ## ✅ To-Dos and checklists
 
@@ -59,6 +73,14 @@ card as plain `.txt` files you can read on any computer. **CTRL+S** saves, **ESC
 Deleting asks you to press DEL three times - a slip of the finger cannot lose a note.
 
 <img src="../../../shots/cardputer/en/delete-confirm.png" width="360">
+
+## 🏆 Success journal
+
+One list a day of what went well - small things count. *Notes → Success journal → + [Today]* opens today's list with a
+new line ready: every line that starts with `-` or `>` is one thing done (as in a To-Do's checklist); other lines are
+just text. The number of things done goes into the statistics, apart from the focus time.
+
+<img src="../../../shots/cardputer/en/success-journal.png" width="360">
 
 ## 🧠 Mind dump
 
@@ -101,9 +123,18 @@ statistics. *Training* is the same timer with blocks you put together yourself (
 
 <img src="../../../shots/cardputer/en/pomodoro-running.png" width="360"> <img src="../../../shots/twatch/en/pomodoro_running.png" width="240">
 
+## ⏳ Hourglass
+
+A plain countdown: set the minutes, start, and get on with it. The clock's top bar fills as the time runs out; at the
+end it rings - sound, LED and buzzer or vibration, again every few seconds until you answer it - in the silent hours
+too, since you set it yourself. It runs in the background like Pomodoro, and keeps the minutes for the next time.
+
+<img src="../../../shots/cardputer/en/hourglass-running.png" width="360"> <img src="../../../shots/cardputer/en/clock-hourglass.png" width="360">
+
 ## 🥁 Metronome and 🫁 breathing
 
-The metronome beats every 1/8 s up to every 2 minutes - something steady to follow, in the background. Breathing
+The metronome beats every 1/8 s up to every 2 minutes - something steady to follow, in the background - with a short beep, or a dry click like
+a clock's (*Personalize → Audio → Metronome sound*). Breathing
 guides you through *Box 4-4-4-4*, *Relax 4-7-8* or *Calm 5-5*: a circle grows as you breathe in and shrinks as you
 breathe out (the LED follows it, if you have one).
 
@@ -113,6 +144,9 @@ breathe out (the LED follows it, if you have one).
 
 Today's focus time against your goal, and the last 7 days. No targets to fail, no comparisons - a quiet picture of
 your days. With synced devices: LEFT / RIGHT shows this device, each synced device, or all of them together.
+
+A distraction counted as focus? **-** takes the last 15 minutes back (*Personalize → Focus → Take back minutes*);
+DEL twice zeroes today. Under today's time: what went well today and this week, from the success journal.
 
 <img src="../../../shots/cardputer/en/statistics.png" width="360"> <img src="../../../shots/twatch/en/focus_stats.png" width="240">
 
@@ -146,4 +180,17 @@ without new firmware: [Squirrel!/translations/README.md](../../../Squirrel!/tran
 
 The screen dims after a while without a key; with *Sleep mode* the device sleeps while dimmed (the watch sleeps deeply
 and wakes for its routines, the cuckoo and its sync times). The radios are on only while they work: Wi-Fi for the time
-at start-up, Bluetooth for a sync.
+at start-up, Bluetooth for a sync. The Cardputer ADV has no sleep mode for now: in a light sleep its
+back-light flashed and G0 started the recorder by itself (to be solved); the saving while the screen is dimmed stays.
+On the first Cardputer the sleep mode is experimental (*Settings → Experimental → Settings*).
+
+**A low battery** is announced at 15 %, 10 %, 5 % and right before it runs out - on the screen, with a sound and the
+buzzer or vibration if you want them (*Personalize → Power → Battery warnings*, *Warning sound*; *Buzzer → Low
+battery*). The LED can blink with the warning (*Personalize → LED → Battery: blink*).
+While the battery charges, a small lightning shows by the battery bar on the clock (*Personalize → Bars →
+Charging mark*).
+
+**Charging.** The watch's power chip says when it charges (or sits on USB power, full). The Cardputers cannot tell: their
+battery is only measured. *Settings → Experimental → Settings → Charge detection* makes them guess it - from the battery's voltage
+(it jumps when a charger comes or goes, and rises slowly while the battery fills) and from a computer on the USB. A plain
+charger without data cannot be seen any other way. Experimental: tell us how well it guesses.

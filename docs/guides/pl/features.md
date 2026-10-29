@@ -10,9 +10,20 @@ Zdjęcia: Cardputer po lewej, zegarek po prawej (tam, gdzie ma ten ekran).
 ## 🕐 Zegar
 
 Ekran startowy to zegar: duże cyfry, data i Twoja własna linijka na dole (*no need to go nuts* na Cardputerze,
-*Squirrel! is watching* na zegarku - zmienisz ją w Personalizacji albo zostawisz). Belki przy krawędziach to bateria
-(po lewej) i dzisiejszy czas skupienia względem Twojego celu (po prawej). Zegarek pokazuje też dzień tygodnia oraz,
+*Squirrel! is watching* na zegarku - zmienisz ją w Personalizacji albo zostawisz). Belki z `#` dookoła pokazują
+upływ czasu jednym rzutem oka:
+
+- **lewa** - bateria; **prawa** - dzisiejszy czas skupienia względem Twojego celu, rośnie od dołu (*Belka skupienia
+  od: od góry* wypełnia ją klasycznie, od góry);
+- **górna** - upływ godziny, wypełnia się od lewej; gdy działa [klepsydra](#-klepsydra) - jej czas (ostatni kolorowy
+  `#` miga);
+- **dolna** - upływ kwadransa, wypełnia się od prawej; zaczyna od nowa o :00, :15, :30 i :45.
+
+Każda może być pełną, stałą belką albo zniknąć (*Personalizacja → Belki*). Zegarek pokazuje też dzień tygodnia oraz,
 słowami, czas skupienia i baterię - każde w kolorze swojej belki.
+
+Godziny od 10:00 do 19:59 zaczynają się od „1”, rysowanej samą prawą stroną, więc zegar przesuwa się wtedy o 10
+pikseli w lewo (na zegarku o 16), żeby wyglądał na wyśrodkowany (*Personalizacja → Ekran → Zegar 1x:xx X*; 0 wyłącza).
 
 <img src="../../../shots/cardputer/pl/clock.png" width="360"> <img src="../../../shots/twatch/pl/clock.png" width="240">
 
@@ -21,8 +32,12 @@ urządzenia, **TAB** otwiera małe menu tego, po co sięgasz najczęściej:
 
 <img src="../../../shots/cardputer/pl/tab-menu.png" width="360">
 
-Czas pochodzi ze sprzętowego zegara, jeśli jest (PCF8563 w zegarku, opcjonalny DS1302 w Cardputerze), z Wi-Fi przy
-starcie albo z innego urządzenia Squirrel! przez Bluetooth (*Ustawienia → Czas i data → Czas z urządzenia*).
+Na zegarku: **podwójne stuknięcie** włącza licznik skupienia, **potrójne** go wstrzymuje, pojedyncze otwiera menu - wszystko na zapalonym ekranie (stuknięcie w ciemny tylko go budzi).
+
+Czas pochodzi ze sprzętowego zegara, jeśli jest (PCF8563 w zegarku; w Cardputerze opcjonalny moduł zegara - DS3231
+na porcie Grove albo DS1302 na złączu EXT wersji ADV - gdy wskażesz, który, w *Ustawienia → Czas i data → Ustawienia
+czasu → Moduł zegara*; do tego czasu jego kod nawet się nie ładuje), z Wi-Fi przy starcie albo z innego urządzenia
+Squirrel! przez Bluetooth (*Ustawienia → Czas i data → Czas z urządzenia*).
 
 ## ✅ Zadania i checklisty
 
@@ -58,6 +73,14 @@ SD jako zwykłe pliki `.txt`, czytelne na każdym komputerze. **CTRL+S** zapisuj
 Usuwanie wymaga trzykrotnego naciśnięcia DEL - przypadkowy ruch palca nie skasuje notatki.
 
 <img src="../../../shots/cardputer/pl/delete-confirm.png" width="360">
+
+## 🏆 Dziennik sukcesu
+
+Jedna lista na dzień tego, co się udało - małe rzeczy też się liczą. *Notatki → Dziennik sukcesu → + [Dzisiaj]* otwiera
+dzisiejszą listę z gotową nową linią: każda linia zaczęta od `-` albo `>` to jedna zrobiona rzecz (jak w checkliście
+zadania); pozostałe linie to zwykły tekst. Liczba zrobionych rzeczy trafia do statystyk, osobno od czasu skupienia.
+
+<img src="../../../shots/cardputer/pl/success-journal.png" width="360">
 
 ## 🧠 Mind dump
 
@@ -102,9 +125,18 @@ ten sam timer z blokami, które układasz sam (przygotuj, lekko, normalnie, mocn
 
 <img src="../../../shots/cardputer/pl/pomodoro-running.png" width="360"> <img src="../../../shots/twatch/pl/pomodoro_running.png" width="240">
 
+## ⏳ Klepsydra
+
+Zwykły minutnik: ustaw minuty, włącz i zajmij się swoim. Górna belka zegara wypełnia się, gdy czas ucieka; na końcu
+dzwoni - dźwięk, dioda i brzęczyk albo wibracja, co kilka sekund, aż odpowiesz - także w godzinach ciszy, bo
+ustawiłeś ją sam. Działa w tle jak Pomodoro i pamięta minuty na następny raz.
+
+<img src="../../../shots/cardputer/pl/hourglass-running.png" width="360"> <img src="../../../shots/cardputer/pl/clock-hourglass.png" width="360">
+
 ## 🥁 Metronom i 🫁 oddychanie
 
-Metronom wybija rytm co 1/8 s, aż do raz na 2 minuty - coś stałego, za czym można iść, w tle. Oddychanie prowadzi
+Metronom wybija rytm co 1/8 s, aż do raz na 2 minuty - coś stałego, za czym można iść, w tle. Bije krótkim piskiem albo suchym kliknięciem jak zegar
+(*Personalizacja → Dźwięk → Dźwięk metronomu*). Oddychanie prowadzi
 przez *Kwadrat 4-4-4-4*, *Relaks 4-7-8* albo *Spokój 5-5*: koło rośnie przy wdechu i maleje przy wydechu (dioda idzie
 za nim, jeśli ją masz).
 
@@ -115,6 +147,9 @@ za nim, jeśli ją masz).
 Dzisiejszy czas skupienia względem celu i ostatnie 7 dni. Żadnych celów do zawalenia, żadnych porównań - spokojny
 obraz Twoich dni. Przy synchronizowanych urządzeniach LEFT / RIGHT pokazuje to urządzenie, każde zsynchronizowane albo
 wszystkie razem.
+
+Rozproszenie policzone jako skupienie? **-** odejmuje ostatnie 15 minut (*Personalizacja → Skupienie → Odejmij
+minuty*); DEL dwa razy zeruje dzień. Pod dzisiejszym czasem: co się udało dziś i w tym tygodniu, z dziennika sukcesu.
 
 <img src="../../../shots/cardputer/pl/statistics.png" width="360"> <img src="../../../shots/twatch/pl/focus_stats.png" width="240">
 
@@ -149,4 +184,17 @@ firmware: [Squirrel!/translations/README.md](../../../Squirrel!/translations/REA
 
 Ekran przygasa po chwili bez klawisza; z *Trybem uśpienia* urządzenie śpi, gdy jest przygaszone (zegarek śpi głęboko
 i budzi się na swoje rutyny, kukułkę i pory synchronizacji). Radia działają tylko wtedy, gdy pracują: Wi-Fi do czasu
-przy starcie, Bluetooth na synchronizację.
+przy starcie, Bluetooth na synchronizację. Cardputer ADV nie ma na razie trybu uśpienia: w lekkim śnie migało
+podświetlenie, a przycisk G0 sam uruchamiał dyktafon (temat do rozwiązania); zostaje oszczędzanie przy wygaszonym
+ekranie. Na pierwszym Cardputerze tryb uśpienia jest eksperymentalny (*Ustawienia → Eksperymentalne → Ustawienia*).
+
+**Słaba bateria** jest zgłaszana przy 15 %, 10 %, 5 % i tuż przed rozładowaniem - na ekranie, dźwiękiem i brzęczykiem
+albo wibracją, jeśli chcesz (*Personalizacja → Zasilanie → Ostrzeż. baterii*, *Dźwięk ostrzeżenia*; *Brzęczyk → Słaba
+bateria*). Dioda może mrugnąć razem z ostrzeżeniem (*Personalizacja → LED → Bateria: mrug.*).
+Podczas ładowania przy belce baterii na zegarze widać małą błyskawicę (*Personalizacja → Belki → Znak
+ładowania*).
+
+**Ładowanie.** Układ zasilania zegarka mówi, kiedy ładuje (albo stoi na zasilaniu z USB, pełny). Cardputery tego nie
+wiedzą: ich baterię tylko się mierzy. *Ustawienia → Eksperymentalne → Ustawienia → Wykrywanie ładow.* każe im zgadywać - z napięcia
+baterii (skacze, gdy ładowarka przychodzi albo odchodzi, i powoli rośnie, gdy bateria się napełnia) i z komputera na
+USB. Zwykłej ładowarki bez linii danych nie da się zobaczyć inaczej. Eksperymentalne: daj znać, jak trafnie zgaduje.

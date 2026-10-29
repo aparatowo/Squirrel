@@ -6,16 +6,20 @@
 #
 # The file <data_dir>/focus.txt holds "YYYY-MM-DD,seconds" lines; a day may have several (they add up).  Only TODAY's
 # total is kept in memory - the status bars show it all the time - and it is read from the file once, when the day
-# starts being counted.  New seconds are APPENDED (at most every 15 minutes while running, and on every pause / stop),
+# starts being counted.  New seconds are APPENDED (every 5 minutes while running, and on every pause / stop),
 # so a save never reads the file.  The whole history is read only for the statistics (week()), which also rewrite
 # the file with one line per day when it has more.
+# Taking time back (a distraction counted as focus: subtract(), Focus -> Statistics) appends a NEGATIVE line
+# ("2026-10-19,-900"); a day's lines add up and never go below zero.  reset_today() takes back the whole day.
+# While it runs, the file <data_dir>/running exists: after a restart (a reset, new firmware, a crash) the timer goes on
+# counting instead of being stopped without a word - only the seconds since the last save and the restart are lost.
 
 import os
 import time
 from boot_log import log
 from timeutil import days_from_civil, civil_from_days, weekday_from_days
 
-_SAVE_INTERVAL_MS = 15 * 60 * 1000
+_SAVE_INTERVAL_MS = 5 * 60 * 1000       # what a sudden restart can lose at most
 _MIN_VALID_YEAR = 2024        # anything earlier means the clock was never set
 
 
@@ -29,6 +33,7 @@ class FocusTimer:
         self._dir = data_dir
         self._file = data_dir + "/focus.txt"
         self._tmp = data_dir + "/focus.tmp"
+        self._running_file = data_dir + "/running"
         self._goal = goal_seconds      # a number, or a function returning it (read live)
         self.state = "stopped"
         self._day_key = None         # the day whose total is in memory
@@ -39,6 +44,7 @@ class FocusTimer:
         self._last_save_ms = 0
         self._last_key = None
         self._recover()
+        self._carry_on()
 
     @property
     def goal_seconds(self):
@@ -55,25 +61,64 @@ class FocusTimer:
         if self._today_key() is None:
             return "no_time"                 # would file the time under a bogus date
         was_paused = (self.state == "paused")
+        self._run()
+        self._mark_running(True)
+        return "resumed" if was_paused else "started"
+
+    def _run(self):
         now = time.ticks_ms()
         self.state = "running"
         self._last_ms = now
         self._frac_ms = 0
         self._last_save_ms = now
-        return "resumed" if was_paused else "started"
 
     def pause(self):
         if self.state == "running":
             self._accumulate(time.ticks_ms())
             self.state = "paused"
             self._save()
+            self._mark_running(False)
 
     def stop(self):
         if self.state == "running":
             self._accumulate(time.ticks_ms())
+            self._mark_running(False)
         if self.state != "stopped":
             self.state = "stopped"
             self._save()
+
+    def start(self):
+        """Start / resume, but never pause (the watch's double tap).  'started', 'resumed', 'running' or 'no_time'."""
+        return "running" if self.state == "running" else self.toggle()
+
+    def halt(self):
+        """Pause, but never start (the watch's triple tap).  'paused', or 'not_running' when it was not counting."""
+        if self.state != "running":
+            return "not_running"
+        self.pause()
+        return "paused"
+
+    def subtract(self, seconds):
+        """Take `seconds` back from today's focus time (a distraction that was counted); never below zero.  A running
+        timer keeps running.  Returns the seconds taken back (0: the clock is not set, or nothing counted today)."""
+        key = self._today_key()
+        if key is None:
+            return 0
+        if self.state == "running":
+            self._accumulate(time.ticks_ms())
+        self._use_day(key)
+        n = min(int(seconds), self._day_secs)
+        if n <= 0:
+            return 0
+        self._day_secs -= n
+        self._unsaved[key] = self._unsaved.get(key, 0) - n
+        self._save()
+        log(f"[FOCUS] {n} s taken back from {key}")
+        return n
+
+    def reset_today(self):
+        """Today's focus time back to zero.  Returns the seconds taken back."""
+        return self.subtract(self.today_seconds())
 
     # ---------------- over a deep sleep (deep_sleep.py) ----------------
 
@@ -118,10 +163,10 @@ class FocusTimer:
         seconds = self._frac_ms // 1000
         if seconds <= 0:
             return
-        self._frac_ms -= seconds * 1000
         key = self._today_key() or self._last_key    # keep counting if the clock is being edited
         if key is None:
-            return
+            return                     # no date yet (a restart, the clock not synced): the time waits for one
+        self._frac_ms -= seconds * 1000
         self._last_key = key
         self._use_day(key)
         self._day_secs += seconds
@@ -179,6 +224,27 @@ class FocusTimer:
 
     # ---------------- persistence ----------------
 
+    def _mark_running(self, on):
+        """The file that says "it was running" across a restart (see _carry_on)."""
+        try:
+            if on:
+                if self._ensure_dir():
+                    with open(self._running_file, "w") as f:
+                        f.write("1")
+            else:
+                os.remove(self._running_file)
+        except OSError:
+            pass
+
+    def _carry_on(self):
+        """At start-up: running before a restart = running now (counting from now)."""
+        try:
+            os.stat(self._running_file)
+        except OSError:
+            return
+        self._run()
+        log("[FOCUS] was running before the restart: counting on")
+
     def _recover(self):
         """A save of the old kind (rewrite through focus.tmp) interrupted between remove and rename: keep the tmp."""
         try:
@@ -205,7 +271,7 @@ class FocusTimer:
                     try:
                         key, secs = line.split(",")
                         secs = int(secs)
-                        if len(key) != 10 or key[4] != "-" or key[7] != "-" or secs < 0:
+                        if len(key) != 10 or key[4] != "-" or key[7] != "-":         # (secs < 0: taken back)
                             raise ValueError
                     except Exception:
                         bad += 1
@@ -217,6 +283,9 @@ class FocusTimer:
             return days
         if bad:
             log(f"[FOCUS] {bad} bad line(s) in {self._file} skipped")
+        for key in days:
+            if days[key] < 0:
+                days[key] = 0                       # more taken back than counted (a line lost): nothing, not less
         if only is None and lines > len(days):
             self._write_all(days)
         return days

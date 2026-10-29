@@ -19,6 +19,7 @@ python3 -m unittest tools/tests/test_i18n.py         # (any of them also runs th
 | `test_ble_auto.py` | la synchronisation automatique : créneaux sur l'horloge, le nœud comme source d'alarmes, sauter une radio occupée |
 | `test_web_protocol.py` | le codec JavaScript de la page Web Bluetooth donne les mêmes octets que `ble/protocol.py` (il faut `node`) |
 | `test_checklist.py`, `test_routines.py` | les listes à cocher (lignes `>`, coches gardées à part), les routines et leurs jours |
+| `test_cardputer_hw.py`, `test_hourglass_bars.py`, `test_battery.py`, `test_focus_wins.py` | la matrice de touches du premier Cardputer et le DS3231 sur des imitations ; le sablier et les barres du temps de l'horloge ; `test_battery.py` : la charge devinée d'après la tension, les alertes de batterie, la lueur de la LED ; `test_focus_wins.py` : le temps de concentration retiré, le journal des réussites, le double / triple toucher de la montre |
 | `test_appconfig.py` | `config.txt` : lecture, écriture, commentaires, valeurs par défaut changées par une version plus récente |
 | `test_i18n.py` | recherche, retour à l'anglais, modèles (`fill`), le `lang_<code>.tsv` propre à l'utilisateur |
 | `test_st7789_strips.py` | l'écran dessiné en bandes donne la même image que le tampon complet (MicroPython seulement : `framebuf`, viper - ignoré sous CPython) |
@@ -41,6 +42,17 @@ quand le code dort, et les `/sd` et `/flash` de l'appareil dans un dossier. Comp
   tools/sim/compare.sh <micropython> "/tmp/base/Squirrel!" "$PWD" /tmp/simwork      # IDENTICAL / DIFFERENT
   ```
 
+- **Chaque écran, en profondeur** (après un changement de l'interface ou d'une traduction) : `crawl_scenario.py` ouvre
+  chaque entrée de menu, chaque écran avec quelques touches, chaque réglage de Personnaliser, chaque élément des listes et
+  les notifications ; avec `SQUIRREL_SIM_TOUCH=1` la même app comme sur un écran tactile 240 x 240, chaque bouton touché
+  (rendu avec `--height 240`). `check_trace.py` liste le texte hors de l'écran et l'anglais resté dans une autre langue :
+
+  ```bash
+  SQUIRREL_SIM_SCENARIO=tools/sim/crawl_scenario.py <micropython> -X heapsize=16M tools/sim/run_sim.py "$PWD" /tmp/c /tmp/c.txt
+  python3 tools/sim/check_trace.py /tmp/c.txt --lang de                        # OFF / ENGLISH / ERROR findings
+  python3 tools/sim/render_shots.py /tmp/c.txt /tmp/c-shots                    # the pictures, named by place
+  ```
+
 - **Les captures du Cardputer** pour les guides : un scénario de 34 états, avec un contenu d'exemple dans la langue du
   `config.txt` du dossier de travail (`LANGUAGE=fr` ...), transformé en fichiers PNG :
 
@@ -61,7 +73,7 @@ Ferme d'abord Thonny (il occupe le port). `ls /dev/serial/by-id/` nomme les port
 | Outil | Ce qu'il fait |
 |---|---|
 | `tools/hwtest/run.py PORT SCRIPT [TEST ...]` | lance un script de test matériel par le REPL et montre ses résultats en direct : `RESULT\|test\|PASS / FAIL / INFO / ASK / SKIP\|details` (ASK : confirme ce que tu as vu, entendu ou senti) ; un journal dans `.build/hwtest/`. `PORT` peut être `auto`. Un script ne tourne que sur l'appareil nommé dans sa première ligne (`# EXPECT_MACHINE: ...`) |
-| `twatch_hw.py`, `twatch_accel.py`, `cardputer_accel.py` | les scripts : les puces de la montre une à une (PMU, écran, tactile, horloge, vibration), les accéléromètres |
+| `twatch_hw.py`, `twatch_accel.py`, `cardputer_accel.py`, `cardputer_hw.py` | les scripts : les puces de la montre une à une (PMU, écran, tactile, horloge, vibration), les accéléromètres ; `cardputer_hw.py` : le DS3231 sur le port Grove (les deux Cardputer), les touches et la LED du premier Cardputer |
 | `twatch_gfx_bench.py` | la vitesse de dessin du pilote d'écran de la montre |
 | `tools/hwtest/twatch_phase0.sh PORT` | avant le premier flashage d'une montre : identifiants de la puce et de la flash, une copie complète de 16 Mo de la flash avec son MD5 (restaure le logiciel d'usine) |
 | `tools/hwtest/twatch_screens.py PORT --lang fr` | des captures des écrans de la montre lues dans son tampon d'image vers `shots/twatch/<lang>/` (il écrit une liste à cocher d'exemple et la supprime ensuite) |

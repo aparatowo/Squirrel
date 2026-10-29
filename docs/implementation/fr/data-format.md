@@ -242,3 +242,7 @@ enregistrements passent en clair** - voir [bluetooth.md](bluetooth.md) §6.
 | note | `notes/<name>.txt`, `notes/meta.json` (`{name: {id, e}}`) | |
 | stat | `focus/routines.txt`, `focus/todos.txt`, `focus/focus.txt` (secondes -> minutes), pas | `focus/peers/<slot>/` - les statistiques des autres appareils sur le chef |
 | settings | `config.txt` | |
+
+Pas des enregistrements (pas encore) : le journal des réussites, `wins/AAAA-MM-JJ.txt` (un jour : la date, puis des
+lignes `-` / `>` = choses faites) reste sur l'appareil. `focus/focus.txt` peut avoir des lignes négatives
+(`2026-10-19,-900`) : du temps de concentration retiré ; les lignes d'un jour s'additionnent, jamais sous zéro.

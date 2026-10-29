@@ -18,7 +18,7 @@ en	pl
 % for the metronome	% dla metronomu
 % for the quarter tick	% dla kwadransów
 % for voice notes	% dla notatek głosowych
-% of full brightness; bright colours are\nlimited by LED_MAX_SUM (nuts.py)	% pełnej jasności; jasne kolory\nogranicza LED_MAX_SUM (nuts.py)
+% of full brightness; bright colours\nare limited by LED_MAX_SUM (nuts.py)	% pełnej jasności; jasne kolory\nogranicza LED_MAX_SUM (nuts.py)
 % of normal brightness; 0 = off	% zwykłej jasności; 0 = wyłączony
 %d blocks	%d bloków
 %d blocks, %s in all	%d bloków, razem %s
@@ -26,6 +26,8 @@ en	pl
 %d h ago	%d godz. temu
 %d log entries	%d wpisów logu
 %d min ago	%d min temu
+%d ms on / off	%d ms wł. / wył.
+%d s up and down	%d s w górę i w dół
 %d settings	%d ustawień
 %d to %d   default %s	%d do %d   domyślnie %s
 %d to %d, default %s	%d do %d, domyślnie %s
@@ -46,6 +48,8 @@ en	pl
 + [Add network]	+ [Dodaj sieć]
 + [New item]	+ [Nowy]
 + [New routine]	+ [Nowa rutyna]
++ [Today]	+ [Dzisiaj]
+-%d min	-%d min
 0 = the firmware default	0 = domyślne firmware
 1-255; 0 = as the device starts	1-255; 0 = jak przy starcie
 <> day   ENTER tick   ESC done	<> dzień   ENTER zaznacz   ESC gotowe
@@ -53,8 +57,10 @@ en	pl
 <> hour/min   up/down change   ENTER ok	<> godz/min   góra/dół zmień   ENTER ok
 <> interval  up/down volume	<> odstęp  góra/dół głośność
 <> step  R D S B  ESC back	<> krok  R D S B  ESC wróć
-A night counts for the day it starts	Noc liczy się do dnia, w którym się zaczyna
+A lightning mark by the battery bar\nwhile it charges (Cardputer: needs\nCharge detection, Experimental)	Błyskawica przy belce baterii podczas\nładowania (Cardputer: potrzebne\nWykrywanie ładowania, Eksperymentalne)
+A night counts for the day it starts	Noc liczy się do dnia, gdy się zaczyna
 A quiet tick every 15 minutes	Ciche tyknięcie co 15 minut
+A warning at 15%, 10%, 5% and\nright before the battery runs out	Ostrzeżenie przy 15%, 10%, 5% i tuż\nprzed rozładowaniem baterii
 ALT+letter layout	Układ ALT+litera
 Accent colour	Kolor akcentu
 Active: 	Aktywna: 
@@ -62,6 +68,7 @@ Add device	Dodaj urządzenie
 Alarm	Alarm
 All reset	Wszystko przywrócone
 All settings reset	Wszystkie ustawienia przywrócone
+Almost empty - charge it now!	Prawie pusta - naładuj teraz!
 Already default	Już domyślne
 Already the default	To już wartość domyślna
 Audio	Dźwięk
@@ -74,19 +81,27 @@ Bars from edge	Belki od krawędzi
 Bars in menus	Belki w menu
 Bars on clock	Belki na zegarze
 Bars shift down	Belki w dół
+Battery	Bateria
 Battery % from which it is green	% baterii, od którego jest zielona
 Battery % from which it is yellow;\nbelow: red	% baterii, od którego jest żółta;\nponiżej: czerwona
-Battery % from which the bar is blue	% baterii, od którego belka jest niebieska
+Battery % from which the bar is blue	% baterii, od którego jest niebieska
 Battery and focus bars on the clock	Belki baterii i skupienia na zegarze
 Battery log	Log baterii
+Battery low: %d%%	Słaba bateria: %d%%
+Battery warnings	Ostrzeż. baterii
+Battery: blink	Bateria: mrug.
 Battery: blue	Bateria: nieb.
+Battery: colour	Bateria: kolor
 Battery: green	Bateria: ziel.
+Battery: mode	Bateria: tryb
 Battery: yellow	Bateria: żółta
 Be visible (for a phone)	Bądź widoczny (dla telefonu)
 Blink intervals	Odstępy mrugania
 Bluetooth	Bluetooth
 Bluetooth failed: %s	Bluetooth nie działa: %s
 Bluetooth sync	Synchr. Bluetooth
+Bottom bar	Dolna belka
+Bottom bar colour	Kolor dolnej belki
 Box 4-4-4-4	Kwadrat 4-4-4-4
 Break	Przerwa
 Breathe in	Wdech
@@ -110,13 +125,15 @@ Characters in a note title	Znaki w tytule notatki
 Characters in one To-Do	Znaki w jednym To-Do
 Characters in one note	Znaki w jednej notatce
 Characters in one thought	Znaki w jednej myśli
-Charging light	Światło ładowania
+Charge detection	Wykrywanie ładow.
+Charging mark	Znak ładowania
 Click	Klik
 Clock date X	Data zegara X
 Clock date Y	Data zegara Y
 Clock footer X	Stopka zegara X
 Clock footer Y	Stopka zegara Y
 Clock footer text	Tekst stopki
+Clock module	Moduł zegara
 Clock time X	Czas zegara X
 Clock time Y	Czas zegara Y
 Close	Zamknij
@@ -169,7 +186,7 @@ ESC to go back	ESC, by wrócić
 EU summer time	Czas letni UE
 Edit	Edycja
 Edit network	Edytuj sieć
-Energy data every 10 min in battery.csv\non the SD card; never sent anywhere	Dane energii co 10 min w battery.csv\nna karcie SD; nigdzie nie wysyłane
+Energy data every 10 min: battery.csv\non the SD card; never sent anywhere	Dane energii co 10 min w battery.csv\nna karcie SD; nigdzie nie wysyłane
 Enter text:	Wpisz tekst:
 Error colour	Kolor błędu
 Every setting goes back	Każde ustawienie wróci
@@ -179,7 +196,6 @@ FINISHED	KONIEC
 FN + arrows: cursor	FN + strzałki: kursor
 Failed: %s	Błąd: %s
 Fallback WiFi name	Zapasowa sieć
-Fallback network	Sieć zapasowa
 Fallback password	Zapasowe hasło
 File: %d bytes	Plik: %d bajtów
 File: found	Plik: znaleziony
@@ -187,7 +203,10 @@ File: not found (fonts/squirrel.vlw)	Plik: brak (fonts/squirrel.vlw)
 Flash	Błysk
 Focus	Skupienie
 Focus ON	Skupienie WŁ.
+Focus bar from	Belka skupienia od
 Focus dot	Kropka skupienia
+Focus is not on	Skupienie nie jest wł.
+Focus is on already	Skupienie już trwa
 Focus paused	Skupienie wstrzymane
 Focus resumed	Skupienie wznowione
 Focus tools	Skup się
@@ -204,11 +223,17 @@ From = Until (00:00) = no silence	Od = Do (00:00) = bez ciszy
 From:  	Od:    
 Getting time...	Pobieranie czasu...
 Goal % below which it is yellow;\nthen green, blue at 100	% celu, poniżej którego jest żółta;\npotem zielona, niebieska przy 100
-Goal % below which the bar is red	% celu, poniżej którego belka jest czerwona
-Green breathing in, blue out	Zielone na wdechu, niebieskie na wydechu
+Goal % below which the bar is red	% celu, poniżej którego jest czerwona
+Green breathing in, blue out	Wdech: zielone, wydech: niebieskie
+Guess charging from the battery's\nvoltage (and a computer on the USB):\nthe device cannot tell. Experimental	Zgaduje ładowanie z napięcia baterii\n(i z komputera na USB): urządzenie\ntego nie mówi. Eksperymentalne
 HOUR	GODZ
 Hard	Mocno
 Hold	Zatrzymaj
+Hourglass	Klepsydra
+Hourglass minutes	Minuty klepsydry
+Hourglass: blink	Klepsydra: mrug.
+Hourglass: colour	Klepsydra: kolor
+Hourglass: mode	Klepsydra: tryb
 Keep done To-Dos	Trzymaj zrobione
 Kept: used at every start	Zachowano: przy każdym starcie
 Key calibration	Kalibracja klawiszy
@@ -232,6 +257,7 @@ Long	Długi
 Long break	Długa przerwa
 Looking for a network...	Szukam sieci...
 Looking for nuts...	Szukam orzechów...
+Low battery	Słaba bateria
 MIN	MIN
 MON	MIES
 MTWTFSS	PWŚCPSN
@@ -254,6 +280,8 @@ Minutes dimmed before a deep sleep\n(not while Pomodoro / metronome run)	Minuty 
 Minutes of a short break	Minuty krótkiej przerwy
 Minutes of focus a day	Minuty skupienia dziennie
 Minutes of one work block	Minuty jednego bloku pracy
+Minutes taken back from today's focus\nafter a distraction (Statistics: -)	Minuty odejmowane od dzisiejszego\nskupienia po rozproszeniu\n(Statystyki: -)
+Minutes the hourglass is set to;\nits screen changes it too	Minuty, na które jest ustawiona\nklepsydra; zmienia je też jej ekran
 Minutes; 0 = only on demand. On the\nclock (every 60: at full hours). The\nwatch wakes for it: each sync costs\nabout 1 mAh of its battery	Minuty; 0 = tylko na żądanie. Według\nzegara (co 60: o pełnych godzinach).\nZegarek się budzi: każda synchr.\nto ok. 1 mAh jego baterii
 Minutes; Poland: 60 (summer time\nis added by EU summer time)	Minuty; Polska: 60 (czas letni\ndodaje Czas letni UE)
 Minutes; after the last block\nof a round	Minuty; po ostatnim bloku\nrundy
@@ -285,6 +313,7 @@ Note viewer footer. Pixels;\nmore = lower	Stopka podglądu notatki. Piksele;\nwi
 Note viewer footer. Pixels;\nmore = to the right	Stopka podglądu notatki. Piksele;\nwięcej = w prawo
 Notes	Notatki
 Nothing planned: routines, cuckoo	Nic nie zaplanowano: rutyny, kukułka
+Nothing to remove	Nie ma czego odjąć
 Notification sound	Dźwięk powiadomień
 Notifications	Powiadomienia
 Notify volume	Głośność powiad.
@@ -299,7 +328,8 @@ OPT = done   ENTER = edit	OPT = zrobione   ENTER = edycja
 OPT = keep it (%ds)	OPT = zostaw (%ds)
 Of the fallback network (hidden)	Sieci zapasowej (ukryte)
 Off	Wyłączone
-Only where charging is reported\n(not on the Cardputer ADV)	Tylko tam, gdzie widać ładowanie\n(nie na Cardputerze ADV)
+On the clock. hourglass: its progress\n(the hour while it is not set); hour:\nthe hour going by; full: a plain bar	Na zegarze. klepsydra: jej postęp\n(godzina, gdy nie jest ustawiona);\ngodzina: upływ godziny; pełna: stała
+On the clock. quarter: the quarter\nhour going by, from the right; full:\na plain bar	Na zegarze. kwadrans: upływ kwadransa,\nod prawej; pełna: stała belka
 PAUSED	PAUZA
 PLAYING	ODTWARZANIE
 Pairing code:	Kod parowania:
@@ -367,11 +397,11 @@ Saved Keymap!	Zapisano mapę klawiszy!
 Saved to Mind dump!	Zapisano w Mind dump!
 Saved!	Zapisano!
 Screen	Ekran
-Seconds between beats;\n0.125 = 1/8 s, 0.25 = 1/4 s, 0.5 = 1/2 s	Sekundy między uderzeniami;\n0.125 = 1/8 s, 0.25 = 1/4 s, 0.5 = 1/2 s
+Seconds between beats; 0.125 = 1/8 s,\n0.25 = 1/4 s, 0.5 = 1/2 s	Sekundy między uderzeniami; 0.125 =\n1/8 s, 0.25 = 1/4 s, 0.5 = 1/2 s
 Seconds without a key; 0 = never	Sekundy bez klawisza; 0 = nigdy
 Securing the link: %s	Zabezpieczanie łącza: %s
 Set in config.txt	Ustaw w config.txt
-Set the clock over WiFi at start\nwhen there is no DS1302	Ustaw zegar przez WiFi przy starcie,\ngdy nie ma DS1302
+Set the clock over WiFi at start\nwhen there is no clock module	Ustaw zegar przez WiFi przy starcie,\ngdy nie ma modułu zegara
 Set time	Ustaw czas
 Set time first (Settings)	Najpierw ustaw czas (Ustawienia)
 Set time first!	Najpierw ustaw czas!
@@ -393,7 +423,7 @@ Silent: sound	Cisza: dźwięk
 Skip	Pomiń
 Sleep mode	Tryb uśpienia
 Sleep mode is not 'deep' (Personalize)	Tryb uśpienia nie jest 'głęboki'
-Slower CPU while the screen is dimmed	Wolniejszy procesor przy ściemnionym ekranie
+Slower CPU while the screen is dimmed	Wolniejszy CPU, gdy ekran przygasa
 Smooth fade	Płynne wygaszanie
 Snoozed: %s	Odłożona: %s
 Sound	Dźwięk
@@ -408,20 +438,27 @@ Step %d/%d	Krok %d/%d
 Stop	Stop
 Stopped	Zatrzymano
 Su	Nd
+Success journal	Dziennik sukcesu
 Sun	Nd
+Sure?	Pewne?
 Switch off	Wyłącz
 Sync RTC	Synchr. RTC
 Sync now	Synchronizuj teraz
 Synced %02d:%02d %02d-%02d-%04d	Zsynchr. %02d:%02d %02d-%02d-%04d
 Synced %d of %d	Zsynchronizowano %d z %d
 TICKING	TYKA
+Take back minutes	Odejmij minuty
 Test notification	Test powiadomienia
 Test sound	Test dźwięku
 Text notes	Notatki tekstowe
 Text: 	Tekst: 
 Th	Cz
+The clock module plugged in (it keeps\nthe time while the power is off);\noff = none: its code is not loaded	Podłączony moduł zegara (trzyma czas\nbez zasilania); wył. = brak: jego kod\nnie jest ładowany
+The clock's focus bar fills from the\nbottom, or from the top (classic)	Belka skupienia na zegarze rośnie od\ndołu albo od góry (klasycznie)
+The colour of the time gone by	Kolor czasu, który upłynął
 The language of every screen.\nAny but English turns the font on\n(for the accented letters)	Język wszystkich ekranów.\nInny niż angielski włącza czcionkę\n(litery z ogonkami)
 The name is required	Nazwa jest wymagana
+The warning with a sound (the buzzer:\nBuzzer -> Low battery)	Ostrzeżenie z dźwiękiem (brzęczyk:\nBrzęczyk -> Słaba bateria)
 This device	To urządzenie
 This is a test. OPT = done, DEL = cancel	To test. OPT = zrobione, DEL = anuluj
 Thu	Cz
@@ -429,6 +466,7 @@ Time	Czas
 Time Set!	Czas ustawiony!
 Time and date	Czas i data
 Time from a device	Czas z urządzenia
+Time is up!	Czas minął!
 Time settings	Ustawienia czasu
 Time via WiFi	Czas przez WiFi
 Time: %02d:%02d	Czas: %02d:%02d
@@ -436,8 +474,11 @@ Title Required!	Tytuł jest wymagany!
 To-Do list	Lista To-Do
 To-Do max length	Długość To-Do
 To-Do title length	Tytuł To-Do
+Today zeroed	Dzień wyzerowany
 Together	Razem
 Too short - not saved	Za krótkie - nie zapisano
+Top bar	Górna belka
+Top bar colour	Kolor górnej belki
 Training	Trening
 Training blocks	Bloki treningu
 Triple	Potrójny
@@ -452,7 +493,7 @@ Until	Do
 Until: 	Do:    
 Updated	Zaktualizowano
 Use font	Użyj czcionki
-Used when no saved network is in range	Gdy żadna zapisana sieć nie jest w zasięgu
+Used when no saved network is in range	Gdy żadnej zapisanej sieci nie ma
 Viewer footer X	Stopka podglądu X
 Viewer footer Y	Stopka podglądu Y
 Voice notes	Notatki głosowe
@@ -460,16 +501,22 @@ Vol: %3d%%	Głośn.: %3d%%
 Volume	Głośność
 Waiting for the squirrel	Czekam na wiewiórkę
 Warning colour	Kolor ostrzeżeń
+Warning sound	Dźwięk ostrzeżenia
 We	Śr
 Wed	Śr
+When the hourglass runs out (also in\nthe silent hours: it was set by hand)	Gdy klepsydra się skończy (także w\ngodzinach ciszy: ustawiono ją ręcznie)
 WiFi networks	Sieci WiFi
 WiFi scan failed: %s	Skanowanie WiFi nie działa: %s
 WiFi start failed: %s	Start WiFi nie działa: %s
 WiFi sync at start	WiFi przy starcie
+With the low-battery warnings\n(Power -> Battery warnings)	Razem z ostrzeżeniami baterii\n(Zasilanie -> Ostrzeż. baterii)
 Work	Praca
 Work blocks in one round	Bloki pracy w jednej rundzie
 Write something first!	Najpierw coś napisz!
 YEAR	ROK
+Zero	Zeruj
+Zero? Once more	Zerować? Ponów
+[-] -%d min  [DEL] zero today	[-] -%d min  [DEL] zeruj dzień
 [CTRL+S] Save | [ESC] Discard	[CTRL+S] Zapisz | [ESC] Odrzuć
 [CTRL+S] Save | [ESC] Exit	[CTRL+S] Zapisz | [ESC] Wyjdź
 [DEL] Delete	[DEL] Usuń
@@ -498,13 +545,15 @@ alarm	alarm
 allowed	dozwolone
 any other key = undo	inny klawisz = cofnij
 auto	auto
+auto = alarm	auto = alarm
 auto = double on the hour, click\nfor the quarters	auto = podwójny o pełnej godzinie,\nklik co kwadrans
-auto = double, triple (hard block),\nlong (break)	auto = podwójny, potrójny (mocny blok),\ndługi (przerwa)
-auto = short every 4th beat,\nclick on the others	auto = krótki co 4. uderzenie,\nklik w pozostałe
+auto = double, triple (hard block),\nlong (break)	auto = podwójny, potrójny (mocny),\ndługi (przerwa)
+auto = double; alarm when it is\nalmost empty	auto = podwójny; alarm, gdy prawie\npusta
 auto = the feature's own signal	auto = własny sygnał funkcji
 bat %d%%%s	bat %d%%%s
 black	czarny
 blue	niebieski
+bottom	od dołu
 click	klik
 clock set there	ustawiono tam zegar
 clock taken	pobrano czas
@@ -518,6 +567,8 @@ deep	głęboki
 digits, then ENTER   [ESC] Stop	cyfry, potem ENTER   [ESC] Stop
 disconnected	rozłączono
 double	podwójny
+ds1302	DS1302
+ds3231	DS3231
 en	en
 every %d h	co %d godz.
 every %d min	co %d min
@@ -526,11 +577,15 @@ flash	błysk
 focus %d:%02d/%d:%02d	skupienie %d:%02d/%d:%02d
 fr	fr
 frames %d	ramki %d
+full	pełna
 goal %dh	cel %dh
 gray	szary
 green	zielony
+green %d / 255	zielony %d / 255
 hidden   up to %d characters	ukryte   do %d znaków
 hold = done	przytrzymaj = zrobione
+hour	godzina
+hourglass	klepsydra
 its default value.	swojej wartości domyślnej.
 joined as %d	dołączono jako %d
 just now	przed chwilą
@@ -540,6 +595,8 @@ lightgray	jasnoszary
 lightgreen	jasnozielony
 long	długi
 magenta	purpurowy
+minutes	minuty
+network not found	nie znaleziono sieci
 never	nigdy
 next %s %s	potem %s %s
 no	nie
@@ -562,6 +619,7 @@ paused	pauza
 pl	pl
 protocol %d, this device speaks %d	protokół %d, to urządzenie zna %d
 pulse	puls
+quarter	kwadrans
 received %d  sent %d	odebrano %d  wysłano %d
 red	czerwony
 routines %d/%d	rutyny %d/%d
@@ -571,6 +629,7 @@ short	krótki
 silent	cisza
 sos	sos
 step %d of %d	krok %d z %d
+successes: today %d, 7 days %d	sukcesy: dziś %d, 7 dni %d
 switched off afterwards.	potem wyłączone.
 text	tekst
 text = the colour of the text	tekst = kolor tekstu
@@ -580,12 +639,25 @@ the node refused (%d)	urządzenie odmówiło (%d)
 the node refused a write (%d) - not paired?	urządzenie odmówiło zapisu (%d) - niesparowane?
 to its default value.	do wartości domyślnej.
 todo %d/%d	todo %d/%d
+top	od góry
 triple	potrójny
 type it on the squirrel	wpisz go na wiewiórce
 up to %d characters	do %d znaków
 up to date	aktualne
+up/down 1 min  <> 5 min  0-9 minutes	góra/dół 1 min  <> 5 min  0-9 minuty
 volume	głośność
 white	biały
+white %d	biały %d
 wrong code	zły kod
+wrong password	złe hasło
 yellow	żółty
 yes	tak
+Clock 1x:xx X	Zegar 1x:xx X
+Pixels for 10:00 - 19:59, whose '1'\nis only its right side; minus = left,\n0 = off	Piksele dla 10:00 - 19:59, gdzie '1'\nto tylko prawa strona; minus = w lewo,\n0 = wył.
+Metronome sound	Dźwięk metronomu
+tone	ton
+[S] sound: %s	[S] dźwięk: %s
+auto = a click on every beat	auto = klik na każde uderzenie
+tone: a short beep; click: a dry\nclick, like a clock's (S on the\nmetronome's screen)	ton: krótki pisk; klik: suche\ncyknięcie, jak w zegarze (S na\nekranie metronomu)
+light: sleeps while dimmed. The USB\nconsole drops; after a sound the\nspeaker ticks faintly (by the ear)	light: śpi przy wygaszonym ekranie.\nKonsola USB znika; po dźwięku głośnik\ncicho cyka (słychać przy uchu)
+Hidden	Ukryte

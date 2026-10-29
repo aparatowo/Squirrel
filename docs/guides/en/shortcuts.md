@@ -22,10 +22,11 @@ as modifiers (Aa = capital letters, ALT + a letter = a Polish / German letter, s
 | Cardputer | Watch | What it does |
 |---|---|---|
 | any other key | tap | the main menu |
-| OPT | hold | start / pause the focus timer |
+| OPT | double tap / triple tap | start / pause the focus timer (the watch: a double tap starts it, a triple tap pauses it - on a lit screen: a tap on a dark one only wakes it) |
 | **Aa** | **swipe down** | **quick sync**: the Cardputer syncs every Bluetooth device and comes back; the watch waits for the Cardputer and comes back |
 | CTRL, then T | — | a new To-Do (one key after the other) |
 | CTRL, then N | — | a new text note |
+| CTRL, then J | — | today's success journal (a new line ready) |
 | **TAB** | — | **the TAB menu** (below) |
 
 ### The TAB menu (Cardputer)
@@ -37,6 +38,7 @@ A small menu over the clock. **TAB** or UP / DOWN move, ENTER opens, ESC closes;
 | M | Mind dump — a quick thought, ENTER saves it and you are back on the clock |
 | T | To-Do list |
 | N | Text notes |
+| J | Success journal - today's list |
 | V | Voice notes |
 | S | Quick sync (as Aa) |
 
@@ -62,9 +64,10 @@ A small menu over the clock. **TAB** or UP / DOWN move, ENTER opens, ESC closes;
 | Screen | Keys |
 |---|---|
 | Pomodoro, Training | ENTER start / pause, DEL stop, ESC leave (the timer keeps running). Training: RIGHT edits the blocks (UP / DOWN a block, LEFT / RIGHT shorter / longer, ENTER colour, DEL remove, ESC save) |
-| Metronome | LEFT / RIGHT the interval, UP / DOWN volume, ENTER start / stop |
+| Hourglass | UP / DOWN one minute more / less, LEFT / RIGHT five, digits type the minutes, ENTER start / pause, DEL stop, ESC leave (it keeps running). Watch: − / + (hold: faster), Start, Pause, Stop |
+| Metronome | LEFT / RIGHT the interval, UP / DOWN volume, S beep / click, ENTER start / stop |
 | Breathing | LEFT / RIGHT the exercise, ENTER start / stop |
-| Statistics | ENTER start / pause the focus timer; LEFT / RIGHT: this device / each synced device / together |
+| Statistics | ENTER start / pause the focus timer; **-** takes 15 minutes back (a distraction), DEL twice zeroes today (watch: *-15*, *Zero* tapped twice); LEFT / RIGHT: this device / each synced device / together |
 | Routines | ENTER open / new; in a routine ENTER edits a row (time: LEFT / RIGHT hour or minutes, UP / DOWN change; days: LEFT / RIGHT a day, ENTER tick). Watch: a tap switches a routine on / off |
 | A routine is due | OPT done, DEL skip; no answer for 30 s = it comes back later |
 

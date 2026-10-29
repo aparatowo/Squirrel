@@ -171,6 +171,12 @@ class TouchList:
         Lcd.setTextColor(theme["ACCENT"] if selected else theme["FG"], bg)
         cols = (w - 8) // 12
         if sub is None:
+            if len(text) > cols and h >= 36:
+                first, rest = _split(text, cols)          # too long for a line ("Zeit von einem Gerät"): two of them
+                gap = (h - 32) // 3
+                Lcd.drawString(first, 4, y + gap)
+                Lcd.drawString(rest[:cols], 4, y + 2 * gap + 16)
+                return
             Lcd.drawString(text[:cols], 4, y + (h - 16) // 2)
             return
         gap = (h - 32) // 3
@@ -179,14 +185,31 @@ class TouchList:
         Lcd.setTextColor(theme[sub_color], bg)
         Lcd.drawString(sub, w - 4 - 12 * len(sub), y + 2 * gap + 16)
 
-    def notice(self, theme, text):
-        """A message over the bottom of the list (what was saved ...)."""
+    def notice(self, theme, text, bottom=None):
+        """A message over the bottom of the list (what was saved ...); `bottom`: the y it ends at (above a row of
+        buttons, so they stay visible), the screen's bottom by default."""
         w, h = Lcd.screen_size()
-        Lcd.fillRect(0, h - 28, w, 28, theme["WARNING"])
+        bottom = h if bottom is None else bottom
+        Lcd.fillRect(0, bottom - 28, w, 28, theme["WARNING"])
         Lcd.setTextSize(2)
         Lcd.setTextColor(theme["BG"], theme["WARNING"])
         text = text[:(w - 8) // 12]
-        Lcd.drawString(text, (w - 12 * len(text)) // 2, h - 22)
+        Lcd.drawString(text, (w - 12 * len(text)) // 2, bottom - 22)
+
+
+def _split(text, cols):
+    """(first line, the rest) of a text too long for one line of `cols` characters: at a space or after a hyphen - the
+    latest one after which the rest fits a line too, else the latest at all; without either, simply at `cols`."""
+    cuts = []                                       # (first line, rest)
+    for i, c in enumerate(text[:cols + 1]):
+        if c == " ":
+            cuts.append((text[:i], text[i + 1:]))
+        elif c == "-" and i < cols:
+            cuts.append((text[:i + 1], text[i + 1:]))
+    fitting = [cut for cut in cuts if len(cut[1]) <= cols]
+    if fitting:
+        return fitting[-1]
+    return cuts[-1] if cuts else (text[:cols], text[cols:])
 
 
 def header_tapped(keypad):

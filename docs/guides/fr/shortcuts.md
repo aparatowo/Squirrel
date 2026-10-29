@@ -23,10 +23,11 @@ Clavier → Clavier ALT+lettre*).
 | Cardputer | Montre | Ce que ça fait |
 |---|---|---|
 | toute autre touche | toucher | le menu principal |
-| OPT | appui long | lancer / mettre en pause le compteur de concentration |
+| OPT | double / triple toucher | lancer / mettre en pause le compteur de concentration (la montre : un double toucher le lance, un triple le met en pause - sur un écran allumé : un toucher sur un écran sombre ne fait que le réveiller) |
 | **Aa** | **glisser vers le bas** | **synchro rapide** : le Cardputer synchronise chaque appareil Bluetooth et revient ; la montre attend le Cardputer et revient |
 | CTRL, puis T | — | une nouvelle tâche (une touche après l'autre) |
 | CTRL, puis N | — | une nouvelle note texte |
+| CTRL, puis J | — | le journal des réussites du jour (une nouvelle ligne prête) |
 | **TAB** | — | **le menu TAB** (ci-dessous) |
 
 ### Le menu TAB (Cardputer)
@@ -38,6 +39,7 @@ Un petit menu par-dessus l'horloge. **TAB** ou UP / DOWN déplacent, ENTER ouvre
 | M | Vide-tête — une pensée rapide, ENTER l'enregistre et tu reviens à l'horloge |
 | T | Liste To-Do |
 | N | Notes texte |
+| J | Journal des réussites - la liste du jour |
 | V | Notes vocales |
 | S | Synchro rapide (comme Aa) |
 
@@ -63,9 +65,10 @@ Un petit menu par-dessus l'horloge. **TAB** ou UP / DOWN déplacent, ENTER ouvre
 | Écran | Touches |
 |---|---|
 | Pomodoro, Entraînement | ENTER démarrer / pause, DEL arrêter, ESC quitter (le minuteur continue). Entraînement : RIGHT modifie les blocs (UP / DOWN un bloc, LEFT / RIGHT plus court / plus long, ENTER couleur, DEL supprimer, ESC enregistrer) |
-| Métronome | LEFT / RIGHT l'intervalle, UP / DOWN le volume, ENTER démarrer / arrêter |
+| Sablier | UP / DOWN une minute de plus / de moins, LEFT / RIGHT cinq, les chiffres tapent les minutes, ENTER démarrer / pause, DEL arrêter, ESC quitter (il continue). Montre : − / + (maintenir : plus vite), Démarrer, Pause, Arrêter |
+| Métronome | LEFT / RIGHT l'intervalle, UP / DOWN le volume, S bip / clic, ENTER démarrer / arrêter |
 | Respiration | LEFT / RIGHT l'exercice, ENTER démarrer / arrêter |
-| Statistiques | ENTER démarrer / mettre en pause le compteur de concentration ; LEFT / RIGHT : cet appareil / chaque appareil synchronisé / ensemble |
+| Statistiques | ENTER démarrer / mettre en pause le compteur de concentration ; **-** retire 15 minutes (une distraction), DEL deux fois remet la journée à zéro (montre : *-15*, *Zéro* touché deux fois) ; LEFT / RIGHT : cet appareil / chaque appareil synchronisé / ensemble |
 | Routines | ENTER ouvrir / nouvelle ; dans une routine ENTER modifie une ligne (heure : LEFT / RIGHT heures ou minutes, UP / DOWN changer ; jours : LEFT / RIGHT un jour, ENTER cocher). Montre : un toucher active / désactive une routine |
 | C'est l'heure d'une routine | OPT fait, DEL passer ; pas de réponse pendant 30 s = elle revient plus tard |
 

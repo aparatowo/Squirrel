@@ -1,4 +1,15 @@
-# esp32.py - fake RMT / NVS
+# esp32.py - fake RMT / NVS / light-sleep wake sources
+WAKEUP_ALL_LOW = False
+WAKEUP_ANY_HIGH = True
+
+
+def wake_on_ext0(pin, level):
+    pass
+
+
+def wake_on_ext1(pins, level):
+    pass
+
 class RMT:
     def __init__(self, *a, **k):
         pass

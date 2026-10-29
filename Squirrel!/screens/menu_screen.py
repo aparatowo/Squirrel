@@ -3,7 +3,7 @@ from boot_log import log
 from gfx import Lcd
 from screens.base_screen import BaseScreen
 from appconfig import cfg
-from menu_tree import MENUS, COLLECTIONS, PARENTS, RTC_CHIP
+from menu_tree import MENUS, COLLECTIONS, PARENTS
 from features import has
 from ui.touch import has_touch, TouchList
 from i18n import _
@@ -12,7 +12,8 @@ from charmap import pad
 # A touch screen (the watch): rows a finger can hit, on the whole panel; a tap on a row opens it, a tap on the title
 # goes back, a long press ticks a To-Do (ui/touch.py: TouchList).  The Cardputer's view is untouched.
 # what "+ [New item]" of a file list needs; without it the row is not shown at all
-_ADD_NEEDS = {"TODO": "text_edit", "NOTES": "text_edit", "MIND": "text_edit", "RECORDS": "voice_notes"}
+_ADD_NEEDS = {"TODO": "text_edit", "NOTES": "text_edit", "MIND": "text_edit", "RECORDS": "voice_notes",
+              "WINS": "text_edit"}
 
 # DEL presses needed after the warning appears (same as in the note viewer and the player)
 DELETE_CONFIRM_PRESSES = 3
@@ -108,13 +109,13 @@ class MenuScreen(BaseScreen):
 
     def _get_current_items(self):
         if self.current_menu in MENUS:
-            entries = MENUS[self.current_menu][1]
+            entries = self._entries()
             return ["%d. %s" % (i + 1, self._label(entry)) for i, entry in enumerate(entries)]
 
         if self._items_cache is not None and self._items_cache_menu == self.current_menu:
             return self._items_cache
 
-        items = [_("+ [New item]")]
+        items = [_("+ [Today]") if self.current_menu == "WINS" else _("+ [New item]")]
         extension = COLLECTIONS[self.current_menu][1]
         items.extend(self.app.storage.list_items(self.current_menu, extension=extension))
         if self.current_menu == "TODO":
@@ -123,11 +124,20 @@ class MenuScreen(BaseScreen):
         self._items_cache_menu = self.current_menu
         return items
 
+    def _entries(self):
+        """The entries of the current menu as shown: "Sync RTC" only while there is a clock module to sync from (the
+        Cardputers' RTC_CHIP can be "off" - and changed at any time, so this is decided here, not in menu_tree)."""
+        entries = MENUS[self.current_menu][1]
+        if self.app.rtc.chip_name is None:
+            entries = [e for e in entries if e[2] != "sync_rtc"]
+        return entries
+
     def _label(self, entry):
         """The label of a menu entry, with its summary when it has one (the 4th item, see menu_tree.py)."""
         if len(entry) < 4:
-            if entry[2] == "sync_rtc" and RTC_CHIP and not self._touch:     # the watch's rows are too narrow
-                return "%s (%s)" % (_(entry[0]), RTC_CHIP)
+            chip = self.app.rtc.chip_name if entry[2] == "sync_rtc" else None
+            if chip and not self._touch:                                 # the watch's rows are too narrow
+                return "%s (%s)" % (_(entry[0]), chip.upper())          # the chip's name, untranslated
             return _(entry[0])
         return "%s %s" % (pad(_(entry[0]), 7), self._summary(entry[3], compact=self._touch))
 
@@ -228,7 +238,7 @@ class MenuScreen(BaseScreen):
 
         elif action in ('RIGHT', 'ENTER'):
             if self.current_menu in MENUS:
-                self._activate_entry(MENUS[self.current_menu][1][self.selected_index])
+                self._activate_entry(self._entries()[self.selected_index])
             elif self.selected_index == 0:
                 self._remember_position()
                 self.handle_add_new_item()
@@ -314,7 +324,7 @@ class MenuScreen(BaseScreen):
                 on_cancel=lambda: log("[NOTIFY] test: cancelled"),
                 on_timeout=lambda: log("[NOTIFY] test: timed out")))
         elif name == "sync_rtc":
-            # Read the time from a DS1302 that is plugged in right now
+            # Read the time from the hardware clock that is plugged in right now
             self.app.renderer.render_options(_("Connecting RTC..."))
             ok, msg = self.app.rtc.sync_from_hardware()
             if ok:
@@ -354,6 +364,14 @@ class MenuScreen(BaseScreen):
 
         elif self.current_menu == "RECORDS":
             self.app.set_screen("RECORD")
+
+        elif self.current_menu == "WINS":
+            day = self.app.success_log.today()
+            if day is None:
+                self.app.renderer.render_alert(_("Set time first!"))        # a day's list needs the date
+                time.sleep(0.8)
+                return
+            self.app.set_screen("NOTE_EDITOR", **self.app.success_log.editor_args(day))
 
     def render(self, renderer):
         if self.current_menu in MENUS:

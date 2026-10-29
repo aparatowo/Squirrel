@@ -31,6 +31,8 @@ _WAV_HEADER_BYTES = 44
 _PB_BUFFERS = 3          # rotating playback buffers (one is always safe to refill)
 _PB_LOOKAHEAD = 2        # chunks queued ahead of the one that is playing
 _PB_END_GRACE_MS = 1500  # give up waiting for isPlaying() to drop after the last chunk
+_BEEP_CACHE_BYTES = 1024 # a signal's PCM up to this size stays cached; a bigger one is freed after it played ...
+_BEEP_KEEP_MS = 500      # ... this long after its end
 
 
 def _wav_header(data_bytes: int, sample_rate: int, bits: int, channels: int) -> bytes:
@@ -89,6 +91,7 @@ class AudioManager:
         self._pb_eof       = False
         self._beep_buf     = None   # signal being played (must stay referenced until it ends) - kept as a cache
         self._beep_pattern = None   # which pattern _beep_buf holds: repeats of a notification do not rebuild it
+        self._beep_until = None     # a big signal's buffer is given back after this (ticks ms); None = kept
         self._init()
 
     def _init(self):
@@ -160,6 +163,8 @@ class AudioManager:
             self._recording_tick()
         if self._pb_state == 'playing':
             self._playback_tick()
+        if self._beep_until is not None and time.ticks_diff(time.ticks_ms(), self._beep_until) >= 0:
+            self._beep_buf = self._beep_pattern = self._beep_until = None     # played: its 4-8 KB back to the heap
 
     def _write_finished_chunks(self, pending):
         """Write out the queued chunks that the mic no longer holds."""
@@ -378,6 +383,28 @@ class AudioManager:
         """True once the speaker has been started (it stays on after a signal, see beep())."""
         return self._speaker_on
 
+    def release_speaker(self):
+        """End the speaker if it is on and silent (before a light sleep: an amplifier left on clicks at every sleep and
+        wake - once a second).  The next signal starts it again (beep()).  True if it is off now."""
+        if not self._speaker_on:
+            return True
+        if self._rec_active or self._pb_state != 'idle':
+            log(f"[AUDIO] speaker kept on for a light sleep: recording {self._rec_active}, playback {self._pb_state}")
+            return False
+        try:
+            if self._Speaker.isPlaying():
+                log("[AUDIO] speaker kept on for a light sleep: still playing")
+                return False
+        except Exception:
+            pass
+        try:
+            self._Speaker.end()
+            self._speaker_on = False
+            log("[AUDIO] Speaker.end() before a light sleep")
+        except Exception as e:
+            log(f"[AUDIO] Speaker.end() failed: {e}")
+        return not self._speaker_on
+
     def set_speaker(self, on):
         """Start or end the speaker now - used by the LED tests to see whether a running speaker disturbs the LED.
         Does nothing while recording or playing back."""
@@ -525,11 +552,16 @@ class AudioManager:
                 buf = sound.build(pattern)
                 self._beep_pattern = pattern
             if not self._speaker_on:
-                trace("[AUDIO] Speaker.begin() for a signal")
+                log(f"[AUDIO] Speaker.begin() for a signal ({pattern if isinstance(pattern, str) else 'tones'})")
                 self._Speaker.begin()
                 self._speaker_on = True
             self._Speaker.setVolumePercentage((cfg.get("NOTIFY_VOLUME") if volume is None else volume) / 100.0)
             self._beep_buf = buf
+            # A small signal stays cached (the metronome's ticks come again and again); a big one (a notification,
+            # the cuckoo: 4-8 KB) is given back once played - kept, it held that much of the heap for good.  A
+            # notification's repeat comes 3-4 s later and builds it again (a few ms).
+            self._beep_until = (time.ticks_add(time.ticks_ms(), len(buf) * 1000 // (2 * sound.RATE) + _BEEP_KEEP_MS)
+                                if len(buf) > _BEEP_CACHE_BYTES else None)
             self._Speaker.playRaw(buf, sound.RATE)
             return True
         except Exception as e:

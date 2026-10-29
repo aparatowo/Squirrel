@@ -135,5 +135,8 @@ if __name__ == "__main__":
     ap.add_argument("out")
     ap.add_argument("--scale", type=int, default=2)
     ap.add_argument("--prefix", default="shot")
+    ap.add_argument("--height", type=int, default=135, help="the canvas height: 240 for the watch's screens "
+                    "(tools/sim/crawl_scenario.py with SQUIRREL_SIM_TOUCH=1)")
     a = ap.parse_args()
+    H = a.height
     print("%d pictures in %s" % (render(a.trace, a.out, a.scale, a.prefix), a.out))

@@ -19,6 +19,7 @@ python3 -m unittest tools/tests/test_i18n.py         # (any of them also runs th
 | `test_ble_auto.py` | die automatische Synchronisation: Zeitfenster nach der Uhr, der Knoten als Alarmquelle, Überspringen bei belegtem Funk |
 | `test_web_protocol.py` | der JavaScript-Codec der Web-Bluetooth-Seite ergibt dieselben Bytes wie `ble/protocol.py` (braucht `node`) |
 | `test_checklist.py`, `test_routines.py` | Checklisten (`>`-Zeilen, Haken getrennt gespeichert), Routinen und ihre Tage |
+| `test_cardputer_hw.py`, `test_hourglass_bars.py`, `test_battery.py`, `test_focus_wins.py` | die Tastenmatrix des ersten Cardputers und der DS3231 an Nachbildungen; die Sanduhr und die Zeitbalken der Uhr; `test_battery.py`: das aus der Spannung erratene Laden, die Akku-Warnungen, das Leuchten der LED; `test_focus_wins.py`: abgezogene Fokuszeit, das Erfolgstagebuch, doppeltes / dreifaches Tippen auf der Uhr |
 | `test_appconfig.py` | `config.txt`: lesen, schreiben, Kommentare, Standardwerte, die eine neuere Version geändert hat |
 | `test_i18n.py` | Suche, Rückfall auf Englisch, Vorlagen (`fill`), die eigene `lang_<code>.tsv` des Nutzers |
 | `test_st7789_strips.py` | das in Streifen gezeichnete Display ergibt dasselbe Bild wie der volle Framebuffer (nur MicroPython: `framebuf`, viper - unter CPython übersprungen) |
@@ -41,6 +42,18 @@ wenn der Code schläft, und `/sd` und `/flash` des Geräts in einem Ordner. Den 
   tools/sim/compare.sh <micropython> "/tmp/base/Squirrel!" "$PWD" /tmp/simwork      # IDENTICAL / DIFFERENT
   ```
 
+- **Jeder Bildschirm, in die Tiefe** (nach einer Änderung der Oberfläche oder einer Übersetzung): `crawl_scenario.py`
+  öffnet jeden Menüeintrag, jeden Bildschirm mit ein paar Tasten, jede Einstellung von Anpassen, jedes Listenelement und
+  die Benachrichtigungen; mit `SQUIRREL_SIM_TOUCH=1` dieselbe App wie auf einem 240 x 240-Touchscreen, jeder Knopf getippt
+  (Rendern mit `--height 240`). `check_trace.py` listet Text außerhalb des Bildschirms und Englisch in einer anderen
+  Sprache:
+
+  ```bash
+  SQUIRREL_SIM_SCENARIO=tools/sim/crawl_scenario.py <micropython> -X heapsize=16M tools/sim/run_sim.py "$PWD" /tmp/c /tmp/c.txt
+  python3 tools/sim/check_trace.py /tmp/c.txt --lang de                        # OFF / ENGLISH / ERROR findings
+  python3 tools/sim/render_shots.py /tmp/c.txt /tmp/c-shots                    # the pictures, named by place
+  ```
+
 - **Screenshots des Cardputers** für die Anleitungen: ein Szenario mit 34 Zuständen, mit Beispielinhalt in der Sprache
   der `config.txt` des Arbeitsordners (`LANGUAGE=de` ...), umgewandelt in PNG-Dateien:
 
@@ -61,7 +74,7 @@ Schließe zuerst Thonny (es belegt den Port). `ls /dev/serial/by-id/` nennt die 
 | Werkzeug | Was es tut |
 |---|---|
 | `tools/hwtest/run.py PORT SCRIPT [TEST ...]` | startet ein Hardware-Testskript über den REPL und zeigt seine Ergebnisse live: `RESULT\|test\|PASS / FAIL / INFO / ASK / SKIP\|details` (ASK: bestätige, was du gesehen, gehört oder gespürt hast); ein Protokoll in `.build/hwtest/`. `PORT` kann `auto` sein. Ein Skript läuft nur auf dem Gerät, das in seiner ersten Zeile steht (`# EXPECT_MACHINE: ...`) |
-| `twatch_hw.py`, `twatch_accel.py`, `cardputer_accel.py` | die Skripte: die Chips der Uhr nacheinander (PMU, Display, Touch, Uhr, Vibration), die Beschleunigungssensoren |
+| `twatch_hw.py`, `twatch_accel.py`, `cardputer_accel.py`, `cardputer_hw.py` | die Skripte: die Chips der Uhr nacheinander (PMU, Display, Touch, Uhr, Vibration), die Beschleunigungssensoren; `cardputer_hw.py`: der DS3231 am Grove-Port (beide Cardputer), Tasten und LED des ersten Cardputers |
 | `twatch_gfx_bench.py` | die Zeichengeschwindigkeit des Display-Treibers der Uhr |
 | `tools/hwtest/twatch_phase0.sh PORT` | vor dem ersten Flashen einer Uhr: Chip- und Flash-ID, eine volle 16-MB-Kopie des Flashs mit ihrer MD5 (stellt die Werkssoftware wieder her) |
 | `tools/hwtest/twatch_screens.py PORT --lang de` | Screenshots der Bildschirme der Uhr, aus ihrem Framebuffer nach `shots/twatch/<lang>/` gelesen (es schreibt eine Beispiel-Checkliste und löscht sie wieder) |

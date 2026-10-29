@@ -229,3 +229,7 @@ nieszyfrowane** — zob. [bluetooth.md](bluetooth.md) §6.
 | note | `notes/<nazwa>.txt`, `notes/meta.json` (`{nazwa: {id, e}}`) | |
 | stat | `focus/routines.txt`, `focus/todos.txt`, `focus/focus.txt` (sekundy → minuty), kroki | `focus/peers/<slot>/` — statystyki innych urządzeń na hubie |
 | settings | `config.txt` | |
+
+Nie są rekordami (jeszcze): dziennik sukcesu, `wins/RRRR-MM-DD.txt` (jeden dzień: data, potem linie `-` / `>` =
+zrobione rzeczy) zostaje na urządzeniu. `focus/focus.txt` może mieć ujemne linie (`2026-10-19,-900`): odjęty czas
+skupienia; linie dnia się sumują, nigdy poniżej zera.

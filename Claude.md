@@ -1,8 +1,8 @@
 # Squirrel! - notes for working on the code
 
 A calm notes / To-Do / routines assistant for people with ADHD, in MicroPython 1.25 on ESP32 devices: the M5Stack
-Cardputer ADV (the main device, with a keyboard), the LilyGo T-Watch 2020 V3, and an experimental generic ESP32-S3
-watch. Licence: MIT - Rafał Nitychoruk (Ijon Tichy). The documents: [docs/README.md](docs/README.md).
+Cardputer ADV (the main device, with a keyboard), the LilyGo T-Watch 2020 V3, and - experimental, not yet tried on a
+device - the first M5Stack Cardputer and a generic ESP32-S3 watch. Licence: MIT - Rafał Nitychoruk (Ijon Tichy). The documents: [docs/README.md](docs/README.md).
 
 ## Rules
 
@@ -10,8 +10,8 @@ watch. Licence: MIT - Rafał Nitychoruk (Ijon Tichy). The documents: [docs/READM
   Polish, French, German): every text on screen goes through `i18n._()`; see
   [docs/implementation/en/i18n.md](docs/implementation/en/i18n.md).
 - **Hardware facts live in `ports/<port>/port.toml`**, app defaults in `nuts.py`; the app hardcodes neither pins nor
-  constants. The `M5` module only in `drivers/m5_*.py` and `ports/cardputer_adv/board.py`; everything else draws
-  through `gfx.Lcd`.
+  constants. The `M5` module only in `drivers/m5_*.py` and the Cardputers' `ports/cardputer*/board.py`; everything
+  else draws through `gfx.Lcd`.
 - **One screen = one file in `screens/`**; business logic apart from the UI.
 - **Every device counts:** an ESP32-S3 without PSRAM has ~160 KB of heap for everything - see
   [docs/implementation/en/performance.md](docs/implementation/en/performance.md). MicroPython lacks some CPython

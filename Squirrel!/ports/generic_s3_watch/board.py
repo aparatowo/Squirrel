@@ -75,7 +75,7 @@ def make_buttons():
     return {"back": ButtonPoller(P.BUTTONS_BACK_PIN)}
 
 
-def clock_chip():
+def clock_chip(choice=None):
     return None, None                           # no hardware clock (see port.toml [clock])
 
 

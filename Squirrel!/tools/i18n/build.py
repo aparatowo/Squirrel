@@ -60,11 +60,18 @@ def read_catalog():
     return langs, rows
 
 
+# languages whose file holds only the texts it changes: en.tsv rewords a few English texts of the code (a word play the
+# code need not carry); every other text stays as the code has it
+PARTIAL = ("en",)
+
+
 def write_catalog(langs, rows):
     for code in langs:
         with open(os.path.join(LANG_DIR, code + ".tsv"), "w", encoding="utf-8") as f:
             f.write("en\t%s\n" % code)
             for en in sorted(rows):
+                if code in PARTIAL and not rows[en].get(code):
+                    continue
                 f.write("%s\t%s\n" % (escape(en), escape(rows[en].get(code, ""))))
 
 

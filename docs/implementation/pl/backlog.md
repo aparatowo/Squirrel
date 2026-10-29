@@ -51,6 +51,28 @@ różnią się kształtem liter. Poprawka: rysować glify `.vlw` w `render_shots
 klucz Cardputera, a Cardputer przy następnej synchronizacji prosi o nowy kod (i odwrotnie). Opisane dla użytkowników;
 poprawka trzymałaby kilka kluczy i przyjmowała dowód któregokolwiek - bez zmian w powietrzu i na stronie.
 
+### F. Lekkie uśpienie na Cardputerze ADV jest wyłączone (do rozwiązania)
+
+Od 2026-10-22 port `cardputer_adv` ma w `port.toml` `[power_mgmt] light_sleep = false`: *Tryb uśpienia* zniknął z
+ustawień, a `hw/power.py` nie usypia procesora nawet przy `POWER_SLEEP = light` w `config.txt`. Kod lekkiego uśpienia
+zostaje (pierwszy Cardputer i zegarek dalej go używają). Objawy na Cardputerze ADV, gdy uśpienie było włączone:
+
+- **podświetlenie** - zamiast zgasnąć przy wygaszeniu ekranu zapalało się jaśniej i migało przy każdym cyklu snu
+  (co ~0,8 s): w lekkim śnie staje PWM podświetlenia, a pin zostaje w przypadkowym stanie;
+- **G0** - w czasie snu i chwilę po nim czytany jako wciśnięty (zmierzone: 500 z 500 odczytów niskich, rejestry IO MUX
+  w porządku, 3,3 V na samej baterii przy wyłączonym uśpieniu): szybki dyktafon startował sam (`[BTN0] quick recorder
+  from ClockScreen, dimmed (pin 0)` w logu), stąd też migający ekran; w czasie snu G0 nie działał wcale;
+- **głośnik** - po pierwszym dźwięku cykał przy każdym zaśnięciu i przebudzeniu; `Speaker.end()` przed snem wycisza go
+  do poziomu słyszalnego przy uchu, wyłączenie ES8311 rejestrami ucisza zupełnie, ale głośnik nie wraca do odcięcia
+  zasilania;
+- **USB** - w czasie snu konsola nie odpowiada, a po serii snów USB nie daje się wykryć aż do resetu;
+- przy G0 jako źródle wybudzenia (ext0) pad przechodził na RTC i tracił podciągnięcie (już zmienione: budzi klawiatura,
+  G11).
+
+Do sprawdzenia: konfiguracja pinów na czas snu (`gpio_sleep_sel` / podciągnięcia w trybie snu dla G0 i pinu
+podświetlenia, `gpio_hold` podświetlenia na 0), ponowna inicjalizacja ES8311 po wybudzeniu, `esp_sleep_pd_config`
+dla domen zasilania. Narzędzia: wpisy `[POWER] light sleep` i `[BTN0]` w `boot_log.txt`.
+
 ## Jeszcze niezbudowane
 
 - **Edycja na nodzie** (telefon połączony z zegarkiem): zapisywana jako propozycje z wersją, na której powstały; szef
@@ -62,7 +84,26 @@ poprawka trzymałaby kilka kluczy i przyjmowała dowód któregokolwiek - bez zm
   (Chrome, strona otwarta z dysku) łączenie, parowanie i odczyt działają (`tools/hwtest/web_e2e.py`); edycji ze strony
   jeszcze nie sprawdzano. Publikacja na GitHub Pages dla telefonów: `.github/workflows/web-page.yml`, gotowa, niewłączona.
 - **Ogólny zegarek z ESP32-S3** (`ports/generic_s3_watch`): buduje się, jeszcze niesprawdzony na zegarku.
-- **Dźwięk i mikrofon zegarka, akcelerometr** (nadal tylko wyłączany przy starcie).
+- **Pierwszy Cardputer** (`ports/cardputer`): buduje się, jeszcze niesprawdzony na urządzeniu. Najpierw sprawdzić:
+  piny portu Grove (G2 = SDA, G1 = SCL), diodę na G21 i jej zasilanie, każdy klawisz (Ustawienia → Kalibracja
+  klawiszy pokazuje kody), budzenie z lekkiego snu, dźwięk i nagrywanie przez M5.Speaker / M5.Mic.
+- **DS3231** (`drivers/ds3231.py`): sprawdzony na atrapie magistrali (`tools/tests/test_cardputer_hw.py`), jeszcze nie
+  na module. Moduł zegara wybiera się w ustawieniach (`RTC_CHIP`, domyślnie wyłączony).
+- **Dioda potrzebuje zapalonego ekranu** (Cardputer ADV, zmierzone 2026-10-20 testem
+  `tools/hwtest/cardputer_hw.py t09_screen_off`): zasilanie dostaje przez przełącznik podświetlenia, więc przy
+  wyłączonym ekranie jest ciemna, a słaby sygnał (ładowanie, słaba bateria) zapalałby z nią ekran. Porzucone:
+  ładowanie to znak przy belce baterii, słaba bateria - powiadomienie ze zwykłym sygnałem diody.
+- **Wykrywanie ładowania** (Cardputery, eksperymentalne): progi ChargeGuess w `hw/battery.py` wynikają z typowego
+  zachowania ogniwa Li-ion, nie z pomiarów - sprawdzić `cardputer_hw.py t06_charging` i dziennikiem baterii.
+- **Ładowanie zegarka**: zgłoszone jako niedziałające; bity AXP202 są teraz czytane razem z obecnością USB - sprawdzić
+  `tools/hwtest/twatch_hw.py t14_charging`.
+- **Moduły włączane przez użytkownika** (domyślnie prosta wersja, *Ustawienia → Funkcjonalności*): propozycja z analizą,
+  [modules-proposal.md](modules-proposal.md).
+- **Dziennik sukcesu przez Bluetooth**: jego dni (`wins/`) zostają na Cardputerze; zegarek ich nie pokazuje, sukcesów
+  nie ma jeszcze w synchronizowanych statystykach.
+- **Głośnik i mikrofon zegarka, akcelerometr**: T-Watch ma głośnik (I2S, zasilany z LDO4), ale sygnały - metronom
+  (pisk / klik), powiadomienia, klepsydra - na zegarku dają na razie tylko wibrację; akcelerometr jest tylko
+  wyłączany przy starcie.
 - **Pomysły z planów:**
   - filtr *Dziś* na liście zadań;
   - tagi emocjonalne na wpisie (🔥 pilne, 💡 pomysł, 😰 stres, 🕑 kiedyś);

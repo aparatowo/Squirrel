@@ -19,6 +19,7 @@ python3 -m unittest tools/tests/test_i18n.py         # (any of them also runs th
 | `test_ble_auto.py` | automatyczną synchronizację: pory według zegara, node jako źródło alarmów, pomijanie zajętego radia |
 | `test_web_protocol.py` | kodek JavaScript strony Web Bluetooth daje te same bajty co `ble/protocol.py` (potrzebny `node`) |
 | `test_checklist.py`, `test_routines.py` | checklisty (linie `>`, odhaczenia trzymane osobno), rutyny i ich dni |
+| `test_cardputer_hw.py`, `test_hourglass_bars.py`, `test_battery.py`, `test_focus_wins.py` | matryca klawiszy pierwszego Cardputera i DS3231 na atrapach; klepsydra i belki czasu na zegarze; `test_battery.py`: ładowanie zgadywane z napięcia, ostrzeżenia o baterii, słabe świecenie diody; `test_focus_wins.py`: odejmowanie czasu skupienia, dziennik sukcesu, podwójne / potrójne stuknięcie zegarka |
 | `test_appconfig.py` | `config.txt`: czytanie, zapis, komentarze, wartości domyślne zmienione przez nowszą wersję |
 | `test_i18n.py` | wyszukiwanie, powrót do angielskiego, szablony (`fill`), własny `lang_<kod>.tsv` użytkownika |
 | `test_st7789_strips.py` | ekran rysowany pasami daje ten sam obraz co pełny bufor ramki (tylko MicroPython: `framebuf`, viper - pod CPythonem pomijany) |
@@ -41,6 +42,17 @@ atrapami `M5`, `machine`, `esp32`, `network`, `bluetooth` ..., zegarem, który i
   tools/sim/compare.sh <micropython> "/tmp/base/Squirrel!" "$PWD" /tmp/simwork      # IDENTICAL / DIFFERENT
   ```
 
+- **Każdy ekran, w głąb** (po zmianie interfejsu albo tłumaczenia): `crawl_scenario.py` otwiera każdą pozycję menu,
+  każdy ekran z kilkoma klawiszami, każde ustawienie Personalizacji, każdy element list i powiadomienia; z
+  `SQUIRREL_SIM_TOUCH=1` ta sama aplikacja jak na ekranie dotykowym 240 x 240, każdy przycisk stuknięty (renderowanie z
+  `--height 240`). `check_trace.py` wypisuje tekst poza ekranem i angielski pozostawiony w innym języku:
+
+  ```bash
+  SQUIRREL_SIM_SCENARIO=tools/sim/crawl_scenario.py <micropython> -X heapsize=16M tools/sim/run_sim.py "$PWD" /tmp/c /tmp/c.txt
+  python3 tools/sim/check_trace.py /tmp/c.txt --lang de                        # OFF / ENGLISH / ERROR findings
+  python3 tools/sim/render_shots.py /tmp/c.txt /tmp/c-shots                    # the pictures, named by place
+  ```
+
 - **Zrzuty ekranu Cardputera** do przewodników: scenariusz 34 stanów, z przykładową treścią w języku z `config.txt`
   folderu roboczego (`LANGUAGE=pl` ...), zamieniany na pliki PNG:
 
@@ -61,7 +73,7 @@ Najpierw zamknij Thonny (trzyma port). `ls /dev/serial/by-id/` nazywa porty.
 | Narzędzie | Co robi |
 |---|---|
 | `tools/hwtest/run.py PORT SCRIPT [TEST ...]` | uruchamia skrypt testu sprzętu przez REPL i pokazuje wyniki na żywo: `RESULT\|test\|PASS / FAIL / INFO / ASK / SKIP\|details` (ASK: potwierdź, co widziałeś, słyszałeś albo czułeś); log w `.build/hwtest/`. `PORT` może być `auto`. Skrypt działa tylko na urządzeniu nazwanym w jego pierwszej linii (`# EXPECT_MACHINE: ...`) |
-| `twatch_hw.py`, `twatch_accel.py`, `cardputer_accel.py` | skrypty: układy zegarka po kolei (PMU, ekran, dotyk, zegar, wibracja), akcelerometry |
+| `twatch_hw.py`, `twatch_accel.py`, `cardputer_accel.py`, `cardputer_hw.py` | skrypty: układy zegarka po kolei (PMU, ekran, dotyk, zegar, wibracja), akcelerometry; `cardputer_hw.py`: DS3231 na porcie Grove (oba Cardputery), klawisze i dioda pierwszego Cardputera |
 | `twatch_gfx_bench.py` | szybkość rysowania sterownika ekranu zegarka |
 | `tools/hwtest/twatch_phase0.sh PORT` | przed pierwszym wgraniem na zegarek: identyfikator układu i flasha, pełna kopia 16 MB flasha z jej MD5 (przywraca fabryczne oprogramowanie) |
 | `tools/hwtest/twatch_screens.py PORT --lang pl` | zrzuty ekranów zegarka czytane z jego bufora ramki do `shots/twatch/<lang>/` (zapisuje przykładową checklistę i znów ją usuwa) |

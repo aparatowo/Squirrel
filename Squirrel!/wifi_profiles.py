@@ -2,7 +2,10 @@
 #
 # Stored as JSON in nuts.WIFI_PROFILES_FILE: [{"ssid": "...", "password": "..."}, ...].
 # The passwords are kept in plain text, in a file that only lives on the SD card.
-# choose_network() picks, among the networks the device knows, the one with the strongest signal.
+# plan_networks() puts the networks the device knows in the order to try them: those a scan saw, strongest first, then
+# the others (a hidden network, or one the scan missed).  A name typed on the device matches the scan's whatever its
+# case or spaces ("home wifi " finds "Home WiFi", "Home _5G" finds "Home_5G" - a slip seen on 2026-10-20), and
+# the scan's own spelling is the one joined.
 
 import json
 import os
@@ -22,24 +25,45 @@ def _scan_name(ssid):
     return ssid or ""
 
 
-def choose_network(scan_results, candidates):
-    """The known network with the strongest signal, or None if none of them was seen.
+def _key(name):
+    return "".join(name.split()).lower()            # no spaces at all, no case
 
-    scan_results: what WLAN.scan() returns: (ssid, bssid, channel, rssi, authmode, hidden).
-    candidates:   [(ssid, password, source)] in order of preference; on a tie the earlier one wins.
-    """
-    strongest = {}
+
+def plan_networks(scan_results, candidates):
+    """[(ssid, password, source, rssi or None)]: the candidates the scan saw (under the scan's spelling), strongest
+    first, then the rest in their own order (rssi None).
+
+    scan_results: what WLAN.scan() returns (from one scan or several): (ssid, bssid, channel, rssi, authmode, hidden).
+    candidates:   [(ssid, password, source)] in order of preference; on a tie the earlier one wins."""
+    seen = {}                                        # key -> (rssi, the scan's name)
     for entry in scan_results:
         name = _scan_name(entry[0])
-        if name and (name not in strongest or entry[3] > strongest[name]):
-            strongest[name] = entry[3]
-    best = None
-    best_rssi = None
-    for candidate in candidates:
-        rssi = strongest.get(candidate[0])
-        if rssi is not None and (best_rssi is None or rssi > best_rssi):
-            best, best_rssi = candidate, rssi
-    return best
+        if name and (_key(name) not in seen or entry[3] > seen[_key(name)][0]):
+            seen[_key(name)] = (entry[3], name)
+    found, rest = [], []
+    for n, (ssid, password, source) in enumerate(candidates):
+        hit = seen.get(_key(ssid))
+        if hit is None:
+            rest.append((ssid, password, source, None))
+        else:
+            found.append((-hit[0], n, (hit[1], password, source, hit[0])))
+    found.sort()
+    return [item for _r, _n, item in found] + rest
+
+
+def adopt_fallback(cfg, path):
+    """The single "fallback network" of older versions (WIFI_SSID / WIFI_PASSWORD in config.txt) joins the saved
+    networks, once: there is one list, scanned automatically.  Returns True when it was moved."""
+    ssid = cfg.get("WIFI_SSID")
+    if not ssid:
+        return False
+    profiles = WifiProfiles(path)
+    if not any(_key(s) == _key(ssid) for s, _p in profiles.all()) and not profiles.add(ssid, cfg.get("WIFI_PASSWORD")):
+        return False
+    cfg.set("WIFI_SSID", "")
+    cfg.set("WIFI_PASSWORD", "")
+    log(f"[WIFI] the fallback network '{ssid}' moved to the saved networks")
+    return True
 
 
 class WifiProfiles:

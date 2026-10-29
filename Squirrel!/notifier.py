@@ -43,12 +43,19 @@ def wrap(text, width, max_lines):
 
 
 class Notification:
+    """buzzer: (setting, the mode "auto" stands for), led: setting - the signals that go with the sound (hw/buzzer.py,
+    hw/led.py), None = none (likewise sound=None: no sound); force: also during the silent hours (something the user
+    set up by hand, like the hourglass)."""
     def __init__(self, text, title="", sound="notify", timeout_s=30, repeat_s=4,
                  on_done=None, on_cancel=None, on_timeout=None,
-                 done_label="Done", cancel_label="Cancel"):
+                 done_label="Done", cancel_label="Cancel",
+                 buzzer=("BUZZER_NOTIFY", "double"), led="LED_NOTIFY", force=False):
         self.text = text
         self.title = title
         self.sound = sound
+        self.buzzer = buzzer
+        self.led = led
+        self.force = force
         self.timeout_s = timeout_s
         self.repeat_s = repeat_s
         self.on_done = on_done
@@ -91,7 +98,7 @@ class Notifier:
             self._finish("timeout")
         elif n.repeat_s and time.ticks_diff(now, self._last_beep) >= n.repeat_s * 1000:
             self._last_beep = now
-            self._beep(n.sound)
+            self._beep(n)
 
     def later(self):
         """Put the notification off as if nobody answered (a routine comes back after its snooze)."""
@@ -113,20 +120,23 @@ class Notifier:
         except Exception:
             return False
 
-    def _beep(self, pattern):
-        try:
-            self._audio.beep(pattern)
-        except Exception as e:
-            log(f"[NOTIFY] Sound failed: {e}")
-        signal("BUZZER_NOTIFY", "double")
-        led_signal("LED_NOTIFY")
+    def _beep(self, n):
+        if n.sound:
+            try:
+                self._audio.beep(n.sound, force=n.force)
+            except Exception as e:
+                log(f"[NOTIFY] Sound failed: {e}")
+        if n.buzzer:
+            signal(n.buzzer[0], n.buzzer[1], force=n.force)
+        if n.led:
+            led_signal(n.led, force=n.force)
 
     def _show(self, notification, now):
         self.current = notification
         self._shown_at = now
         self._last_beep = now
         self._host.wake()
-        self._beep(notification.sound)
+        self._beep(notification)
         self._host.show_overlay(NotifyOverlay(self, notification, getattr(self._host, "keypad", None)))
 
     def _finish(self, how):
@@ -185,11 +195,17 @@ class NotifyOverlay:
         Lcd.drawString("%ds" % left, SCREEN_W - 6 * (len(str(left)) + 1) - 6, 8)
         Lcd.setTextSize(2)
         Lcd.setTextColor(theme["WARNING"], theme["BG"])
-        lines = wrap(n.text, 18, 4)
-        y = 30 + (4 - len(lines)) * 8
+        # lines as high as the font is (the Cardputer's .vlw: 26 px at size 2, not the 6 x 8 font's 16), centred
+        # between the title (to y 22) and the buttons (from y 118)
+        try:
+            step = max(16, Lcd.fontHeight())
+        except Exception:
+            step = 16
+        lines = wrap(n.text, 18, max(1, 94 // step))
+        y = 23 + (94 - len(lines) * step) // 2
         for line in lines:
             Lcd.drawString(line, (SCREEN_W - 12 * len(line)) // 2, y)
-            y += 18
+            y += step
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["ACCENT"], theme["BG"])
         Lcd.drawString("[OPT] " + _(n.done_label), 8, SCREEN_H - 17)

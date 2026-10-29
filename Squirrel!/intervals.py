@@ -28,6 +28,7 @@ def block_name(plan, n, pomodoro):
 SOUND = {"blue": "step", "yellow": "step", "orange": "go", "red": "go", "green": "rest"}
 BUZZ = {"step": "double", "go": "triple", "rest": "long"}        # the buzzer mode for each signal
 MIN_S, MAX_S = 5, nuts.MAX_BLOCK_SECONDS
+_ON_TIME_MS = 30               # a beat this close is waited for (Metronome.tick)
 METRO_STEPS = (0.125, 0.25, 0.5, 1, 2, 5, 30, 60, 120)    # seconds between beats (the METRO_INTERVAL_S choices)
 _FRACTIONS = {0.125: "1/8 s", 0.25: "1/4 s", 0.5: "1/2 s"}
 
@@ -161,10 +162,11 @@ class IntervalRunner:
 class Metronome:
     """Service: a tick every `interval` seconds.  A recording closes it (the tick would be in the recording)."""
 
-    def __init__(self, audio, cfg, now_ms=None):
+    def __init__(self, audio, cfg, now_ms=None, sleep_ms=None):
         self._audio = audio
         self._cfg = cfg
         self._now = now_ms or time.ticks_ms
+        self._sleep = sleep_ms or time.sleep_ms
         self.running = False
         self.beats = 0
         self._next = 0
@@ -183,10 +185,18 @@ class Metronome:
             self.running = False
             return
         now = self._now()
+        wait = time.ticks_diff(self._next, now)
+        if 0 < wait <= _ON_TIME_MS:
+            # the beat is due before the main loop comes round again (it pauses 20 ms, then does its work): wait
+            # for it here, so it is on time to the millisecond, not up to a loop late (measured: +-20 ms at 1/2 s)
+            self._sleep(wait)
+            now = self._next
         if time.ticks_diff(now, self._next) >= 0:
             # started by hand, so the silent hours do not stop it (force=True)
-            self._audio.beep("tick" if self.beats % 4 else "tock", volume=self._cfg.get("METRO_VOLUME"), force=True)
-            signal("BUZZER_METRONOME", "click" if self.beats % 4 else "short", force=True)
+            # every beat the same (no accent on every 4th: an even, monotonous beat is what it is for)
+            self._audio.beep("click" if self._cfg.get("METRO_SOUND") == "click" else "tick",
+                             volume=self._cfg.get("METRO_VOLUME"), force=True)
+            signal("BUZZER_METRONOME", "click", force=True)
             led_signal("LED_METRONOME", force=True)
             self.beats += 1
             interval = int(self._cfg.get("METRO_INTERVAL_S") * 1000)          # ticks_add takes whole milliseconds

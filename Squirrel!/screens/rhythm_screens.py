@@ -1,7 +1,7 @@
 # screens/rhythm_screens.py - Metronome and Breathing
 #
-# MetronomeScreen  LEFT/RIGHT interval (1/8, 1/4, 1/2, 1, 2, 5, 30, 60, 120 s), UP/DOWN volume, ENTER start / stop,
-#                  ESC leave.  On a beat only the flashing dot is drawn again (at 1/8 s a full redraw would delay beats).
+# MetronomeScreen  LEFT/RIGHT interval (1/8, 1/4, 1/2, 1, 2, 5, 30, 60, 120 s), UP/DOWN volume, S the sound (a beep /
+#                  a click, METRO_SOUND), ENTER start / stop, ESC leave.  On a beat only the flashing dot is drawn again (at 1/8 s a full redraw would delay beats).
 #                  The metronome is a background service: it keeps ticking when you leave (a recording stops it).
 #                  The last interval and volume are remembered (settings METRO_INTERVAL_S, METRO_VOLUME).
 # BreathingScreen  LEFT/RIGHT choose the exercise, ENTER start / stop, ESC back.  A circle grows while you breathe in
@@ -67,7 +67,7 @@ class MetronomeScreen(BaseScreen):
         self._beat_only = False
 
     def _state(self, m):
-        return (m.running, cfg.get("METRO_INTERVAL_S"), cfg.get("METRO_VOLUME"))
+        return (m.running, cfg.get("METRO_INTERVAL_S"), cfg.get("METRO_VOLUME"), cfg.get("METRO_SOUND"))
 
     def needs_refresh(self):
         m = self.app.metronome()
@@ -99,6 +99,8 @@ class MetronomeScreen(BaseScreen):
             self._step_interval(1 if action == 'RIGHT' else -1)
         elif action in ('UP', 'DOWN'):
             self._step_volume(1 if action == 'UP' else -1)
+        elif action in ('s', 'S'):
+            cfg.set("METRO_SOUND", "tone" if cfg.get("METRO_SOUND") == "click" else "click")
         elif action in ('ESC', 'BACKSPACE'):
             self.app.set_screen("MENU", menu_name="FOCUS")
 
@@ -130,6 +132,7 @@ class MetronomeScreen(BaseScreen):
         x = max(60, 17 + 6 * len(label))                                # the bar after the label, in any language
         Lcd.drawRect(x, 78, 102, 10, theme["FG"])
         Lcd.fillRect(x + 1, 79, cfg.get("METRO_VOLUME"), 8, theme["ACCENT"])
+        Lcd.drawString(_("[S] sound: %s") % _(cfg.get("METRO_SOUND")), 5, 92)
         if m.running and m.beats % 2:
             Lcd.fillCircle(210, 40, 8, theme["WARNING"])                # a flash on every beat
         Lcd.drawString(_("<> interval  up/down volume"), 5, 105)

@@ -12,22 +12,23 @@ detail: [building.md](building.md).
 | Port (`--port`) | Device | Base firmware | Image at |
 |---|---|---|---|
 | `cardputer_adv` (default) | M5Stack Cardputer ADV (ESP32-S3, no PSRAM) | `cardputer-adv-micropython` - UIFlow 2 with the `M5` module | 0x0 |
+| `cardputer` | *experimental, not yet tried on a device*: M5Stack Cardputer, the first one (ESP32-S3, no PSRAM; a key matrix behind a 74HC138 instead of the TCA8418) | `cardputer-adv-micropython` - UIFlow 2, board `M5STACK_Cardputer` | 0x0 |
 | `twatch2020_v3` | LilyGo T-Watch 2020 V3 (ESP32, 16 MB flash, 8 MB PSRAM) | `micropython-esp32` - plain MicroPython v1.25.0 | 0x1000 |
 | `generic_s3_watch` | *experimental, not yet tried on a device*: the watches sold as "ESP32-S3 smartwatch" (ST7789, CST816, battery on an ADC pin) | `micropython-esp32` | 0x0 |
 
 What each device has:
 
-| | Cardputer ADV | T-Watch 2020 V3 | generic S3 watch |
-|---|---|---|---|
-| input | keyboard | touch, one button | touch, one button |
-| writing notes and To-Dos | ✅ | - (reads and ticks) | - |
-| voice notes | ✅ | - | - |
-| sound / buzzer / vibration | speaker, buzzer (optional) | vibration | - |
-| LED | WS2812 (optional) | - | - |
-| hardware clock | DS1302 (optional) | PCF8563 with alarm | - (Wi-Fi or Bluetooth time) |
-| deep sleep | - | ✅ (wakes for routines, cuckoo, sync) | - |
-| Bluetooth | boss | node | node |
-| data | microSD card | internal flash | internal flash |
+| | Cardputer ADV | Cardputer | T-Watch 2020 V3 | generic S3 watch |
+|---|---|---|---|---|
+| input | keyboard | keyboard | touch, one button | touch, one button |
+| writing notes and To-Dos | ✅ | ✅ | - (reads and ticks) | - |
+| voice notes | ✅ | ✅ | - | - |
+| sound / buzzer / vibration | speaker, buzzer (optional) | speaker | vibration | - |
+| LED | WS2812 (optional) | WS2812 | - | - |
+| hardware clock | DS3231 or DS1302 (optional) | DS3231 (optional) | PCF8563 with alarm | - (Wi-Fi or Bluetooth time) |
+| deep sleep | - | - | ✅ (wakes for routines, cuckoo, sync) | - |
+| Bluetooth | boss | boss | node | node |
+| data | microSD card | microSD card | internal flash | internal flash |
 
 The generic watch's pins are those of a common 1.69" board: check every one on your watch (its schematic, or the
 scans in `tools/hwtest/`) before the first build - each is marked `CHECK` in its `port.toml`.
@@ -42,7 +43,7 @@ Squirrel!/
     board.py             puts the drivers together for the app (the only module that knows which device this is)
     firmware/            MicroPython board definition and patches (micropython-esp32 recipe only)
     keymap.py ...        other files of the port
-  drivers/               drivers named after the CHIP (st7789_fb, ft6336, cst816, pcf8563, axp202, adc_battery ...);
+  drivers/               drivers named after the CHIP (st7789_fb, ft6336, cst816, pcf8563, ds3231, axp202 ...);
                          pins come as arguments
   hw/                    device-independent logic: touch -> gestures, battery, sleep, buzzer, LED, clock
   ui/                    touch widgets (ui/touch.py) shared by every touch screen
@@ -115,7 +116,7 @@ Examples: `ports/twatch2020_v3/board.py` (touch, clock with alarm, deep sleep), 
 | `make_storage()` | before settings are read | object with `mount()`, `remount()`, `is_mounted` |
 | `make_input()` | | a keyboard, or `hw.touch_input.TouchInput(chip, ACTIONS, ...)` |
 | `make_buttons()` | | `{role: button}`; roles: `"quick"` (quick recorder), `"back"` (= ESC, wakes the screen) |
-| `clock_chip()` | | `(factory, name)` or `(None, None)`; `factory()` → the hardware clock object |
+| `clock_chip(choice)` | | `(factory, name)` or `(None, None)`; `factory()` → the hardware clock object; `choice` = the setting `RTC_CHIP` (an optional module; ignored where the clock is fixed) |
 | `make_audio()` | | `hw.audio_manager.AudioManager(backend)`; `AudioManager(None)` = no sound |
 | `power_source()` | | object with `level()`, `charging()`, `millivolts()` (each may return `None`) |
 | `begin_led(led, battery)` | | `led.begin(battery=battery)` without an LED; with one, also `pin` and the driver |
@@ -176,6 +177,8 @@ error.
 | `hw_clock` | `clock` | no "Sync RTC" |
 | `led` | `signal.led` | LED settings and tests hidden |
 | `buzzer` | `signal.buzzer` | buzzer settings and test hidden |
+| `clock_module` | `clock.optional` | no choice of a clock module (`RTC_CHIP`): the clock is fixed, or there is none |
+| `charge_guess` | `power.voltage_only` | no *Charge detection* (charging guessed from the voltage) |
 | `deep_sleep` | `clock.alarm`, `power_mgmt.deep_sleep` | no `deep` sleep mode and no "Planned alarms" screen |
 | `ble_sync` | `radio.ble` | no Bluetooth sync (the node part) |
 | `ble_hub` | `radio.ble`, `input.keyboard` | the device cannot be the boss of a sync |
@@ -251,7 +254,7 @@ replays them for each 40-row band into a 19 KB buffer, sending each band when it
 ### `[input]`
 | Key | Meaning |
 |---|---|
-| `driver` | `tca8418_keypad` (keyboard) or a touch chip (`ft6336`, `cst816`) |
+| `driver` | `tca8418_keypad` (keyboard), `hc138_keypad` (a key matrix on GPIOs behind a 74HC138: `lines`, `cols`) or a touch chip (`ft6336`, `cst816`) |
 | `keyboard` | `true` = text can be typed (features `text_edit`, `notes`) |
 | `touch` | `true` = full-height touch screens |
 | `swap_xy`, `mirror_x`, `mirror_y` | transform from touch-chip coordinates to the picture |
@@ -270,10 +273,15 @@ replays them for each 40-row band into a 19 KB buffer, sending each band when it
 | `slot`, `width`, `sck`, `miso`, `mosi`, `cs`, `freq` | SD card |
 
 ### `[clock]`
-`driver` (`ds1302`, `pcf8563`), `bus` or pins, `int`, `alarm = true` if the chip's alarm can wake the device.
+`driver` (`ds1302`, `ds3231`, `pcf8563`), `bus` or pins, `int`, `alarm = true` if the chip's alarm can wake the device.
+A clock that is an optional module: `optional = true` in `[clock]` and one subsection per chip the device can take,
+`[clock.<chip>]` with its `driver` and wiring (the Cardputer ADV: `[clock.ds3231]` on the Grove port, `[clock.ds1302]`
+on the EXT header). The user says which one is plugged in (the setting `RTC_CHIP`, "off" by default - feature
+`clock_module`), and `board.clock_chip(choice)` opens only that one; no driver is imported before.
 
 ### `[power]`
-`driver` (`m5_power`, `axp202`, `adc_battery`), `bus`, `irq`; `adc_battery`: `pin`, `divider`.
+`driver` (`m5_power`, `axp202`, `adc_battery`), `bus`, `irq`; `adc_battery`: `pin`, `divider`; `voltage_only = true`
+when the battery is only measured and charging cannot be read (the Cardputers: *Charge detection* guesses it).
 
 ### `[audio_out]`, `[audio_in]`
 `driver` (`m5_audio`). Without these sections there is no sound and no recording.

@@ -12,22 +12,23 @@ compiler en détail : [building.md](building.md).
 | Port (`--port`) | Appareil | Firmware de base | Image à |
 |---|---|---|---|
 | `cardputer_adv` (par défaut) | M5Stack Cardputer ADV (ESP32-S3, sans PSRAM) | `cardputer-adv-micropython` - UIFlow 2 avec le module `M5` | 0x0 |
+| `cardputer` | *expérimental, pas encore essayé sur un appareil* : M5Stack Cardputer, le premier (ESP32-S3, sans PSRAM ; une matrice de touches derrière un 74HC138 au lieu du TCA8418) | `cardputer-adv-micropython` - UIFlow 2, carte `M5STACK_Cardputer` | 0x0 |
 | `twatch2020_v3` | LilyGo T-Watch 2020 V3 (ESP32, 16 Mo de flash, 8 Mo de PSRAM) | `micropython-esp32` - MicroPython v1.25.0 simple | 0x1000 |
 | `generic_s3_watch` | *expérimental, pas encore essayé sur un appareil* : les montres vendues comme "ESP32-S3 smartwatch" (ST7789, CST816, batterie sur une broche ADC) | `micropython-esp32` | 0x0 |
 
 Ce que chaque appareil a :
 
-| | Cardputer ADV | T-Watch 2020 V3 | montre S3 générique |
-|---|---|---|---|
-| entrée | clavier | tactile, un bouton | tactile, un bouton |
-| écrire notes et tâches | ✅ | - (lit et coche) | - |
-| notes vocales | ✅ | - | - |
-| son / buzzer / vibration | haut-parleur, buzzer (optionnel) | vibration | - |
-| LED | WS2812 (optionnelle) | - | - |
-| horloge matérielle | DS1302 (optionnelle) | PCF8563 avec alarme | - (heure par Wi-Fi ou Bluetooth) |
-| sommeil profond | - | ✅ (se réveille pour les routines, le coucou, la synchronisation) | - |
-| Bluetooth | chef | nœud | nœud |
-| données | carte microSD | flash interne | flash interne |
+| | Cardputer ADV | Cardputer | T-Watch 2020 V3 | montre S3 générique |
+|---|---|---|---|---|
+| entrée | clavier | clavier | tactile, un bouton | tactile, un bouton |
+| écrire notes et tâches | ✅ | ✅ | - (lit et coche) | - |
+| notes vocales | ✅ | ✅ | - | - |
+| son / buzzer / vibration | haut-parleur, buzzer (optionnel) | haut-parleur | vibration | - |
+| LED | WS2812 (optionnelle) | WS2812 | - | - |
+| horloge matérielle | DS3231 ou DS1302 (optionnelle) | DS3231 (optionnelle) | PCF8563 avec alarme | - (heure par Wi-Fi ou Bluetooth) |
+| sommeil profond | - | - | ✅ (se réveille pour les routines, le coucou, la synchronisation) | - |
+| Bluetooth | chef | chef | nœud | nœud |
+| données | carte microSD | carte microSD | flash interne | flash interne |
 
 Les broches de la montre générique sont celles d'une carte 1,69" courante : vérifie-les toutes sur ta montre (son
 schéma, ou les scans de `tools/hwtest/`) avant la première compilation - chacune est marquée `CHECK` dans son
@@ -43,7 +44,7 @@ Squirrel!/
     board.py             puts the drivers together for the app (the only module that knows which device this is)
     firmware/            MicroPython board definition and patches (micropython-esp32 recipe only)
     keymap.py ...        other files of the port
-  drivers/               drivers named after the CHIP (st7789_fb, ft6336, cst816, pcf8563, axp202, adc_battery ...);
+  drivers/               drivers named after the CHIP (st7789_fb, ft6336, cst816, pcf8563, ds3231, axp202 ...);
                          pins come as arguments
   hw/                    device-independent logic: touch -> gestures, battery, sleep, buzzer, LED, clock
   ui/                    touch widgets (ui/touch.py) shared by every touch screen
@@ -119,7 +120,7 @@ tactile, batterie sur ADC, un bouton).
 | `make_storage()` | avant la lecture des réglages | un objet avec `mount()`, `remount()`, `is_mounted` |
 | `make_input()` | | un clavier, ou `hw.touch_input.TouchInput(chip, ACTIONS, ...)` |
 | `make_buttons()` | | `{role: button}` ; rôles : `"quick"` (dictaphone rapide), `"back"` (= ESC, réveille l'écran) |
-| `clock_chip()` | | `(factory, name)` ou `(None, None)` ; `factory()` → l'objet de l'horloge matérielle |
+| `clock_chip(choice)` | | `(factory, name)` ou `(None, None)` ; `factory()` → l'objet de l'horloge matérielle ; `choice` = le réglage `RTC_CHIP` (un module optionnel ; ignoré quand l'horloge est fixe) |
 | `make_audio()` | | `hw.audio_manager.AudioManager(backend)` ; `AudioManager(None)` = pas de son |
 | `power_source()` | | un objet avec `level()`, `charging()`, `millivolts()` (chacun peut renvoyer `None`) |
 | `begin_led(led, battery)` | | `led.begin(battery=battery)` sans LED ; avec une LED, aussi `pin` et le pilote |
@@ -181,6 +182,8 @@ compilation avec une erreur.
 | `hw_clock` | `clock` | pas de "Sync RTC" |
 | `led` | `signal.led` | réglages et tests de la LED cachés |
 | `buzzer` | `signal.buzzer` | réglages et test du buzzer cachés |
+| `clock_module` | `clock.optional` | pas de choix du module d'horloge (`RTC_CHIP`) : l'horloge est fixe, ou il n'y en a pas |
+| `charge_guess` | `power.voltage_only` | pas de *Détection de la charge* (charge devinée d'après la tension) |
 | `deep_sleep` | `clock.alarm`, `power_mgmt.deep_sleep` | pas de mode de veille `deep` ni d'écran "Alarmes prévues" |
 | `ble_sync` | `radio.ble` | pas de synchronisation Bluetooth (la partie nœud) |
 | `ble_hub` | `radio.ble`, `input.keyboard` | l'appareil ne peut pas être le chef d'une synchronisation |
@@ -258,7 +261,7 @@ prête. L'image est la même (`tools/tests/test_st7789_strips.py`), le dessin un
 ### `[input]`
 | Clé | Sens |
 |---|---|
-| `driver` | `tca8418_keypad` (clavier) ou une puce tactile (`ft6336`, `cst816`) |
+| `driver` | `tca8418_keypad` (clavier), `hc138_keypad` (une matrice de touches sur GPIO derrière un 74HC138 : `lines`, `cols`) ou une puce tactile (`ft6336`, `cst816`) |
 | `keyboard` | `true` = on peut taper du texte (fonctions `text_edit`, `notes`) |
 | `touch` | `true` = écrans tactiles en pleine hauteur |
 | `swap_xy`, `mirror_x`, `mirror_y` | transformation des coordonnées de la puce tactile vers l'image |
@@ -277,11 +280,16 @@ prête. L'image est la même (`tools/tests/test_st7789_strips.py`), le dessin un
 | `slot`, `width`, `sck`, `miso`, `mosi`, `cs`, `freq` | carte SD |
 
 ### `[clock]`
-`driver` (`ds1302`, `pcf8563`), `bus` ou broches, `int`, `alarm = true` si l'alarme de la puce peut réveiller
-l'appareil.
+`driver` (`ds1302`, `ds3231`, `pcf8563`), `bus` ou broches, `int`, `alarm = true` si l'alarme de la puce peut
+réveiller l'appareil. Une horloge en module optionnel : `optional = true` dans `[clock]` et une sous-section par puce que
+l'appareil accepte, `[clock.<puce>]` avec son `driver` et son câblage (le Cardputer ADV : `[clock.ds3231]` sur le port
+Grove, `[clock.ds1302]` sur le connecteur EXT). L'utilisateur dit laquelle est branchée (le réglage `RTC_CHIP`, "off"
+par défaut - fonction `clock_module`), et `board.clock_chip(choice)` n'ouvre que celle-là ; aucun driver n'est importé
+avant.
 
 ### `[power]`
-`driver` (`m5_power`, `axp202`, `adc_battery`), `bus`, `irq` ; `adc_battery` : `pin`, `divider`.
+`driver` (`m5_power`, `axp202`, `adc_battery`), `bus`, `irq` ; `adc_battery` : `pin`, `divider` ; `voltage_only = true`
+quand la batterie est seulement mesurée et la charge illisible (les Cardputer : la *Détection de la charge* la devine).
 
 ### `[audio_out]`, `[audio_in]`
 `driver` (`m5_audio`). Sans ces sections, pas de son ni d'enregistrement.

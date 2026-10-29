@@ -38,6 +38,8 @@ FEATURES = (
     "BUZZER_INTERVALS",     # the start of every Pomodoro / Training block
     "BUZZER_METRONOME",     # every metronome beat
     "BUZZER_CUCKOO",        # the cuckoo on the hour (and the quarter ticks, if they are on)
+    "BUZZER_HOURGLASS",     # the hourglass ran out (on by default: on the watch it is the only signal there is)
+    "BUZZER_BATTERY",       # the low-battery warnings (on by default, for the same reason)
 )
 
 # What "auto" sounds like for each feature, when a mode is demonstrated in Personalize (the features themselves choose
@@ -47,6 +49,8 @@ AUTO_DEMO = {
     "BUZZER_INTERVALS": "double",
     "BUZZER_METRONOME": "short",
     "BUZZER_CUCKOO": "double",
+    "BUZZER_HOURGLASS": "alarm",
+    "BUZZER_BATTERY": "double",
 }
 
 class Buzzer:

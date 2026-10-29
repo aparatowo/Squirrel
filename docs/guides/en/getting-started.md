@@ -9,11 +9,14 @@ From a new device to Squirrel! on it. Version 2.0.
 | Device | What it is | What you need |
 |---|---|---|
 | **M5Stack Cardputer ADV** | a pocket computer with a keyboard (ESP32-S3) - the main Squirrel! device, the *boss* of the Bluetooth sync | a microSD card (FAT32) for your data |
+| **M5Stack Cardputer** (the first one, v1.0 / v1.1) | *experimental*: the same pocket computer before the ADV - not yet tried on a device | a microSD card (FAT32); for the time without Wi-Fi, a DS3231 module on its Grove port |
 | **LilyGo T-Watch 2020 V3** | a watch with a touch screen (ESP32) - reads and ticks what the Cardputer gives it, routines and timers on your wrist | nothing more |
 | **A generic ESP32-S3 smartwatch** | *experimental*: the cheap watches sold as "ESP32-S3 smartwatch" - not yet tried on a device | its pins checked first ([ports](../../implementation/en/ports.md)) |
 
 What works on each: the Cardputer has everything; the watch has no keyboard (it does not write notes or To-Dos - it
-reads and ticks them) and no sound or microphone yet, but it vibrates, sleeps deeply and has a hardware clock.
+reads and ticks them) and no sound or microphone yet, but it vibrates, sleeps deeply and has a hardware clock. The
+first Cardputer has everything but a buzzer (it has no free pin for one); from a light sleep only one row of
+keys wakes it (Aa, S, F, H, K, UP, ENTER).
 
 ## On your computer
 
@@ -39,6 +42,9 @@ python3 build_firmware.py --flash /dev/ttyACM0
 
 # T-Watch 2020 V3
 python3 build_firmware.py --port twatch2020_v3 --flash /dev/ttyACM0
+
+# Cardputer (the first one, not ADV) - experimental
+python3 build_firmware.py --port cardputer --flash /dev/ttyACM0
 ```
 
 The first build compiles all of ESP-IDF and takes several minutes; later ones are quicker. The script builds the image
@@ -60,6 +66,8 @@ starts the new firmware by itself afterwards.
 - **The time:** the Cardputer sets its clock over Wi-Fi at start-up - add your network in *Settings → Connections →
   WiFi networks* (a phone hotspot works; 2.4 GHz). Or set it by hand (*Settings → Time and date → Set time*), or take
   it from the watch over Bluetooth.
+- **A clock module** (DS3231 / DS1302) keeps the time without Wi-Fi: plug it in, then choose it in *Settings → Time and
+  date → Time settings → Clock module* (it is off until then).
 - **The language:** *Settings → Personalize → Display → Language* - English, Polski, Français, Deutsch.
 - **The watch and the Cardputer together:** pair them once ([bluetooth.md](bluetooth.md)).
 

@@ -6,8 +6,9 @@
 #
 # The texts are English in the code.  lang/<code>.py holds T = (english, translated, english, translated, ...) sorted
 # by the English text: _() finds a text by binary search.  Frozen into the firmware that tuple stays in flash - a
-# language costs next to no RAM.  A text with no translation is shown in English.  Letters the display cannot draw
-# (no font loaded) are folded to ASCII by gfx.drawString, as for any other text.
+# language costs next to no RAM.  A text with no translation is shown in English.  English has a table too, holding
+# only the few texts it shows other than the code has them (translations/en.tsv: "Nutifications").  Letters the display
+# cannot draw (no font loaded) are folded to ASCII by gfx.drawString, as for any other text.
 # The tables are generated from translations/<code>.tsv by tools/i18n/build.py; tools/i18n/check.py lists the texts
 # of the code that have no translation yet.
 # Your own texts, no new firmware needed: <BASE_DIR>/lang_<code>.tsv on the device (the SD card's /Squirrel on the
@@ -19,7 +20,7 @@ LANGUAGES = ("en", "pl", "fr", "de")
 _code = "en"
 _table = None
 _cache = {}                  # text -> translation, of the texts drawn lately (a screen draws the same ones again)
-_CACHE_MAX = 200             # then it starts over: a few KB at most
+_CACHE_MAX = 64              # then it starts over (a screen draws a few dozen texts; 200 held ~4 KB for little gain)
 _attached = False            # listening to the setting (appconfig's on_change): _() itself reads nothing
 _own = None                  # the user's own texts for this language (lang_<code>.tsv), or None
 
@@ -74,12 +75,11 @@ def _load(code):
     _code, _table = code, None
     _cache.clear()
     _own = _read_own(code)
-    if code == "en":
-        return
     try:
         _table = __import__("lang." + code, None, None, ("T",)).T
     except (ImportError, AttributeError) as e:
-        print("[I18N] no table for %s: %s" % (code, e))
+        if code != "en":                 # English has a table only for the texts it rewords (translations/en.tsv)
+            print("[I18N] no table for %s: %s" % (code, e))
 
 
 def language():

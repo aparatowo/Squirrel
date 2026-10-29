@@ -27,15 +27,22 @@ from screens.base_screen import BaseScreen
 from i18n import _
 
 _GREEN = 0x00FF00
-# (step label, what the step needs, how long it lasts in ms)
+# (step label, what the step needs, how long it lasts in ms); a label is (English text with %d / %s, its value) and is
+# translated when it is drawn (_label)
 _TESTS = {
-    "colors": ("Steady colours", [(name.upper(), RGB[name], 4000) for name in
+    "colors": ("Steady colours", [(("%s", name), RGB[name], 4000) for name in
                                   ("red", "green", "blue", "yellow", "cyan", "magenta", "orange", "white")]),
-    "blink": ("Blink intervals", [("%d ms on / off" % ms, ms, 6000) for ms in (1000, 500, 250, 100, 50)]),
-    "steps": ("Brightness steps", [("green %d / 255" % v, v << 8, 3000) for v in (255, 128, 64, 32, 16, 8, 4, 2, 1, 0)]
-                                  + [("white %d" % v, v * 0x010101, 3000) for v in (255, 192, 128, 96, 76, 64, 32)]),
-    "fade": ("Smooth fade", [("%d s up and down" % (ms // 1000), ms, 8000) for ms in (4000, 2000, 1000)]),
+    "blink": ("Blink intervals", [(("%d ms on / off", ms), ms, 6000) for ms in (1000, 500, 250, 100, 50)]),
+    "steps": ("Brightness steps", [(("green %d / 255", v), v << 8, 3000) for v in (255, 128, 64, 32, 16, 8, 4, 2, 1, 0)]
+                                  + [(("white %d", v), v * 0x010101, 3000) for v in (255, 192, 128, 96, 76, 64, 32)]),
+    "fade": ("Smooth fade", [(("%d s up and down", ms // 1000), ms, 8000) for ms in (4000, 2000, 1000)]),
 }
+
+
+def _label(label):
+    """A step's label in the language of the screen (a colour name in capitals)."""
+    text, value = label
+    return _(value).upper() if text == "%s" else _(text) % value
 
 
 class LedTestScreen(BaseScreen):
@@ -132,7 +139,7 @@ class LedTestScreen(BaseScreen):
     def render(self, renderer):
         theme = renderer.theme
         title, steps = _TESTS[self.test]
-        label = steps[self.step][0]
+        label = _label(steps[self.step][0])
         state = self._state()
         if self._frames_only:                       # only the counter changed (any other drawing is a full one)
             self._frames_only = False
@@ -142,7 +149,7 @@ class LedTestScreen(BaseScreen):
         renderer.clear()
         Lcd.setTextSize(1)
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString(_("# LED test: ") + title, 5, 5)
+        Lcd.drawString(_("# LED test: ") + _(title), 5, 5)
         Lcd.drawString(_("step %d of %d") % (self.step + 1, len(steps)), 5, 24)
         Lcd.setTextSize(3)
         Lcd.setTextColor(theme["WARNING"], theme["BG"])

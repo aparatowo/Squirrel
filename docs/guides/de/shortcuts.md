@@ -23,10 +23,11 @@ Tastatur → ALT+Buchstabe*).
 | Cardputer | Uhr | Was es tut |
 |---|---|---|
 | jede andere Taste | tippen | das Hauptmenü |
-| OPT | gedrückt halten | den Fokus-Timer starten / pausieren |
+| OPT | doppelt / dreifach tippen | den Fokus-Timer starten / pausieren (die Uhr: doppelt tippen startet ihn, dreifach pausiert ihn - auf einem hellen Bildschirm: Tippen auf einen dunklen weckt ihn nur) |
 | **Aa** | **nach unten wischen** | **Schnell-Sync**: der Cardputer synchronisiert jedes Bluetooth-Gerät und kommt zurück; die Uhr wartet auf den Cardputer und kommt zurück |
 | CTRL, dann T | — | eine neue Aufgabe (eine Taste nach der anderen) |
 | CTRL, dann N | — | eine neue Textnotiz |
+| CTRL, dann J | — | das heutige Erfolgstagebuch (eine neue Zeile bereit) |
 | **TAB** | — | **das TAB-Menü** (unten) |
 
 ### Das TAB-Menü (Cardputer)
@@ -38,6 +39,7 @@ Ein kleines Menü über der Uhr. **TAB** oder UP / DOWN bewegen, ENTER öffnet, 
 | M | Gedankenablage — ein schneller Gedanke, ENTER speichert ihn und du bist zurück an der Uhr |
 | T | To-Do-Liste |
 | N | Textnotizen |
+| J | Erfolgstagebuch - die heutige Liste |
 | V | Sprachnotizen |
 | S | Schnell-Sync (wie Aa) |
 
@@ -63,9 +65,10 @@ Ein kleines Menü über der Uhr. **TAB** oder UP / DOWN bewegen, ENTER öffnet, 
 | Bildschirm | Tasten |
 |---|---|
 | Pomodoro, Training | ENTER Start / Pause, DEL Stopp, ESC verlassen (der Timer läuft weiter). Training: RIGHT bearbeitet die Blöcke (UP / DOWN ein Block, LEFT / RIGHT kürzer / länger, ENTER Farbe, DEL entfernen, ESC speichern) |
-| Metronom | LEFT / RIGHT das Intervall, UP / DOWN Lautstärke, ENTER Start / Stopp |
+| Sanduhr | UP / DOWN eine Minute mehr / weniger, LEFT / RIGHT fünf, Ziffern tippen die Minuten, ENTER Start / Pause, DEL Stopp, ESC verlassen (sie läuft weiter). Uhr: − / + (halten: schneller), Start, Pause, Stopp |
+| Metronom | LEFT / RIGHT das Intervall, UP / DOWN Lautstärke, S Piep / Klick, ENTER Start / Stopp |
 | Atmung | LEFT / RIGHT die Übung, ENTER Start / Stopp |
-| Statistik | ENTER den Fokus-Timer starten / pausieren; LEFT / RIGHT: dieses Gerät / jedes synchronisierte / zusammen |
+| Statistik | ENTER den Fokus-Timer starten / pausieren; **-** zieht 15 Minuten ab (eine Ablenkung), zweimal DEL setzt heute auf null (Uhr: *-15*, *Null* zweimal tippen); LEFT / RIGHT: dieses Gerät / jedes synchronisierte / zusammen |
 | Routinen | ENTER öffnen / neu; in einer Routine bearbeitet ENTER eine Zeile (Zeit: LEFT / RIGHT Stunde oder Minuten, UP / DOWN ändern; Tage: LEFT / RIGHT ein Tag, ENTER anhaken). Uhr: Tippen schaltet eine Routine ein / aus |
 | Eine Routine ist fällig | OPT erledigt, DEL überspringen; 30 s keine Antwort = sie kommt später wieder |
 

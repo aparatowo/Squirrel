@@ -80,8 +80,11 @@ class AXP202:
             return None
 
     def charging(self):
+        """True while the battery charges (0x01 bit 6) - and while USB power is in at all (0x00 bit 5 VBUS, bit 7 ACIN
+        present): bit 6 alone drops as soon as the battery is full, and "plugged in, full" is what the user wants to see
+        then too."""
         try:
-            return bool(self._r(0x01) & 0x40)
+            return bool(self._r(0x01) & 0x40) or bool(self._r(0x00) & 0xA0)
         except OSError:
             return None
 

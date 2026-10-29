@@ -10,10 +10,20 @@ Images : le Cardputer à gauche, la montre à droite (là où elle a cet écran)
 ## 🕐 L'horloge
 
 L'écran d'accueil est une horloge : de grands chiffres, la date et une ligne à toi en bas (*no need to go nuts* sur
-le Cardputer, *Squirrel! is watching* sur la montre - à changer dans Personnaliser, ou à laisser). Les barres sur les
-bords sont la batterie (à gauche) et le temps de concentration du jour par rapport à ton objectif (à droite). La
-montre affiche aussi le jour de la semaine et, en mots, le temps de concentration et la batterie - chacun dans la
-couleur de sa barre.
+le Cardputer, *Squirrel! is watching* sur la montre - à changer dans Personnaliser, ou à laisser). Les barres de `#`
+autour montrent le temps qui passe d'un coup d'œil :
+
+- **à gauche** - la batterie ; **à droite** - le temps de concentration du jour par rapport à ton objectif, qui monte
+  du bas (*Barre concentr. de : du haut* la remplit à l'ancienne, depuis le haut) ;
+- **en haut** - l'heure qui passe, depuis la gauche ; quand le [sablier](#-sablier) tourne, son temps à la place (le
+  dernier `#` coloré clignote) ;
+- **en bas** - le quart d'heure, depuis la droite ; il recommence à :00, :15, :30 et :45.
+
+Chacune peut être une barre pleine ou disparaître (*Personnaliser → Barres*). La montre affiche aussi le jour de la
+semaine et, en mots, le temps de concentration et la batterie - chacun dans la couleur de sa barre.
+
+De 10:00 à 19:59, l'heure commence par un « 1 », dessiné par son seul côté droit : l'horloge se décale alors de 10
+pixels vers la gauche (16 sur la montre) pour paraître centrée (*Personnaliser → Écran → Horloge 1x:xx X* ; 0 désactive).
 
 <img src="../../../shots/cardputer/fr/clock.png" width="360"> <img src="../../../shots/twatch/fr/clock.png" width="240">
 
@@ -22,9 +32,14 @@ synchronise tes appareils, **TAB** ouvre un petit menu de ce dont tu te sers le 
 
 <img src="../../../shots/cardputer/fr/tab-menu.png" width="360">
 
-L'heure vient d'une horloge matérielle quand il y en a une (le PCF8563 de la montre, un DS1302 optionnel sur le
-Cardputer), du Wi-Fi au démarrage, ou d'un autre appareil Squirrel! par Bluetooth (*Réglages → Heure et date → Heure
-d'un appareil*).
+Sur la montre : un **double toucher** lance le compteur de concentration, un **triple toucher** le met en pause, un
+simple toucher ouvre le menu - sur un écran allumé (un toucher sur un écran sombre ne fait que le réveiller).
+
+L'heure vient d'une horloge matérielle quand il y en a une (le PCF8563 de la montre ; sur le Cardputer, un module
+d'horloge optionnel - un DS3231 sur le port Grove, ou un DS1302 sur le connecteur EXT de l'ADV - une fois que tu as dit
+lequel dans *Réglages → Heure et date → Réglages de l'heure → Module d'horloge* ; d'ici là son code n'est même pas
+chargé), du Wi-Fi au démarrage, ou d'un autre appareil Squirrel! par Bluetooth (*Réglages → Heure et date → Heure d'un
+appareil*).
 
 ## ✅ Tâches et listes à cocher
 
@@ -63,6 +78,15 @@ aussitôt sur la carte SD en simples fichiers `.txt` lisibles sur n'importe quel
 Supprimer demande d'appuyer trois fois sur DEL - un doigt qui glisse ne peut pas effacer une note.
 
 <img src="../../../shots/cardputer/fr/delete-confirm.png" width="360">
+
+## 🏆 Journal des réussites
+
+Une liste par jour de ce qui a marché - les petites choses comptent. *Notes → Journal des réussites → + [Aujourd'hui]*
+ouvre la liste du jour avec une nouvelle ligne prête : chaque ligne qui commence par `-` ou `>` est une chose faite
+(comme dans la liste à cocher d'une tâche) ; les autres lignes sont du texte. Le nombre de choses faites va dans les
+statistiques, à part du temps de concentration.
+
+<img src="../../../shots/cardputer/fr/success-journal.png" width="360">
 
 ## 🧠 Vide-tête
 
@@ -108,9 +132,19 @@ toi-même (préparation, léger, normal, intense, repos).
 
 <img src="../../../shots/cardputer/fr/pomodoro-running.png" width="360"> <img src="../../../shots/twatch/fr/pomodoro_running.png" width="240">
 
+## ⏳ Sablier
+
+Un simple compte à rebours : règle les minutes, lance-le et occupe-toi du reste. La barre du haut de l'horloge se
+remplit à mesure que le temps file ; à la fin il sonne - son, LED et buzzer ou vibration, toutes les quelques secondes
+jusqu'à ce que tu répondes - même pendant les heures de silence, puisque tu l'as réglé toi-même. Il tourne en
+arrière-plan comme le Pomodoro et garde les minutes pour la prochaine fois.
+
+<img src="../../../shots/cardputer/fr/hourglass-running.png" width="360"> <img src="../../../shots/cardputer/fr/clock-hourglass.png" width="360">
+
 ## 🥁 Métronome et 🫁 respiration
 
-Le métronome bat de toutes les 1/8 s à toutes les 2 minutes - quelque chose de régulier à suivre, en arrière-plan. La
+Le métronome bat de toutes les 1/8 s à toutes les 2 minutes - quelque chose de régulier à suivre, en arrière-plan - avec un bip court, ou un clic sec comme
+une horloge (*Personnaliser → Audio → Son métronome*). La
 respiration te guide à travers *Carré 4-4-4-4*, *Détente 4-7-8* ou *Calme 5-5* : un cercle grandit à l'inspiration et
 rétrécit à l'expiration (la LED le suit, si tu en as une).
 
@@ -121,6 +155,10 @@ rétrécit à l'expiration (la LED le suit, si tu en as une).
 Le temps de concentration du jour par rapport à ton objectif, et les 7 derniers jours. Pas d'objectif à rater, pas de
 comparaisons - une image paisible de tes journées. Avec des appareils synchronisés : LEFT / RIGHT montre cet appareil,
 chaque appareil synchronisé, ou tous ensemble.
+
+Une distraction comptée comme concentration ? **-** retire les 15 dernières minutes (*Personnaliser → Concentration →
+Minutes à retirer*) ; DEL deux fois remet la journée à zéro. Sous le temps du jour : ce qui a marché aujourd'hui et
+cette semaine, d'après le journal des réussites.
 
 <img src="../../../shots/cardputer/fr/statistics.png" width="360"> <img src="../../../shots/twatch/fr/focus_stats.png" width="240">
 
@@ -156,4 +194,18 @@ l'appareil, sans nouveau firmware : [Squirrel!/translations/README.md](../../../
 
 L'écran baisse après un moment sans touche ; avec le *Mode veille*, l'appareil dort pendant qu'il est assombri (la
 montre dort profondément et se réveille pour ses routines, le coucou et ses heures de synchronisation). Les radios ne
-sont allumées que lorsqu'elles travaillent : le Wi-Fi pour l'heure au démarrage, le Bluetooth pour une synchronisation.
+sont allumées que lorsqu'elles travaillent : le Wi-Fi pour l'heure au démarrage, le Bluetooth pour une synchronisation. Le Cardputer ADV n'a pas de mode veille pour l'instant : en sommeil
+léger, son rétroéclairage clignotait et G0 lançait le dictaphone tout seul (à résoudre) ; l'économie écran assombri
+reste. Sur le premier Cardputer, le mode veille est expérimental (*Réglages → Expérimental → Réglages*).
+
+**Une batterie faible** est annoncée à 15 %, 10 %, 5 % et juste avant qu'elle soit vide - à l'écran, avec un son et le
+buzzer ou la vibration si tu le veux (*Personnaliser → Énergie → Alertes batterie*, *Son de l'alerte* ; *Buzzer →
+Batterie faible*). La LED peut clignoter avec l'alerte (*Personnaliser → LED → Batterie : clign.*).
+Pendant la charge, un petit éclair apparaît près de la barre de batterie de l'horloge (*Personnaliser → Barres →
+Signe de charge*).
+
+**La charge.** La puce d'alimentation de la montre dit quand elle charge (ou qu'elle est sur l'USB, pleine). Les
+Cardputer ne le savent pas : leur batterie est seulement mesurée. *Réglages → Expérimental → Réglages → Détection charge* leur fait
+deviner - d'après la tension de la batterie (elle saute quand un chargeur arrive ou part, et monte lentement pendant la
+charge) et un ordinateur sur l'USB. Un simple chargeur sans données ne se voit pas autrement. Expérimental : dis-nous si
+elle devine bien.

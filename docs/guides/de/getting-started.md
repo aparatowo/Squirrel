@@ -9,12 +9,14 @@ Von einem neuen Gerät zu Squirrel! darauf. Version 2.0.
 | Gerät | Was es ist | Was du brauchst |
 |---|---|---|
 | **M5Stack Cardputer ADV** | ein Taschencomputer mit Tastatur (ESP32-S3) - das Hauptgerät von Squirrel!, der *Chef* der Bluetooth-Synchronisation | eine microSD-Karte (FAT32) für deine Daten |
+| **M5Stack Cardputer** (der erste, v1.0 / v1.1) | *experimentell*: derselbe Taschencomputer vor dem ADV - noch nicht auf einem Gerät ausprobiert | eine microSD-Karte (FAT32); für die Zeit ohne WLAN ein DS3231-Modul am Grove-Port |
 | **LilyGo T-Watch 2020 V3** | eine Uhr mit Touchscreen (ESP32) - liest und hakt ab, was der Cardputer ihr gibt, Routinen und Timer am Handgelenk | nichts weiter |
 | **Eine allgemeine ESP32-S3-Smartwatch** | *experimentell*: die günstigen Uhren, die als "ESP32-S3 smartwatch" verkauft werden - noch nicht auf einem Gerät ausprobiert | zuerst ihre Pins prüfen ([Ports](../../implementation/de/ports.md)) |
 
 Was wo funktioniert: Der Cardputer hat alles; die Uhr hat keine Tastatur (sie schreibt keine Notizen oder Aufgaben -
 sie liest und hakt sie ab) und noch keinen Ton und kein Mikrofon, dafür vibriert sie, schläft tief und hat eine
-Hardware-Uhr.
+Hardware-Uhr. Der erste Cardputer hat alles außer dem Summer (kein freier Pin dafür); aus dem leichten Schlaf weckt
+ihn nur eine Tastenreihe (Aa, S, F, H, K, UP, ENTER).
 
 ## Auf deinem Computer
 
@@ -41,6 +43,9 @@ python3 build_firmware.py --flash /dev/ttyACM0
 
 # T-Watch 2020 V3
 python3 build_firmware.py --port twatch2020_v3 --flash /dev/ttyACM0
+
+# Cardputer (the first one, not ADV) - experimental
+python3 build_firmware.py --port cardputer --flash /dev/ttyACM0
 ```
 
 Der erste Build kompiliert das ganze ESP-IDF und dauert einige Minuten; spätere gehen schneller. Das Skript baut das
@@ -62,6 +67,8 @@ USB-Verbindung. Halte **G0** gedrückt, während du das Kabel einsteckst: der Ca
 - **Die Uhrzeit:** der Cardputer stellt seine Uhr beim Start über WLAN - füge dein Netz in *Einstellungen →
   Verbindungen → WLAN-Netze* hinzu (ein Handy-Hotspot geht auch; 2,4 GHz). Oder stelle sie von Hand (*Einstellungen →
   Zeit und Datum → Zeit stellen*), oder hole sie per Bluetooth von der Uhr.
+- **Ein Uhrmodul** (DS3231 / DS1302) hält die Zeit ohne WLAN: anstecken und in *Einstellungen → Zeit und Datum →
+  Zeiteinstellungen → Uhrmodul* auswählen (bis dahin ist es aus).
 - **Die Sprache:** *Einstellungen → Anpassen → Anzeige → Sprache* - English, Polski, Français, Deutsch.
 - **Uhr und Cardputer zusammen:** koppele sie einmal ([Bluetooth-Synchronisation](bluetooth.md)).
 

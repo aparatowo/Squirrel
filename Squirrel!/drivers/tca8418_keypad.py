@@ -29,9 +29,20 @@ class TCA8418Keypad:
         keymap: a module with MAP_NAV, MAP_TEXT, MAP_FN, MAP_SHIFT, MAP_CTRL, MAP_OPT, MAP_ALT, MAP_ALT_SHIFT,
         MODIFIER_STICKY and MODIFIER_MOMENTARY (see ports/cardputer_adv/keymap.py)."""
         self._new_bus = open_bus
-        self._keys = keymap
         self.i2c = None
         self.addr = addr
+        self._init_keys(keymap)
+
+        self._failing = False
+        self._fail_count = 0
+        self._next_recover_ms = 0
+
+        if self._open_bus(scan=True):
+            self._init_controller()
+
+    def _init_keys(self, keymap):
+        """The state of the key -> action layer (shared with drivers/hc138_keypad.py, which gives the same key codes)."""
+        self._keys = keymap
         self.is_text_mode = False
         # Set per screen by the app: when True, Aa / OPT / FN / CTRL / ALT are delivered
         # to the screen as ordinary key actions instead of toggling a modifier.
@@ -49,13 +60,6 @@ class TCA8418Keypad:
         # Persistent modifier label for the UI indicator — updated on toggle,
         # NOT cleared after a key action, so the renderer always sees current state.
         self.display_modifier = None  # None | 'SHIFT' | 'FN' | 'CTRL' | 'OPT' | 'ALT'
-
-        self._failing = False
-        self._fail_count = 0
-        self._next_recover_ms = 0
-
-        if self._open_bus(scan=True):
-            self._init_controller()
 
     def _open_bus(self, scan=False):
         """(Re)create the I2C bus object; also used as the recovery step.
@@ -209,51 +213,7 @@ class TCA8418Keypad:
             if not data or data[0] == 0:
                 self.last_key_code = 0
                 return None, False
-
-            val = data[0]
-            is_press = (val & 0x80) != 0
-            key_code = val & 0x7F
-
-            if is_press and key_code > 0:
-                if key_code == self.last_key_code:
-                    return None, False  # Ignore hold-down repetition until release
-
-                self.last_key_code = key_code
-
-                # 1. Check if the pressed key is a modifier
-                base_action = self._keys.MAP_NAV.get(key_code)
-
-                if base_action in self.flags or base_action == 'Aa':
-                    if self.modifiers_as_keys:
-                        print(f"[KEY EVENT] KeyCode: {key_code} -> Action: '{base_action}' (as key)")
-                        return base_action, False
-                    mod_key = 'SHIFT' if base_action == 'Aa' else base_action
-                    self._toggle_modifier(mod_key)
-                    # Return None action but signal that modifier state changed
-                    # so the caller can trigger a re-render of the indicator.
-                    return None, True
-
-                # 2. Resolve action using the active modifier map
-                current_map = self._get_active_map()
-                action = current_map.get(key_code)
-
-                # Fallback to base map when the modifier has no special binding
-                if not action:
-                    fallback_map = self._keys.MAP_TEXT if self.is_text_mode else self._keys.MAP_NAV
-                    action = fallback_map.get(key_code)
-
-                print(f"[KEY EVENT] KeyCode: {key_code} | TextMode: {self.is_text_mode} "
-                      f"| Modifier: {self.display_modifier} -> Action: '{action}'")
-
-                if not action:
-                    return None, False
-
-                # 3. Release only MOMENTARY modifiers after the key is consumed;
-                #    STICKY modifiers (FN, SHIFT/Aa) remain until toggled off.
-                self._release_momentary_modifiers()
-
-                # ALT + letter types an accented letter with the chosen layout (ALT+a -> ą with "pl")
-                return compose(action, cfg.get("KEYBOARD_LAYOUT")), False
+            return self._key_event(data[0])
 
         except Exception as e:
             # Never swallow silently: a dead keypad looks exactly like this.
@@ -262,5 +222,53 @@ class TCA8418Keypad:
                 log(f"[KEYPAD ERROR] read failed (#{self._fail_count}): {e}")
             self._failing = True
             self._recover()
+
+        return None, False
+
+    def _key_event(self, val):
+        """One event of the controller's FIFO (bit 7 = pressed, bits 6..0 = the key code) -> (action, modifier_changed)."""
+        is_press = (val & 0x80) != 0
+        key_code = val & 0x7F
+
+        if is_press and key_code > 0:
+            if key_code == self.last_key_code:
+                return None, False  # Ignore hold-down repetition until release
+
+            self.last_key_code = key_code
+
+            # 1. Check if the pressed key is a modifier
+            base_action = self._keys.MAP_NAV.get(key_code)
+
+            if base_action in self.flags or base_action == 'Aa':
+                if self.modifiers_as_keys:
+                    print(f"[KEY EVENT] KeyCode: {key_code} -> Action: '{base_action}' (as key)")
+                    return base_action, False
+                mod_key = 'SHIFT' if base_action == 'Aa' else base_action
+                self._toggle_modifier(mod_key)
+                # Return None action but signal that modifier state changed
+                # so the caller can trigger a re-render of the indicator.
+                return None, True
+
+            # 2. Resolve action using the active modifier map
+            current_map = self._get_active_map()
+            action = current_map.get(key_code)
+
+            # Fallback to base map when the modifier has no special binding
+            if not action:
+                fallback_map = self._keys.MAP_TEXT if self.is_text_mode else self._keys.MAP_NAV
+                action = fallback_map.get(key_code)
+
+            print(f"[KEY EVENT] KeyCode: {key_code} | TextMode: {self.is_text_mode} "
+                  f"| Modifier: {self.display_modifier} -> Action: '{action}'")
+
+            if not action:
+                return None, False
+
+            # 3. Release only MOMENTARY modifiers after the key is consumed;
+            #    STICKY modifiers (FN, SHIFT/Aa) remain until toggled off.
+            self._release_momentary_modifiers()
+
+            # ALT + letter types an accented letter with the chosen layout (ALT+a -> ą with "pl")
+            return compose(action, cfg.get("KEYBOARD_LAYOUT")), False
 
         return None, False

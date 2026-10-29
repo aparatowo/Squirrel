@@ -30,6 +30,12 @@ sda  = 8
 scl  = 9
 freq = 400_000
 
+[i2c.grove]                                 # the Grove port (HY2.0-4P, PORT.A): a DS3231 clock module
+id   = 1
+sda  = 2
+scl  = 1
+freq = 400_000
+
 [input]
 driver   = "tca8418_keypad"
 keyboard = true                             # a real keyboard: text can be typed
@@ -54,7 +60,15 @@ freq  = 1_000_000
 base_dir = "/sd/Squirrel"
 flash_root = "/flash"                       # where the internal flash's file system is mounted (UIFlow: /flash)
 
-[clock]                                     # an optional DS1302 on the EXT header; read once at start-up
+[clock]                                     # an optional clock module, read once at start-up.  Which one is plugged in is
+optional = true                             # the user's setting RTC_CHIP (Time settings): "off" by default, and only the
+                                            # chosen one's driver is ever loaded.  (No `alarm`: no deep sleep here.)
+
+[clock.ds3231]                              # a DS3231 on the Grove port
+driver = "ds3231"
+bus    = "grove"
+
+[clock.ds1302]                              # a DS1302 on the EXT header
 driver = "ds1302"
 clk = 6                                     # serial clock
 dat = 4                                     # bidirectional data
@@ -62,6 +76,7 @@ rst = 3                                     # reset / chip enable (active HIGH)
 
 [power]
 driver = "m5_power"                         # M5.Power: battery level through the ADC, charging unknown
+voltage_only = true                         # charging can only be guessed (features.toml: charge_guess)
 
 [audio_out]
 driver = "m5_audio"                         # M5.Speaker
@@ -95,5 +110,11 @@ wifi = true
 ble  = true                                 # the Bluetooth sync (features.toml: ble_sync)
 
 [power_mgmt]
-wake_pins   = [0, 11]                       # light sleep ends on G0 or a key (the keyboard controller's INT)
+light_sleep = false                         # no light sleep here (2026-10-22): the back-light lit up and
+                                            # flashed in it, G0 read as pressed (the quick recorder started by
+                                            # itself), the speaker ticked and the USB died.  The code stays; the
+                                            # symptoms: docs/implementation/*/backlog.md.  true = back to trying it.
+wake_pins   = [11]                          # light sleep ends on a key (the keyboard controller's INT).  Not G0: as a
+                                            # wake source its pad is switched to the RTC, where the pull-up is gone - it
+                                            # floated, read as pressed and started the quick recorder (2026-10-21)
 slow_cpu_hz = 80_000_000                    # the CPU while the screen is dimmed and nothing is going on

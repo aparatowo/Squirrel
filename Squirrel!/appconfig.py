@@ -21,7 +21,7 @@
 import os
 import nuts
 from boot_log import log
-from appconfig_schema import SETTINGS, HELP
+from appconfig_schema import SETTINGS, help_of
 
 # Defaults that changed: config.txt keeps every setting, the defaults too, so a file written by an older version would
 # keep the old one for ever.  A value found here is read as "the default" (the device's current one).
@@ -97,6 +97,8 @@ def _ensure_parent(path):
 # Settings renamed or replaced, read from an older config.txt: old key -> (new key, value text)
 _LEGACY = {
     "POWER_LIGHT_SLEEP": lambda v: ("POWER_SLEEP", "light" if v.strip().lower() == "true" else "off"),
+    # 2.1 in the making: LED_BATTERY was a switch for a weak glow (dropped), now the LED mode of the battery warnings
+    "LED_BATTERY": lambda v: ("LED_BATTERY", {"true": "double", "false": "off"}.get(v.strip().lower(), v)),
 }
 
 
@@ -149,7 +151,7 @@ class Config:
     @staticmethod
     def help(key):
         """What to know about the setting beyond its name ("" if nothing); lines are split by "\n"."""
-        return HELP.get(key, "")
+        return help_of(key)
 
     def text_of(self, key):
         return self._to_text(self._schema[key][1], self._values[key])
@@ -399,7 +401,7 @@ class Config:
                 group = g
                 lines.append("# --- %s ---" % g)
             lines.append("# %s%s" % (label, self._hint(kind, extra)))
-            for help_line in HELP.get(key, "").split("\n"):
+            for help_line in help_of(key).split("\n"):
                 if help_line:
                     lines.append("#   " + help_line)
             lines.append("%s = %s" % (key, self._to_text(kind, self._values[key])))

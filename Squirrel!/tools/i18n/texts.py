@@ -36,7 +36,9 @@ DATA = (
 )
 # texts made by the code that no single literal shows
 EXTRA = ("deep", "FINISHED", "RUNNING", "PAUSED", "Pomodoro", "Training", "Done", "Cancel", "Skip", "OK", "Close",
-         "Silent: sound", "Silent: buzzer", "Silent: LED")
+         "Silent: sound", "Silent: buzzer", "Silent: LED",
+         # the LED tests' step labels (screens/led_test_screen.py _TESTS, built by comprehensions)
+         "%d ms on / off", "green %d / 255", "white %d", "%d s up and down")
 
 
 def _constant(path, name):
@@ -115,7 +117,7 @@ def data_texts():
         if kind == "choice":
             for option in extra:
                 add(str(option), "option " + key)
-    for key, text in schema.HELP.items():
+    for key, text in zip(schema.HELP[::2], schema.HELP[1::2]):
         add(text, "help " + key)
     for name in getattr(nuts, "PALETTE", {}):
         add(name, "colour")

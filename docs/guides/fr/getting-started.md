@@ -9,11 +9,14 @@ D'un appareil neuf à Squirrel! dessus. Version 2.0.
 | Appareil | Ce que c'est | Ce qu'il te faut |
 |---|---|---|
 | **M5Stack Cardputer ADV** | un ordinateur de poche avec clavier (ESP32-S3) - l'appareil principal de Squirrel!, le *chef* de la synchronisation Bluetooth | une carte microSD (FAT32) pour tes données |
+| **M5Stack Cardputer** (le premier, v1.0 / v1.1) | *expérimental* : le même ordinateur de poche avant l'ADV - pas encore essayé sur un appareil | une carte microSD (FAT32) ; pour l'heure sans Wi-Fi, un module DS3231 sur son port Grove |
 | **LilyGo T-Watch 2020 V3** | une montre à écran tactile (ESP32) - lit et coche ce que le Cardputer lui donne, routines et minuteurs au poignet | rien de plus |
 | **Une montre ESP32-S3 générique** | *expérimental* : les montres bon marché vendues comme "ESP32-S3 smartwatch" - pas encore essayé sur un appareil | vérifier d'abord ses broches ([ports](../../implementation/fr/ports.md)) |
 
 Ce qui marche où : le Cardputer a tout ; la montre n'a pas de clavier (elle n'écrit ni notes ni tâches - elle les lit
-et les coche), ni encore de son ou de micro, mais elle vibre, dort profondément et a une horloge matérielle.
+et les coche), ni encore de son ou de micro, mais elle vibre, dort profondément et a une horloge matérielle. Le
+premier Cardputer a tout sauf le buzzer (pas de broche libre pour lui) ; d'un sommeil léger, seule une rangée de
+touches le réveille (Aa, S, F, H, K, UP, ENTER).
 
 ## Sur ton ordinateur
 
@@ -41,6 +44,9 @@ python3 build_firmware.py --flash /dev/ttyACM0
 
 # T-Watch 2020 V3
 python3 build_firmware.py --port twatch2020_v3 --flash /dev/ttyACM0
+
+# Cardputer (the first one, not ADV) - experimental
+python3 build_firmware.py --port cardputer --flash /dev/ttyACM0
 ```
 
 La première compilation compile tout ESP-IDF et prend plusieurs minutes ; les suivantes sont plus rapides. Le script
@@ -62,6 +68,8 @@ flashage marche. Il démarre ensuite le nouveau firmware tout seul.
 - **L'heure :** le Cardputer règle son horloge par Wi-Fi au démarrage - ajoute ton réseau dans *Réglages →
   Connexions → Réseaux WiFi* (le partage de connexion d'un téléphone convient ; 2,4 GHz). Ou règle-la à la main
   (*Réglages → Heure et date → Régler l'heure*), ou prends-la de la montre par Bluetooth.
+- **Un module d'horloge** (DS3231 / DS1302) garde l'heure sans Wi-Fi : branche-le, puis choisis-le dans *Réglages →
+  Heure et date → Réglages de l'heure → Module d'horloge* (il est désactivé jusque-là).
 - **La langue :** *Réglages → Personnaliser → Écran → Langue* - English, Polski, Français, Deutsch.
 - **La montre et le Cardputer ensemble :** appaire-les une fois ([synchronisation Bluetooth](bluetooth.md)).
 

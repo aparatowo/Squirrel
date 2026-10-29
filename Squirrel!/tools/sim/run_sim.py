@@ -44,6 +44,7 @@ for ch, code in zip("1234567890", (5, 11, 15, 21, 25, 31, 35, 41, 45, 51)):
 for ch, code in zip("qwertyuiopasdfghjklzxcvbnm",
                     (6, 12, 16, 22, 26, 32, 36, 42, 46, 52, 13, 17, 23, 27, 33, 37, 43, 47, 53, 18, 24, 28, 34, 38, 44, 48)):
     CODES[ch] = code
+CODES.update({"-": 55, "=": 61, "[": 56, "]": 62, "'": 63, "\\": 66})     # the keys whose action is their character
 
 import boot_log
 boot_log.begin_session()
@@ -158,6 +159,8 @@ from menu_tree import MENUS
 
 def walk(menu_id, prefix, out, skip):
     entries = MENUS[menu_id][1]
+    if app.rtc.chip_name is None:                 # as MenuScreen._entries shows them: no "Sync RTC" without a clock
+        entries = [e for e in entries if e[2] != "sync_rtc"]
     for i, entry in enumerate(entries):
         path = prefix + [i]
         target = entry[2] if not isinstance(entry[2], tuple) else entry[2][0]

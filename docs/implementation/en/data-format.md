@@ -230,3 +230,7 @@ see [bluetooth.md](bluetooth.md) §6.
 | note | `notes/<name>.txt`, `notes/meta.json` (`{name: {id, e}}`) | |
 | stat | `focus/routines.txt`, `focus/todos.txt`, `focus/focus.txt` (seconds -> minutes), steps | `focus/peers/<slot>/` - the other devices' statistics on the boss |
 | settings | `config.txt` | |
+
+Not records (yet): the success journal, `wins/YYYY-MM-DD.txt` (one day: the date, then `-` / `>` lines = things
+done) stays on the device. `focus/focus.txt` may hold negative lines (`2026-10-19,-900`): focus time taken back; a
+day's lines add up, never below zero.

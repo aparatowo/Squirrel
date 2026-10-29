@@ -11,10 +11,6 @@
 # Numbers in front of the labels are added automatically.
 
 from features import has as _has
-import port_config as _pc
-_CHIP = getattr(_pc, "CLOCK_DRIVER", None)
-RTC_CHIP = _CHIP.upper() if isinstance(_CHIP, str) else None       # "DS1302" on the Cardputer, "PCF8563" on the watch:
-                                                                   # menu_screen adds it to "Sync RTC", untranslated
 _BLUETOOTH = "BLE_HUB" if _has("ble_hub") else "BLE_SYNC"      # the head manages its devices; a node waits for it
 
 MENUS = {
@@ -29,6 +25,7 @@ MENUS = {
                                                    "back": ("MENU", {"menu_name": "FOCUS"})})),
         ("Routines", "screen", "ROUTINES"),
         ("Pomodoro", "screen", ("INTERVALS", {"mode": "pomodoro"})),
+        ("Hourglass", "screen", "HOURGLASS"),
         ("Metronome", "screen", "METRONOME"),
         ("Training", "screen", ("INTERVALS", {"mode": "training"})),
         ("Breathing", "screen", "BREATHING"),
@@ -36,6 +33,7 @@ MENUS = {
     ]),
     "NOTES_ROOT": ("Notes", [
         ("Text notes", "menu", "NOTES"),
+        ("Success journal", "menu", "WINS"),
         ("Mind dump", "menu", "MIND"),
         ("Voice notes", "menu", "RECORDS"),
     ]),
@@ -51,9 +49,6 @@ MENUS = {
     ]),
     "CONNECTIONS": ("Connections", [
         ("WiFi networks", "screen", "WIFI_NETWORKS"),
-        # the settings of the Network group (the WIFI_SSID / WIFI_PASSWORD fallback), not listed in Personalize
-        ("Fallback network", "screen", ("PERSONALIZE", {"groups": ("Network",), "title": "Fallback network",
-                                                       "back": ("MENU", {"menu_name": "CONNECTIONS"})})),
     ]),
     "TIME_DATE": ("Time and date", [
         ("Time via WiFi", "screen", "TIME_SYNC"),
@@ -104,6 +99,10 @@ MENUS = {
     ]),
     # Features that work but are not finished or fully trusted yet
     "EXPERIMENTAL": ("Experimental", [
+        # the settings of the Experimental group (charging guessed from the voltage where it cannot be read; the
+        # Cardputers' light sleep)
+        ("Settings", "screen", ("PERSONALIZE", {"groups": ("Experimental",), "title": "Experimental",
+                                                       "back": ("MENU", {"menu_name": "EXPERIMENTAL"})})),
         ("Test notification", "action", "test_notification"),
         ("Test sound", "action", "test_sound"),
         ("Buzzer test", "menu", "BUZZER_TEST"),
@@ -116,6 +115,7 @@ MENUS = {
 COLLECTIONS = {
     "TODO": ("To-Do list", ".txt"),
     "NOTES": ("Text notes", ".txt"),
+    "WINS": ("Success journal", ".txt"),             # one file a day (success_log.py); its first row is "+ [Today]"
     "MIND": ("Mind dump", ".txt"),
     "RECORDS": ("Voice notes", ".wav"),
 }
@@ -134,6 +134,7 @@ PARENTS = {
     "LED_MODES": "LED_TEST",
     "TODO": "MAIN",
     "NOTES": "NOTES_ROOT",
+    "WINS": "NOTES_ROOT",
     "MIND": "NOTES_ROOT",
     "RECORDS": "NOTES_ROOT",
 }

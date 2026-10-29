@@ -9,7 +9,9 @@ class TimeProvider:
     """Abstract base class for RTC sources.
 
     Implementations:
-      - DS1302TimeProvider  (rtc_ds1302.py)  — hardware RTC via 3-wire bus
+      - DS1302TimeProvider  (drivers/ds1302.py)   — hardware RTC via 3-wire bus
+      - DS3231TimeProvider  (drivers/ds3231.py)   — hardware RTC on I2C, with an alarm
+      - PCF8563TimeProvider (drivers/pcf8563.py)  — hardware RTC on I2C, with an alarm (the watch)
       - SoftTimeProvider    (rtc_provider.py) — ESP32 internal timer fallback
 
     All datetime tuples follow MicroPython's time.localtime() convention:

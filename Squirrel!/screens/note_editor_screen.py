@@ -42,9 +42,11 @@ class NoteEditorScreen(BaseScreen):
 
     # ------------------------------------------------------------------ lifecycle
 
-    def on_enter(self, title="", body="", file_index=None, menu_name="NOTES", **kwargs):
+    def on_enter(self, title="", body="", file_index=None, menu_name="NOTES", day=None, **kwargs):
         self.menu_name = menu_name
         self.file_index = file_index
+        # the success journal: the day the list is of (from "+ [Today]", or the first line of a day opened from the list)
+        self._day = day or (body.split("\n", 1)[0].strip() if menu_name == "WINS" else None)
         todo = menu_name == "TODO"
         self.max_chars = cfg.get("TODO_MAX_CHARS" if todo else "NOTE_BODY_MAX_CHARS")
         self.title_max = cfg.get("TODO_TITLE_MAX_LEN" if todo else "NOTE_TITLE_MAX_LEN")
@@ -93,6 +95,14 @@ class NoteEditorScreen(BaseScreen):
     def _save(self):
         """Persist the buffer and navigate back."""
         full_body = "\n".join(self.body_lines)
+        if self.menu_name == "WINS":
+            ok = self.app.success_log.save(self._day, full_body)          # the date is its title, whatever was typed
+            if hasattr(self.app, 'keypad'):
+                self.app.keypad.set_text_mode(False)
+            self.app.renderer.render_options(_("Saved!") if ok else _("Save failed!"))
+            time.sleep(0.6)
+            self.app.set_screen("MENU", menu_name="WINS")
+            return
         title = self._title()
         if not title:
             self.app.renderer.render_alert(_("Title Required!"))

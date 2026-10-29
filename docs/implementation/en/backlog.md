@@ -51,6 +51,28 @@ read them).
 the Cardputer's key, and the Cardputer asks for a new code at its next sync (and the other way round). Documented for
 users; a fix would keep a few keys and accept the proof of any of them - no change on the air or in the page.
 
+### F. Light sleep is switched off on the Cardputer ADV (to solve)
+
+Since 2026-10-22 the `cardputer_adv` port has `[power_mgmt] light_sleep = false` in its `port.toml`: *Sleep mode* is gone
+from the settings, and `hw/power.py` does not light-sleep even with `POWER_SLEEP = light` in `config.txt`. The light-sleep
+code stays (the first Cardputer and the watch still use it). What the Cardputer ADV did with it on:
+
+- **the back-light** - instead of going dark when the screen dimmed it lit up brighter and flashed at every sleep cycle
+  (~0.8 s): the back-light's PWM stops in a light sleep and its pin stays in whatever state it had;
+- **G0** - read as pressed during a sleep and right after it (measured: 500 of 500 reads low, the IO MUX registers right,
+  3.3 V on the battery alone with the sleep off): the quick recorder started by itself (`[BTN0] quick recorder from
+  ClockScreen, dimmed (pin 0)` in the log), hence the flashing screen too; while asleep G0 did nothing at all;
+- **the speaker** - after the first sound it ticked at every sleep and wake; `Speaker.end()` before a sleep brings it down
+  to what is heard by the ear, switching the ES8311 off by its registers silences it, but the speaker does not come back
+  until the power is cut;
+- **USB** - the console does not answer during a sleep, and after a series of sleeps USB cannot be enumerated until a
+  reset;
+- with G0 as a wake source (ext0) its pad moved to the RTC and lost its pull-up (already changed: the keyboard, G11, wakes).
+
+To try: the pins' sleep configuration (`gpio_sleep_sel` / sleep pulls for G0 and the back-light pin, `gpio_hold` of the
+back-light at 0), initialising the ES8311 again after the wake, `esp_sleep_pd_config` for the power domains. Tools: the
+`[POWER] light sleep` and `[BTN0]` lines in `boot_log.txt`.
+
 ## Not built yet
 
 - **Edits on a node** (a phone connected to the watch): kept as proposals with the version they were made on; the boss
@@ -63,7 +85,26 @@ users; a fix would keep a few keys and accept the proof of any of them - no chan
   page is not yet tried. Publishing it on GitHub Pages for phones: `.github/workflows/web-page.yml`, ready, not switched
   on.
 - **The generic ESP32-S3 watch** (`ports/generic_s3_watch`): builds, not yet tried on a watch.
-- **The watch's sound and microphone, the accelerometer** (still only switched off at start-up).
+- **The first Cardputer** (`ports/cardputer`): builds, not yet tried on a device. To check first: the Grove port's
+  pins (G2 = SDA, G1 = SCL), the LED's G21 and its supply, every key (Settings → Key calibration shows the codes),
+  waking from light sleep, sound and recording through M5.Speaker / M5.Mic.
+- **The DS3231** (`drivers/ds3231.py`): tested against a fake bus (`tools/tests/test_cardputer_hw.py`), not yet on a
+  module. The clock module is chosen in the settings (`RTC_CHIP`, off by default).
+- **The LED needs a lit screen** (Cardputer ADV, measured 2026-10-20 with `tools/hwtest/cardputer_hw.py t09_screen_off`):
+  it gets its power through the back-light's switch, so with the screen off it stays dark, and a dim LED signal
+  (charging, a low battery) would light the screen up with it. Dropped: charging is a mark by the battery bar, a low
+  battery a notification with an ordinary LED signal.
+- **Charge detection** (Cardputers, experimental): the thresholds of `hw/battery.py` ChargeGuess come from the usual
+  behaviour of a Li-ion cell, not from measurements - check them with `cardputer_hw.py t06_charging` and the battery log.
+- **The watch's charging**: reported "not working"; the AXP202's bits are now read together with USB presence - check
+  with `tools/hwtest/twatch_hw.py t14_charging`.
+- **Modules the user switches on** (a small version by default, *Settings → Features*): a proposal with its analysis,
+  [modules-proposal.md](modules-proposal.md).
+- **The success journal over Bluetooth**: its days (`wins/`) stay on the Cardputer; the watch does not show them, the
+  successes are not in the synced statistics yet.
+- **The watch's speaker and microphone, the accelerometer**: the T-Watch has a speaker (I2S, powered from LDO4), but
+  the signals - the metronome (beep / click), notifications, the hourglass - only vibrate on the watch so far; the
+  accelerometer is only switched off at start-up.
 - **Ideas from the roadmap:**
   - the *Today* filter on the To-Do list;
   - emotion tags on an entry (🔥 urgent, 💡 idea, 😰 stress, 🕑 someday);

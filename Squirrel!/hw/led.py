@@ -21,19 +21,18 @@
 #   1. a signal - a mode (MODES) in a colour, started by signal(feature) or play(mode, colour);
 #   2. Breathing - while the exercise runs and LED_BREATHING is on: green growing brighter while you breathe in,
 #      blue fading while you breathe out (set_breath());
-#   3. charging - while the battery charges and LED_CHARGING is on: a slow blink in the colour of the battery level,
-#      the same colours as the status bars (blue, green, yellow, red).  Only when the device REPORTS charging: the
-#      Cardputer ADV cannot (see battery.py), so there the light stays off rather than blinking all the time;
-#   otherwise it is dark.
+#   otherwise it is dark.  (A charging light and a weak glow for a low battery were tried and dropped, 2026-10-20: on
+#   the Cardputer ADV the LED is dark unless the screen is lit fully - see t09_screen_off in tools/hwtest/cardputer_hw.py.
+#   Charging is shown as a mark by the battery bar instead, ui_renderer.py.)
 #
 # Which features may light it, in which mode and colour: the settings of the group "LED" (all "off" by default),
-# read from the settings in memory (appconfig.cfg).  The quiet hours of the LED (QUIET_LED_*, Settings -> Silent mode) darken the signals and the charging light; signal() is wrapped in
+# read from the settings in memory (appconfig.cfg).  The quiet hours of the LED (QUIET_LED_*, Settings -> Silent mode) darken the signals; signal() is wrapped in
 # quiet_hours.quiet_guard("led"), so force=True lights it anyway.  Breathing is started by hand and always lights.
 
 import time
 from boot_log import log
 from appconfig import cfg
-from quiet_hours import quiet_guard, is_quiet
+from quiet_hours import quiet_guard
 
 # Modes: segments of (ms, level at the start %, level at the end %) - a level changes evenly within a segment
 MODES = {
@@ -51,7 +50,7 @@ MODES = {
 MODE_NAMES = ("flash", "double", "triple", "long", "pulse", "alarm", "sos")
 
 # Features that may light the LED: LED_<NAME> is the mode ("off" = not at all), LED_<NAME>_COLOR the colour
-FEATURES = ("LED_NOTIFY", "LED_INTERVALS", "LED_METRONOME", "LED_CUCKOO")
+FEATURES = ("LED_NOTIFY", "LED_INTERVALS", "LED_METRONOME", "LED_CUCKOO", "LED_HOURGLASS", "LED_BATTERY")
 
 # The colour names of nuts.PALETTE as 0xRRGGBB for the LED (yellow and orange are shifted to red: a WS2812 shows
 # full red + green as a greenish yellow)
@@ -61,7 +60,6 @@ RGB = {
     "lightgray": 0xC0C0C0, "orange": 0xFF3000, "lightgreen": 0x60FF30,
 }
 
-_CHARGE_BLINK_MS = 1000         # charging: 1 s lit, 1 s dark
 # How a change is sent (the LED tests switch between these with R, to compare them on the device):
 #   (name, gaps in ms before each repeat of the same frame, refresh period in ms while lit - 0 = none)
 SEND_MODES = (
@@ -73,7 +71,6 @@ SEND_MODES = (
 SEND_MODE = 1                   # the one in use (an index into SEND_MODES)
 _LEAD_IN_MS = 80                # a signal starting from dark waits this long: the back-light is raised first and the
                                 # LED, which gets its power through it, needs a moment before it takes data
-_QUIET_CHECK_MS = 5000          # how often the charging light asks whether the quiet hours have begun
 
 
 
@@ -95,7 +92,6 @@ class Led:
     def __init__(self):
         self._hw = None             # a drivers.ws2812 object, or (last resort) M5.Led
         self._np = False
-        self._battery = None        # BatteryMonitor (level_pct, charging)
         self._pattern = None        # (segments, 0xRRGGBB, start ms)
         self._breath = None         # function -> (colour name, level %) or None
         self._shown = None          # the 0xRRGGBB written last
@@ -108,8 +104,6 @@ class Led:
         self.min_backlight = 0      # the floor asked for; the LED tests switch it
         self._pin = None
         self._drivers = ()          # the driver classes to try, in order (begin(), use_driver())
-        self._quiet = False         # the LED's quiet hours, as of the last check
-        self._quiet_at = 0
         self.problem = ""
 
     @property
@@ -148,9 +142,9 @@ class Led:
         """Find the LED and switch it off.  Call once, after the board's begin().
 
         pin None = the device has no LED.  drivers: classes taking the pin number, tried in order (drivers/ws2812.py);
-        fallback() -> an M5.Led-like object, the last resort; min_backlight / max_sum: see [signal.led] in port.toml."""
+        fallback() -> an M5.Led-like object, the last resort; min_backlight / max_sum: see [signal.led] in port.toml.
+        battery: not used any more (it fed the charging light)."""
         global _max_sum
-        self._battery = battery
         if pin is None:
             self.problem = "No LED (port.toml)"
             return False
@@ -211,8 +205,8 @@ class Led:
         return True
 
     def set_breath(self, provider):
-        """provider() -> (colour name, level 0..100) while the exercise shows a light, or None (then the charging
-        light may show).  Asked on every tick; set_breath(None) ends it."""
+        """provider() -> (colour name, level 0..100) while the exercise shows a light, or None (then it is dark
+        dark).  Asked on every tick; set_breath(None) ends it."""
         self._breath = provider
         self.tick()
 
@@ -250,7 +244,7 @@ class Led:
         return self.play("long", "white")
 
     def off(self):
-        """Dark now: the signal and the breathing light are forgotten (the charging light comes back by itself)."""
+        """Dark now: the signal and the breathing light are forgotten."""
         self._pattern = None
         self._breath = None
         self._write(0)
@@ -281,10 +275,9 @@ class Led:
                 log(f"[LED] breathing: {e}")
                 self._breath = None
         if state is not None:                          # the exercise runs: its light, dark pauses included
-            color, level = RGB.get(state[0], 0), state[1]
+            self._write(self._scale(RGB.get(state[0], 0), state[1]))
         else:
-            color, level = self._charging_level(now)
-        self._write(self._scale(color, level))
+            self._write(0)
 
     def _pattern_level(self, now):
         segments, color, start = self._pattern
@@ -297,22 +290,6 @@ class Led:
             t -= ms
         self._pattern = None                         # played to the end
         return 0, 0
-
-    def _charging_level(self, now):
-        battery = self._battery
-        if battery is None or battery.charging is not True or not cfg.get("LED_CHARGING"):    # only a real "charging"
-            return 0, 0
-        if time.ticks_diff(now, self._quiet_at) >= 0:
-            self._quiet_at = time.ticks_add(now, _QUIET_CHECK_MS)
-            self._quiet = is_quiet("led")
-        if self._quiet or (now // _CHARGE_BLINK_MS) % 2:
-            return 0, 0
-        level = battery.level_pct
-        if level is None:
-            return RGB["white"], 100
-        from bars import battery_color
-        name = battery_color(level, cfg.get("BATTERY_BLUE_PCT"), cfg.get("BATTERY_GREEN_PCT"), cfg.get("BATTERY_YELLOW_PCT"))
-        return RGB[name], 100
 
     @staticmethod
     def _scale(color, level):

@@ -8,14 +8,17 @@
 #                         connection needed.
 #
 # The hardware clock is the port's ([clock] in ports/<port>/port.toml): the board
-# gives RTCManager a factory that opens it (on the Cardputer a DS1302 on the EXT
-# header, drivers/ds1302.py), or none.  The chip only needs to be physically
-# connected during sync.  After sync the soft RTC keeps time until the next power cycle.
+# gives RTCManager a factory that opens it, or none.  On the Cardputers the clock is an
+# optional module and the user says which one is plugged in (the setting RTC_CHIP,
+# "off" by default): until then no driver is loaded; a change takes effect at once
+# (use_chip).  The chip only needs to be physically connected during sync.  After
+# sync the soft RTC keeps time until the next power cycle.
 
 import machine
 from boot_log import log
 from hw.rtc_base import TimeProvider
 from timeutil import weekday
+
 
 
 class SoftTimeProvider(TimeProvider):
@@ -62,8 +65,9 @@ class RTCManager:
         chip_name names it in last_sync_source and in the messages ("ds1302" -> "DS1302")."""
         self._provider = SoftTimeProvider()
         self._chip = chip
-        self._chip_name = chip_name
-        self.last_sync_source = "soft"   # "soft" | chip_name | "manual"
+        self._chip_name = chip_name or "no clock"     # (a name for the log even when there is none)
+        self.last_sync_source = "soft"   # "soft" | the chip's name | "manual" | "wifi" | "peer"
+        self.chip_synced = False         # the time came from the hardware clock (at start-up or by Sync RTC)
 
     def chip(self):
         """The hardware clock, opened, if it has an alarm (deep_sleep.py writes the next one into it); else None."""
@@ -79,6 +83,17 @@ class RTCManager:
         if self._chip is None:
             raise OSError("no hardware clock on this device")
         return self._chip()
+
+    def use_chip(self, chip=None, chip_name=None):
+        """Another clock module chosen (RTC_CHIP): from now on that one is read and written; None = none."""
+        self._chip = chip
+        self._chip_name = chip_name or "no clock"
+        self.chip_synced = False
+
+    @property
+    def chip_name(self):
+        """The hardware clock's name ("ds3231" ...), or None without one."""
+        return self._chip_name if self._chip is not None else None
 
     # ------------------------------------------------------------------
     # Public API — delegates to active provider
@@ -105,7 +120,7 @@ class RTCManager:
     # ------------------------------------------------------------------
 
     def sync_on_boot(self) -> bool:
-        """Once at start-up: take the time from a permanently attached DS1302.
+        """Once at start-up: take the time from a permanently attached hardware clock.
 
         Only a plausible, running, stable reading is accepted (see read_valid);
         anything else leaves the internal clock untouched.  Returns True if synced.
@@ -118,13 +133,14 @@ class RTCManager:
             return False
         self._provider.set_datetime(dt)
         self.last_sync_source = self._chip_name
+        self.chip_synced = True
         log(f"[RTC] Boot sync from {self._chip_name.upper()}: {self.get_time_str()} {self.get_date_str()}")
         return True
 
     def sync_from_hardware(self) -> tuple:
-        """Try to read time from DS1302 and copy it to the soft RTC.
+        """Try to read time from the hardware clock and copy it to the soft RTC.
 
-        The DS1302 only needs to be connected during this call.
+        The chip only needs to be connected during this call.
         After it returns, the physical module can be safely unplugged.
 
         Returns:
@@ -136,6 +152,7 @@ class RTCManager:
             dt = hw.get_datetime()
             self._provider.set_datetime(dt)
             self.last_sync_source = self._chip_name
+            self.chip_synced = True
 
             time_str = self._provider.get_time_str()
             date_str = self._provider.get_date_str()
@@ -149,11 +166,11 @@ class RTCManager:
             return False, msg
 
     def set_manual(self, dt: tuple) -> None:
-        """Set time manually and mirror to DS1302 if connected.
+        """Set time manually and mirror to the hardware clock if connected.
 
         dt: (year, month, mday, hour, minute, second, weekday, yearday)
         Sets the soft RTC first (always), then tries to write the same time
-        to DS1302 so it survives a power cycle.
+        to the hardware clock so it survives a power cycle.
         """
         self._provider.set_datetime(dt)
         self.last_sync_source = "manual"

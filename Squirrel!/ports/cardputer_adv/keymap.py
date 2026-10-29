@@ -6,17 +6,38 @@
 # FIZYCZNE MAPY KLAWIATURY CARDPUTER (Kody matrycy 1..68)
 # -----------------------------------------------------------------------------
 
+class Codes:
+    """key code -> action, kept as a tuple indexed by the code (None where there is no key).  Frozen into the
+    firmware a tuple of constants stays in flash; a dict of 56 keys would be built in RAM (about 1 KB each)."""
+    def __init__(self, actions):
+        self._a = actions
+
+    def get(self, code, default=None):
+        a = self._a
+        value = a[code] if 0 <= code < len(a) else None
+        return default if value is None else value
+
+    def __getitem__(self, code):
+        value = self.get(code)
+        if value is None:
+            raise KeyError(code)
+        return value
+
+    def __iter__(self):
+        """The codes that have a key."""
+        return (code for code, value in enumerate(self._a) if value is not None)
+
+
 # 1. Navigation (MAP_NAV) - the default in the menus and the system screens
-MAP_NAV = {
-    # ROW 1
-    1: 'ESC', 5: '1', 11: '2', 15: '3', 21: '4', 25: '5', 31: '6', 35: '7', 41: '8', 45: '9', 51: '0', 55: '-', 61: '=', 65: 'BACKSPACE',
-    # ROW 2
-    2: 'TAB', 6: 'q', 12: 'w', 16: 'e', 22: 'r', 26: 't', 32: 'y', 36: 'u', 42: 'i', 46: 'o', 52: 'p', 56: '[', 62: ']', 66: '\\',
-    # ROW 3
-    3: 'FN', 7: 'Aa', 13: 'a', 17: 's', 23: 'd', 27: 'f', 33: 'g', 37: 'h', 43: 'j', 47: 'k', 53: 'l', 57: 'UP', 63: '\'', 67: 'ENTER',
-    # ROW 4
-    4: 'CTRL', 8: 'OPT', 14: 'ALT', 18: 'z', 24: 'x', 28: 'c', 34: 'v', 38: 'b', 44: 'n', 48: 'm', 54: 'LEFT', 58: 'DOWN', 64: 'RIGHT', 68: 'SPACE'
-}
+MAP_NAV = Codes((
+    None, 'ESC', 'TAB', 'FN', 'CTRL', '1', 'q', 'Aa', 'OPT', None,  # 0-9
+    None, '2', 'w', 'a', 'ALT', '3', 'e', 's', 'z', None,  # 10-19
+    None, '4', 'r', 'd', 'x', '5', 't', 'f', 'c', None,  # 20-29
+    None, '6', 'y', 'g', 'v', '7', 'u', 'h', 'b', None,  # 30-39
+    None, '8', 'i', 'j', 'n', '9', 'o', 'k', 'm', None,  # 40-49
+    None, '0', 'p', 'l', 'LEFT', '-', '[', 'UP', 'DOWN', None,  # 50-59
+    None, '=', ']', "'", 'RIGHT', 'BACKSPACE', '\\', 'ENTER', 'SPACE',  # 60-68
+))
 
 # 2. Text (MAP_TEXT) - the default in an editor (is_text_mode = True)
 class KeyMap:
@@ -55,16 +76,16 @@ MAP_FN = KeyMap(MAP_TEXT, {
 })
 
 # 4. With SHIFT / Aa (MAP_SHIFT)
-MAP_SHIFT = {
-    # ROW 1
-    1: '~', 5: '!', 11: '@', 15: '#', 21: '$', 25: '%', 31: '^', 35: '&', 41: '*', 45: '(', 51: ')', 55: '_', 61: '+', 65: 'DEL',
-    # ROW 2
-    2: 'TAB', 6: 'Q', 12: 'W', 16: 'E', 22: 'R', 26: 'T', 32: 'Y', 36: 'U', 42: 'I', 46: 'O', 52: 'P', 56: '{', 62: '}', 66: '|',
-    # ROW 3
-    3: 'FN', 7: 'Aa', 13: 'A', 17: 'S', 23: 'D', 27: 'F', 33: 'G', 37: 'H', 43: 'J', 47: 'K', 53: 'L', 57: ':', 63: '"', 67: 'ENTER',
-    # ROW 4
-    4: 'CTRL', 8: 'OPT', 14: 'ALT', 18: 'Z', 24: 'X', 28: 'C', 34: 'V', 38: 'B', 44: 'N', 48: 'M', 54: '<', 58: '>', 64: '?', 68: 'SPACE'
-}
+MAP_SHIFT = Codes((
+    None, '~', 'TAB', 'FN', 'CTRL', '!', 'Q', 'Aa', 'OPT', None,  # 0-9
+    None, '@', 'W', 'A', 'ALT', '#', 'E', 'S', 'Z', None,  # 10-19
+    None, '$', 'R', 'D', 'X', '%', 'T', 'F', 'C', None,  # 20-29
+    None, '^', 'Y', 'G', 'V', '&', 'U', 'H', 'B', None,  # 30-39
+    None, '*', 'I', 'J', 'N', '(', 'O', 'K', 'M', None,  # 40-49
+    None, ')', 'P', 'L', '<', '_', '{', ':', '>', None,  # 50-59
+    None, '+', '}', '"', '?', 'BACKSPACE', '|', 'ENTER', 'SPACE',  # 60-68 (Backspace stays one: Aa is on while typing
+                                                                    # capitals, and FN - the way to DEL - turns Aa off)
+))
 
 # 5, 6, 7. Mapy modyfikatorów systemowych
 MAP_CTRL = KeyMap(MAP_NAV, prefix="CTRL+")

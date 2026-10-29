@@ -36,6 +36,12 @@ def main(argv):
             print("   %r" % t)
     from appconfig_schema import SETTINGS
     labels = {s[3] for s in SETTINGS}
+    from appconfig_schema import HELP
+    helps = set(HELP[1::2])                         # a help line wider than the screen is cut (38 characters)
+    for en in sorted(helps):
+        if any(len(line) > 38 for line in en.split("\n")):
+            problems += 1
+            print("en: a help line longer than 38: %r" % [l for l in en.split("\n") if len(l) > 38])
     for en, tr in sorted(rows.items()):
         for code in langs:
             text = tr.get(code, "")
@@ -47,8 +53,14 @@ def main(argv):
             if en in labels and len(text) > 18:
                 problems += 1
                 print("%s: label longer than 18: %r -> %r" % (code, en, text))
+            if en in helps and any(len(line) > 38 for line in text.split("\n")):
+                problems += 1
+                print("%s: a help line longer than 38: %r" % (code, [l for l in text.split("\n") if len(l) > 38]))
     for code in langs:
         done = sum(1 for t in used if rows.get(t, {}).get(code))
+        if code in build.PARTIAL:
+            print("  %s: %d texts reworded" % (code, done))
+            continue
         print("  %s: %d of %d translated" % (code, done, len(used)))
         if done < len(used):
             problems += 1

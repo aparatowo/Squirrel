@@ -1,14 +1,19 @@
 # screens/clock_screen.py
 #
 # Shortcuts on this screen (modifier keys arrive as ordinary keys here; all of them: docs/guides/en/shortcuts.md):
-#   OPT  - start / pause the focus timer          (touch: hold)
+#   OPT  - start / pause the focus timer          (touch: double tap starts it, triple tap pauses it)
 #   Aa   - quick sync: every Bluetooth device now (a head; elsewhere Aa opens Mind dump)
 #   G0   - quick voice recorder (handled by the app, works from here too)
-#   CTRL, then T - a new To-Do;  CTRL, then N - a new note  (CTRL is a key here: it arms the next letter)
-#   TAB  - a small menu over the clock: Mind dump, To-Do list, Text notes, Voice notes, Quick sync
+#   CTRL, then T - a new To-Do;  CTRL, then N - a new note;  CTRL, then J - today's success journal
+#          (CTRL is a key here: it arms the next letter)
+#   TAB  - a small menu over the clock: Mind dump, To-Do list, Text notes, Success journal, Voice notes, Quick sync
 #          (TAB / UP / DOWN move, ENTER or the letter in brackets opens; ESC closes it)
 #   touch: swipe down - quick sync (the watch: waits for the head, then back here)
-#   any other key - open the menu                 (touch: tap)
+#   any other key - open the menu                 (touch: a single tap)
+# Touch taps are counted: a tap waits _TAP_GAP_MS for the next one, so one tap opens the menu that much later.  Only
+# taps on a lit screen count: the tap that wakes a dimmed screen only wakes it (the app swallows it), so waking and
+# starting the timer are always two separate things.  A hold does nothing here (it used to toggle the timer - easy to
+# do by accident, and swallowed when it only woke the screen).
 # On a screen taller than the Cardputer's 135 px (the watch: full_height) the clock is drawn bigger, with the weekday
 # and a status line (render_clock_tall); on the Cardputer nothing changes.
 import time
@@ -20,12 +25,14 @@ from i18n import _
 _WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 _NOTICE_MS = 1500
+_TAP_GAP_MS = 450             # touch: the most between the taps of a double / triple tap
 _SHORTCUTS = {"t": "TODO", "n": "NOTES"}              # CTRL then T / N: a new one
 # The TAB menu: (letter, label, what it opens, the feature it needs).  What it opens: ("screen", name, kwargs)
 _QUICK = (
     ("m", "Mind dump", ("MIND_DUMP", {"return_to": ("CLOCK", {})}), "text_edit"),
     ("t", "To-Do list", ("MENU", {"menu_name": "TODO"}), None),
     ("n", "Text notes", ("MENU", {"menu_name": "NOTES"}), "notes"),
+    ("j", "Success journal", ("WINS_TODAY", {}), "notes"),
     ("v", "Voice notes", ("MENU", {"menu_name": "RECORDS"}), "voice_notes"),
     ("s", "Quick sync", ("BLE_HUB", {"mode": "quick", "back": ("CLOCK", {})}), "ble_hub"),
 )
@@ -36,6 +43,8 @@ _FOCUS_MESSAGES = {
     "resumed": "Focus resumed",
     "paused": "Focus paused",
     "no_time": "Set time first!",
+    "running": "Focus is on already",
+    "not_running": "Focus is not on",
 }
 
 
@@ -53,11 +62,32 @@ class ClockScreen(BaseScreen):
         self._notice_until = 0
         self._ctrl = False          # CTRL was pressed: the next letter is a shortcut
         self._quick = None          # TAB menu: the highlighted row, or None when it is closed
+        self._taps = 0              # touch: taps counted so far, and until when the next one may come
+        self._taps_until = 0
 
     def on_enter(self, **kwargs):
         self._notice = None
         self._ctrl = False
         self._quick = None
+        self._taps = 0
+
+    @property
+    def _touch(self):
+        return bool(getattr(self.app.keypad, "touch", False))
+
+    def _tap(self):
+        self._taps += 1
+        self._taps_until = time.ticks_add(time.ticks_ms(), _TAP_GAP_MS)
+
+    def _taps_done(self):
+        """The taps are over: one opens the menu, two start the timer, three pause it."""
+        n = self._taps
+        self._taps = 0
+        if n == 1:
+            self.app.set_screen("MENU", menu_name="MAIN", fresh=True)
+            return
+        result = self.app.focus.start() if n == 2 else self.app.focus.halt()
+        self._notify(_(_FOCUS_MESSAGES[result]))
 
     def _notify(self, text):
         self._notice = text
@@ -72,7 +102,11 @@ class ClockScreen(BaseScreen):
             return
         if self._ctrl:
             self._ctrl = False
-            target = _SHORTCUTS.get(action.lower()) if isinstance(action, str) and len(action) == 1 else None
+            letter = action.lower() if isinstance(action, str) and len(action) == 1 else None
+            if letter == "j" and self._can_write():
+                self._open_journal()
+                return
+            target = _SHORTCUTS.get(letter)
             if target is not None and self._can_write():
                 self.app.set_screen("NOTE_EDITOR", menu_name=target, file_index=None)
                 return
@@ -81,6 +115,12 @@ class ClockScreen(BaseScreen):
             return
         if action in ('FN', 'ALT'):
             return                                      # nothing bound to these here
+        if self._touch:
+            if action == 'ENTER':
+                self._tap()                             # counted: one, two or three (see _taps_done)
+                return
+            if action == FOCUS_KEY:
+                return                                  # a hold: nothing (see the top of this file)
         if action == FOCUS_KEY:
             self._notify(_(_FOCUS_MESSAGES[self.app.focus.toggle()]))
             return
@@ -95,6 +135,14 @@ class ClockScreen(BaseScreen):
             return
         print(f"[NAV] CLOCK -> MENU (MAIN) on key: '{action}'")
         self.app.set_screen("MENU", menu_name="MAIN", fresh=True)
+
+    def _open_journal(self):
+        """Today's success journal in the editor (back to the journal's list on save / ESC), like + [Today]."""
+        day = self.app.success_log.today()
+        if day is None:
+            self._notify(_("Set time first!"))
+            return
+        self.app.set_screen("NOTE_EDITOR", **self.app.success_log.editor_args(day))
 
     @staticmethod
     def _can_write():
@@ -114,9 +162,15 @@ class ClockScreen(BaseScreen):
         elif action in ('ENTER', 'RIGHT') or letter in [q[0] for q in items]:
             item = items[self._quick] if letter is None else [q for q in items if q[0] == letter][0]
             self._quick = None
-            self.app.set_screen(item[2][0], **item[2][1])
+            if item[2][0] == "WINS_TODAY":
+                self._open_journal()
+            else:
+                self.app.set_screen(item[2][0], **item[2][1])
 
     def needs_refresh(self):
+        if self._taps and time.ticks_diff(time.ticks_ms(), self._taps_until) >= 0:
+            self._taps_done()
+            return True
         if self._notice is not None and time.ticks_diff(time.ticks_ms(), self._notice_until) >= 0:
             return True                                 # notice expired: redraw without it
         return self.app.rtc.get_time_str() != self._shown_time
@@ -160,7 +214,8 @@ class ClockScreen(BaseScreen):
         theme = renderer.theme
         items = self._quick_items()
         w, h = Lcd.screen_size()
-        bw, bh = 150, 8 + 14 * len(items)
+        longest = max(len(_(label)) for _l, label, _t, _f in items) + 6          # "> " + label + " [X]"
+        bw, bh = min(w - 8, max(150, 6 * longest + 20)), 8 + 14 * len(items)     # as wide as its longest row
         x, y = (w - bw) // 2, (h - bh) // 2
         Lcd.fillRect(x, y, bw, bh, theme["BG"])
         Lcd.drawRect(x, y, bw, bh, theme["ACCENT"])

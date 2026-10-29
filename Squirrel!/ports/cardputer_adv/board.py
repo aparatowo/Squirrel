@@ -56,15 +56,24 @@ def make_buttons():
     return {"quick": ButtonPoller(P.BUTTONS_QUICK_PIN)}
 
 
-def clock_chip():
-    """(factory, name) of the hardware clock, or (None, None).  The factory opens it anew at every use."""
-    if "clock" not in P.HARDWARE:
-        return None, None
+def _open_ds3231():
+    from drivers.ds3231 import DS3231TimeProvider
+    return DS3231TimeProvider(_buses.get(P.CLOCK_DS3231_BUS) or open_i2c(P.CLOCK_DS3231_BUS))  # OSError: none there
 
-    def open_ds1302():
-        from drivers.ds1302 import DS1302TimeProvider
-        return DS1302TimeProvider(P.CLOCK_CLK, P.CLOCK_DAT, P.CLOCK_RST)
-    return open_ds1302, "ds1302"
+
+def _open_ds1302():
+    from drivers.ds1302 import DS1302TimeProvider
+    return DS1302TimeProvider(P.CLOCK_DS1302_CLK, P.CLOCK_DS1302_DAT, P.CLOCK_DS1302_RST)
+
+
+def clock_chip(choice=None):
+    """(factory, name) of the clock module the user says is plugged in (the setting RTC_CHIP: "ds3231" on the Grove
+    port, "ds1302" on the EXT header), or (None, None) for "off".  The factory opens it anew at every use; nothing of
+    a driver is imported before then."""
+    opener = {"ds3231": _open_ds3231, "ds1302": _open_ds1302}.get(choice)
+    if opener is None or "clock." + choice not in P.HARDWARE:
+        return None, None
+    return opener, choice
 
 
 def make_audio():

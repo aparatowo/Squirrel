@@ -56,6 +56,7 @@ Bildschirm für Bildschirm: [Funktionen](docs/guides/de/features.md) · die Tast
 |---|---|
 | **M5Stack Cardputer ADV** | der Taschencomputer mit Tastatur - das Haupt-Squirrel!, auf dem du schreibst |
 | **LilyGo T-Watch 2020 V3** | am Handgelenk: liest und hakt ab, was der Cardputer ihr gibt, Routinen und Timer, Vibration |
+| **M5Stack Cardputer** (der erste) | *experimentell*, noch nicht auf einem Gerät ausprobiert: dasselbe Squirrel! wie auf dem ADV, ohne Summer |
 | **ESP32-S3-Smartwatches** | *experimentell*, noch nicht auf einem Gerät ausprobiert |
 
 ## Erste Schritte
@@ -66,6 +67,7 @@ cd "Squirrel/Squirrel!"
 python3 build_firmware.py --install-idf                     # once
 python3 build_firmware.py --flash /dev/ttyACM0              # Cardputer ADV
 python3 build_firmware.py --port twatch2020_v3 --flash /dev/ttyACM0     # T-Watch 2020 V3
+python3 build_firmware.py --port cardputer --flash /dev/ttyACM0         # Cardputer (the first one)
 ```
 
 Alle Schritte: [Erste Schritte](docs/guides/de/getting-started.md).

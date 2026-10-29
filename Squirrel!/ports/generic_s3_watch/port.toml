@@ -60,6 +60,7 @@ pin    = 0                                   # CHECK: often the BOOT button (GPI
 driver  = "adc_battery"                      # drivers/adc_battery.py: the voltage through a divider
 pin     = 1                                  # CHECK
 divider = 3.0                                # CHECK: battery voltage / pin voltage
+voltage_only = true                          # charging can only be guessed (features.toml: charge_guess)
 
 [storage]
 driver    = "flash_storage"

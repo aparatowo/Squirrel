@@ -10,9 +10,20 @@ Was Squirrel! tut, Bildschirm für Bildschirm. Version 2.0. Die Tasten und Geste
 ## 🕐 Die Uhr
 
 Der Startbildschirm ist eine Uhr: große Ziffern, das Datum und eine eigene Zeile unten (*no need to go nuts* auf dem
-Cardputer, *Squirrel! is watching* auf der Uhr - in Anpassen änderbar, oder lass sie so). Die Balken an den Rändern
-sind der Akku (links) und die heutige Fokuszeit im Verhältnis zu deinem Ziel (rechts). Die Uhr zeigt außerdem den
+Cardputer, *Squirrel! is watching* auf der Uhr - in Anpassen änderbar, oder lass sie so). Die Balken aus `#` rundherum
+zeigen auf einen Blick, wie die Zeit vergeht:
+
+- **links** - der Akku; **rechts** - die heutige Fokuszeit im Verhältnis zu deinem Ziel, sie steigt von unten
+  (*Fokusleiste von: oben* füllt sie wie früher von oben);
+- **oben** - die laufende Stunde, von links; läuft die [Sanduhr](#-sanduhr), stattdessen ihre Zeit (das vorderste
+  farbige `#` blinkt);
+- **unten** - die Viertelstunde, von rechts; sie beginnt um :00, :15, :30 und :45 von vorn.
+
+Jeder kann ein voller, fester Balken sein oder ausgeschaltet werden (*Anpassen → Balken*). Die Uhr zeigt außerdem den
 Wochentag und, in Worten, die Fokuszeit und den Akku - jedes in der Farbe seines Balkens.
+
+Von 10:00 bis 19:59 beginnt die Zeit mit einer „1“, die nur rechts gezeichnet wird; die Uhr rückt dann 10 Pixel nach
+links (auf der Uhr 16), damit sie mittig wirkt (*Anpassen → Anzeige → Uhr 1x:xx X*; 0 schaltet es ab).
 
 <img src="../../../shots/cardputer/de/clock.png" width="360"> <img src="../../../shots/twatch/de/clock.png" width="240">
 
@@ -21,9 +32,12 @@ deine Geräte, **TAB** öffnet ein kleines Menü mit dem, was du am häufigsten 
 
 <img src="../../../shots/cardputer/de/tab-menu.png" width="360">
 
-Die Zeit kommt von einer Hardware-Uhr, wenn es eine gibt (der PCF8563 der Uhr, ein optionaler DS1302 am Cardputer),
-beim Start aus dem WLAN oder per Bluetooth von einem anderen Squirrel!-Gerät (*Einstellungen → Zeit und Datum → Zeit
-von einem Gerät*).
+Auf der Uhr: **doppelt tippen** startet den Fokus-Timer, **dreifach tippen** pausiert ihn, einmal tippen öffnet das Menü - alles auf einem hellen Bildschirm (Tippen auf einen dunklen weckt ihn nur).
+
+Die Zeit kommt von einer Hardware-Uhr, wenn es eine gibt (der PCF8563 der Uhr; am Cardputer ein optionales Uhrmodul -
+ein DS3231 am Grove-Port oder ein DS1302 an der EXT-Leiste des ADV -, sobald du in *Einstellungen → Zeit und Datum →
+Zeiteinstellungen → Uhrmodul* sagst, welches; bis dahin wird sein Code nicht einmal geladen), beim Start aus dem WLAN
+oder per Bluetooth von einem anderen Squirrel!-Gerät (*Einstellungen → Zeit und Datum → Zeit von einem Gerät*).
 
 ## ✅ Aufgaben und Checklisten
 
@@ -62,6 +76,15 @@ gespeichert als einfache `.txt`-Dateien, lesbar auf jedem Computer. **CTRL+S** s
 Löschen verlangt dreimal DEL - ein ausgerutschter Finger kann keine Notiz verlieren.
 
 <img src="../../../shots/cardputer/de/delete-confirm.png" width="360">
+
+## 🏆 Erfolgstagebuch
+
+Eine Liste pro Tag mit dem, was gelungen ist - auch Kleines zählt. *Notizen → Erfolgstagebuch → + [Heute]* öffnet die
+heutige Liste mit einer neuen Zeile: jede Zeile, die mit `-` oder `>` beginnt, ist eine erledigte Sache (wie in der
+Checkliste einer Aufgabe); andere Zeilen sind einfacher Text. Die Zahl der erledigten Dinge geht in die Statistik,
+getrennt von der Fokuszeit.
+
+<img src="../../../shots/cardputer/de/success-journal.png" width="360">
 
 ## 🧠 Gedankenablage
 
@@ -107,9 +130,19 @@ die Fokuszeit geht in die Statistik. *Training* ist derselbe Timer mit Blöcken,
 
 <img src="../../../shots/cardputer/de/pomodoro-running.png" width="360"> <img src="../../../shots/twatch/de/pomodoro_running.png" width="240">
 
+## ⏳ Sanduhr
+
+Ein einfacher Countdown: Minuten einstellen, starten, weitermachen. Der obere Balken der Uhr füllt sich, während die
+Zeit abläuft; am Ende klingelt sie - Ton, LED und Summer oder Vibration, alle paar Sekunden, bis du antwortest - auch
+in der Ruhezeit, denn du hast sie selbst gestellt. Sie läuft im Hintergrund wie Pomodoro und merkt sich die Minuten
+für das nächste Mal.
+
+<img src="../../../shots/cardputer/de/hourglass-running.png" width="360"> <img src="../../../shots/cardputer/de/clock-hourglass.png" width="360">
+
 ## 🥁 Metronom und 🫁 Atmung
 
-Das Metronom schlägt von jeder 1/8 s bis zu alle 2 Minuten - etwas Gleichmäßiges zum Folgen, im Hintergrund. Die
+Das Metronom schlägt von jeder 1/8 s bis zu alle 2 Minuten - etwas Gleichmäßiges zum Folgen, im Hintergrund - mit einem kurzen Piep oder einem trockenen
+Klicken wie bei einer Uhr (*Anpassen → Audio → Metronom-Klang*). Die
 Atmung führt dich durch *Box 4-4-4-4*, *Entspannung 4-7-8* oder *Ruhe 5-5*: ein Kreis wächst beim Einatmen und
 schrumpft beim Ausatmen (die LED folgt ihm, wenn du eine hast).
 
@@ -120,6 +153,10 @@ schrumpft beim Ausatmen (die LED folgt ihm, wenn du eine hast).
 Die heutige Fokuszeit im Verhältnis zu deinem Ziel und die letzten 7 Tage. Keine Ziele zum Verfehlen, keine
 Vergleiche - ein ruhiges Bild deiner Tage. Mit synchronisierten Geräten: LEFT / RIGHT zeigt dieses Gerät, jedes
 synchronisierte oder alle zusammen.
+
+Eine Ablenkung als Fokus gezählt? **-** zieht die letzten 15 Minuten ab (*Anpassen → Fokus → Minuten abziehen*);
+zweimal DEL setzt heute auf null. Unter der heutigen Zeit: was heute und in dieser Woche gelungen ist, aus dem
+Erfolgstagebuch.
 
 <img src="../../../shots/cardputer/de/statistics.png" width="360"> <img src="../../../shots/twatch/de/focus_stats.png" width="240">
 
@@ -156,4 +193,15 @@ würdest, änderst du auf dem Gerät, ohne neue Firmware:
 
 Der Bildschirm wird nach einer Weile ohne Taste dunkler; mit dem *Schlafmodus* schläft das Gerät, solange er gedimmt
 ist (die Uhr schläft tief und wacht für ihre Routinen, den Kuckuck und ihre Sync-Zeiten auf). Die Funkmodule sind nur
-an, solange sie arbeiten: WLAN für die Uhrzeit beim Start, Bluetooth für eine Synchronisation.
+an, solange sie arbeiten: WLAN für die Uhrzeit beim Start, Bluetooth für eine Synchronisation. Der Cardputer ADV hat vorerst keinen Schlafmodus: im Leichtschlaf
+blitzte die Beleuchtung und G0 startete das Diktiergerät von selbst (zu lösen); das Sparen bei gedimmtem Bildschirm
+bleibt. Auf dem ersten Cardputer ist der Schlafmodus experimentell (*Einstellungen → Experimentell → Einstellungen*).
+
+**Ein schwacher Akku** wird bei 15 %, 10 %, 5 % und kurz vor dem Ende gemeldet - auf dem Bildschirm, mit Ton und Summer
+oder Vibration, wenn du willst (*Anpassen → Energie → Akku-Warnungen*, *Warnton*; *Summer → Akku schwach*). Die LED kann mit der Warnung blinken (*Anpassen → LED → Akku: Blinken*). Beim Laden
+zeigt sich ein kleiner Blitz neben dem Akkubalken der Uhr (*Anpassen → Balken → Ladezeichen*).
+
+**Laden.** Der Power-Chip der Uhr sagt, wann sie lädt (oder voll am USB hängt). Die Cardputer wissen es nicht: ihr Akku
+wird nur gemessen. *Einstellungen → Experimentell → Einstellungen → Ladeerkennung* lässt sie es erraten - aus der Akkuspannung (sie
+springt, wenn ein Ladegerät kommt oder geht, und steigt langsam, während der Akku voll wird) und einem Computer am USB.
+Ein einfaches Ladegerät ohne Datenleitungen lässt sich anders nicht erkennen. Experimentell: sag uns, wie gut es rät.

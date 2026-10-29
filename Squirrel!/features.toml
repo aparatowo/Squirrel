@@ -17,7 +17,7 @@ keys     = ["TODO_MAX_CHARS", "TODO_TITLE_MAX_LEN", "MIND_DUMP_MAX_CHARS"]
 
 [notes]                                     # text notes: written and edited on the device (asked on 2026-10-10: not on the watch)
 requires = ["input.keyboard"]
-menus    = ["NOTES_ROOT", "NOTES"]
+menus    = ["NOTES_ROOT", "NOTES", "WINS"]
 keys     = ["NOTE_TITLE_MAX_LEN", "NOTE_BODY_MAX_CHARS"]
 
 [key_calibration]
@@ -51,6 +51,14 @@ screens  = ["BLE_HUB"]
 [hw_clock]                                  # a hardware clock to copy the time from
 requires = ["clock"]
 actions  = ["sync_rtc"]
+
+[clock_module]                              # the clock is an optional module: the user says which one is plugged in
+requires = ["clock.optional"]               # (RTC_CHIP; the watch's PCF8563 is part of it - nothing to choose)
+keys     = ["RTC_CHIP"]
+
+[charge_guess]                              # charging guessed from the voltage (the device cannot say it; hw/battery.py)
+requires = ["power.voltage_only"]
+settings = ["Experimental"]
 
 [led]
 requires = ["signal.led"]

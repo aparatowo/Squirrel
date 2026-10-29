@@ -1,8 +1,8 @@
 # screens/wifi_screen.py - Settings -> WiFi networks
 #
 # The networks the device may join, kept in nuts.WIFI_PROFILES_FILE (see wifi_profiles.py).  When
-# the time is set over WiFi the strongest of them that is in range is used; UIFlow's own saved
-# network and the WIFI_SSID setting stay available as a fallback, and the other way round.
+# the time is set over WiFi they are tried one after another: those a scan finds, strongest first,
+# then the rest.  This list is the only one: no separate fallback, no network from M5Burner.
 #
 #   list     UP / DOWN move, ENTER edits (or adds, on the first row), ESC back.
 #            DEL (FN+Backspace) deletes: press it three more times to confirm, ESC cancels.

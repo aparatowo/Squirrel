@@ -93,6 +93,8 @@ CLOCK_DATE_OFFSET_X = 0
 CLOCK_DATE_OFFSET_Y = 5
 CLOCK_TIME_OFFSET_X = -5
 CLOCK_TIME_OFFSET_Y = 10
+# 10:00 - 19:59 moved by this (the leading '1' is only its right side; half its empty part centres it); 0 = off
+CLOCK_ONE_OFFSET_X = -10 if _port.DISPLAY_HEIGHT < 200 else -16        # Cardputer digits 26 px wide, watch 40
 CLOCK_FOOTER_OFFSET_X = 5
 CLOCK_FOOTER_OFFSET_Y = 10
 
@@ -113,9 +115,12 @@ RECORD_MIN_MS     = 1000    # a voice note shorter than this is not saved (the f
 CONFIG_FILE     = BASE_DIR + "/config.txt"     # read at start-up, on Reload config and (if edited) when the screen wakes
 
 FOCUS_GOAL_MINUTES = 360        # daily focus goal (6 h)
+FOCUS_UNDO_MIN = 15             # Statistics: "-" takes this many minutes back from today's focus (a distraction)
 FOCUS_DOT = True                # coloured dot in the corner of screens while the focus timer runs (never on the clock)
 
-TIMESYNC_AT_BOOT    = True      # one Wi-Fi/NTP attempt at start-up when no DS1302 time
+TIMESYNC_AT_BOOT    = True      # one Wi-Fi/NTP attempt at start-up when no clock module gave the time
+RTC_CHIP            = "off"     # the Cardputers' clock module: "off" (none: no driver is loaded), "ds3231" (Grove
+                                # port), "ds1302" (the ADV's EXT header) - appconfig_schema.CLOCK_MODULES
 TIME_UTC_OFFSET_MIN = 60        # standard time offset from UTC (Poland: +60)
 TIME_EU_DST         = True      # European summer time
 
@@ -129,6 +134,12 @@ BARS_CLOCK = True               # vertical bars at the sides of the clock
 BARS_MENU = False               # turn the '#' lines above and below menu titles into the same bars
 BARS_OFFSET_X = 0               # distance of the vertical bars from the screen edges (pixels)
 BARS_OFFSET_Y = 0               # shift of the vertical bars downwards (pixels)
+BARS_TOP = "hourglass"          # the clock's top bar: the hourglass's progress (the hour's while it is idle), "hour",
+BARS_TOP_COLOR = "green"        #   "full" (plain) or "off"; it fills from the left in this colour
+BARS_BOTTOM = "quarter"         # the clock's bottom bar: the quarter hour's progress, "full" or "off"; it fills from
+BARS_BOTTOM_COLOR = "cyan"      #   the right in this colour and starts again every 15 minutes
+BARS_CHARGING = True            # a lightning mark by the clock's battery bar while the battery charges
+FOCUS_BAR_FROM = "bottom"       # the clock's focus bar fills from the "bottom" (rising), or from the "top" (classic)
 BATTERY_BLUE_PCT = 80           # battery at or above: blue tail; below: green ...
 BATTERY_GREEN_PCT = 50          # ... at or above this: green; below: yellow ...
 BATTERY_YELLOW_PCT = 20         # ... at or above this: yellow; below: red
@@ -175,6 +186,7 @@ POMODORO_WORK_MIN = 25
 POMODORO_BREAK_MIN = 5
 POMODORO_LONG_BREAK_MIN = 15    # after the last work block of a round
 POMODORO_CYCLES = 4             # work blocks in one round
+HOURGLASS_MIN = 15              # the hourglass (Focus tools): the minutes it is set to; its screen changes them
 TRAINING_FILE = BASE_DIR + "/training.json"
 ROUTINES_FILE = BASE_DIR + "/routines.json"
 MAX_BLOCK_SECONDS = 90 * 60     # the longest block of a training
@@ -185,11 +197,13 @@ CUCKOO_QUARTERS = True          # a quiet tick every 15 minutes (the cuckoo itse
 CUCKOO_QUARTER_VOLUME = 20      # percent
 METRO_INTERVAL_S = 5            # 0.125, 0.25, 0.5 (1/8, 1/4, 1/2 s), 1, 2, 5, 30, 60 or 120 seconds
 METRO_VOLUME = 50               # percent
+METRO_SOUND = "tone"            # "tone" (a short beep) or "click" (a dry click, sound.py)
 
 # ---- Buzzer: which features may sound it, and how (Settings -> Personalize -> Buzzer) ----
 # A mode is one of buzzer.MODE_NAMES (click, short, double, triple, long, alarm, sos) or "auto" = the feature's own choice:
 #   Pomodoro / Training: double for a light block, triple for a hard one, long for a break;
-#   metronome: short on every 4th beat, click on the others;  cuckoo: double on the hour, click for the quarters.
+#   metronome: short on every 4th beat, click on the others;  cuckoo: double on the hour, click for the quarters;
+#   hourglass: alarm.
 BUZZER_NOTIFY         = False   # notifications: routines, the end of Pomodoro / Training
 BUZZER_NOTIFY_MODE    = "double"
 BUZZER_INTERVALS      = False   # the start of every Pomodoro / Training block
@@ -198,6 +212,10 @@ BUZZER_METRONOME      = False   # every metronome beat
 BUZZER_METRONOME_MODE = "auto"
 BUZZER_CUCKOO         = False   # the cuckoo on the hour and the quarter ticks
 BUZZER_CUCKOO_MODE    = "auto"
+BUZZER_HOURGLASS      = True    # the hourglass ran out - on: asked for together with it (the watch's only signal)
+BUZZER_HOURGLASS_MODE = "auto"
+BUZZER_BATTERY        = True    # the low-battery warnings - on, as they are (the watch's only signal besides the screen)
+BUZZER_BATTERY_MODE   = "auto"
 
 # ---- LED: which features may light it, how, and in what colour (Settings -> Personalize -> LED) ----
 # A mode is "off" or one of led.MODE_NAMES: flash, double, triple, long, pulse, alarm, sos
@@ -210,8 +228,11 @@ LED_METRONOME       = "off"     # every metronome beat
 LED_METRONOME_COLOR = "blue"
 LED_CUCKOO          = "off"     # the cuckoo on the hour and the quarter ticks
 LED_CUCKOO_COLOR    = "yellow"
+LED_HOURGLASS       = "alarm"   # the hourglass ran out
+LED_HOURGLASS_COLOR = "red"
 LED_BREATHING       = False     # Breathing: green growing brighter while you breathe in, blue fading while you breathe out
-LED_CHARGING        = False     # while charging: a slow blink in the colour of the battery level (blue, green, yellow, red)
+LED_BATTERY         = "double"  # the low-battery warnings (battery_alerts.py)
+LED_BATTERY_COLOR   = "red"
 
 # ---- Silent mode (Settings -> Silent mode): quiet hours, separately for the speaker, the buzzer and the LED ----
 # Times are minutes after midnight (config.txt shows them as HH:MM).  From = To (e.g. 00:00 - 00:00) = no silent hours.
@@ -228,6 +249,11 @@ QUIET_LED_TO      = 6 * 60
 QUIET_LED_DAYS    = 0b1111111
 
 # ---- Power ----
+BATTERY_WARN = True             # warnings at 15 %, 10 %, 5 % and right before the end (battery_alerts.py)
+BATTERY_WARN_SOUND = True       # ... with a sound
+BATTERY_CRITICAL_PCT = 2        # "right before the end": at this level ...
+BATTERY_CRITICAL_MV = 3400      # ... or this voltage, whichever comes first
+CHARGE_GUESS = False            # Experimental: charging guessed from the voltage where the device cannot tell (hw/battery.py)
 BATTERY_LOG = True              # energy log: a line every 10 minutes in /sd/Squirrel/battery.csv - data for developing the power
                                 # features; it stays on the card, nothing is sent anywhere
 POWER_SAVE = True               # slower CPU and a longer pause between loop passes while the screen is dimmed

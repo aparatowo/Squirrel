@@ -35,10 +35,13 @@ def collect():
 
 class PowerManager:
     def __init__(self, cfg, dimmer, busy, machine=None, keypad=None, now_ms=None, wake_pins=(), slow_hz=80_000_000,
-                 arm_wake=None):
+                 arm_wake=None, before_sleep=None, light_sleep=True):
         self._cfg = cfg
         self._wake_pins = wake_pins       # GPIOs that end a light sleep (active low)
         self._arm_wake = arm_wake         # the board's own way to set the light-sleep wake sources (else: the pins)
+        self._before_sleep = before_sleep  # () -> False when the sleep must wait (the speaker is switched off there)
+        self._light_sleep = light_sleep   # False: the port must not light-sleep at all ([power_mgmt] light_sleep), whatever
+                                          # config.txt says (an older firmware may have left POWER_SLEEP = light there)
         self._slow_hz = slow_hz
         self._dimmer = dimmer
         self._busy = busy                 # function: True while something needs the CPU at full speed
@@ -53,6 +56,7 @@ class PowerManager:
         self._sleep_broken = False
         self.sleeps = 0
         self.clock_fixes = 0
+        self._sleeping_since = None       # the sleeps of this dimmed spell: (count before it, ticks) - logged once
 
     def start(self, motion_off=None):
         """Once, at start-up.  motion_off() switches the motion sensor off and returns its I2C address (or None)."""
@@ -124,28 +128,64 @@ class PowerManager:
                 self.clock_fixes = -1            # say it once
                 log(f"[POWER] cannot correct the clock after a light sleep: {type(e).__name__}: {e}")
 
+    def _arm_pins(self):
+        """The wake pins (active low) as the chip's wake sources: the first through ext0, the others through ext1.
+        Pin.irq(wake=...) has only ext0: a second pin failed with "no resources" and light sleep was never used.
+        ext1 with WAKEUP_ALL_LOW wakes on ANY of its pins going low on an ESP32-S3 (on a classic ESP32 only when all
+        are low - the watch has its own arm_wake).  Measured on the Cardputer ADV: G0 and a key wake it in ~1 s, and
+        both are read as before afterwards."""
+        import esp32
+        Pin = self._mp.Pin
+        pins = []
+        for number in self._wake_pins:
+            try:
+                pins.append(Pin(number, Pin.IN, Pin.PULL_UP))
+            except (ValueError, OSError):               # GPIO34-39 of a classic ESP32 have no pull-ups
+                pins.append(Pin(number, Pin.IN))
+        esp32.wake_on_ext0(pins[0], esp32.WAKEUP_ALL_LOW)
+        if len(pins) > 1:
+            esp32.wake_on_ext1(tuple(pins[1:]), esp32.WAKEUP_ALL_LOW)
+
+    def _pins_digital(self):
+        """After a light sleep: the wake pins as plain inputs with their pull-up again (ext0 / ext1 leave a pad on the
+        RTC, where the digital pull-up does not act: a button pin floated and read as pressed)."""
+        if self._arm_wake is not None:
+            return                       # the board armed its own sources (the watch): its pins are pulled up on the board
+        Pin = self._mp.Pin
+        for number in self._wake_pins:
+            try:
+                Pin(number, Pin.IN, Pin.PULL_UP)
+            except (ValueError, OSError):
+                pass
+
     def maybe_sleep(self):
         """Light-sleep for a moment if allowed.  Returns True if it did."""
-        if (self._mp is None or self._sleep_broken or self._cfg.get("POWER_SLEEP") == "off"
+        if not self._dimmer.dimmed and self._sleeping_since is not None:
+            n, t = self._sleeping_since
+            self._sleeping_since = None
+            log(f"[POWER] light sleep: {self.sleeps - n} sleeps in {time.ticks_diff(self._now(), t) // 1000} s")
+        if (self._mp is None or self._sleep_broken or not self._light_sleep or self._cfg.get("POWER_SLEEP") == "off"
                 or not self._dimmer.dimmed or self._busy()):
             return False
+        if self._cfg.get("DIM_BRIGHTNESS") > 0:
+            return False                 # the back-light's PWM stops in a light sleep: a dimmed screen would flicker
         try:
             if not self._armed and self._arm_wake is not None:
                 self._arm_wake()
                 self._armed = True
-            if not self._armed:
-                for number in self._wake_pins:
-                    try:
-                        pin = self._mp.Pin(number, self._mp.Pin.IN, self._mp.Pin.PULL_UP)
-                    except (ValueError, OSError):           # GPIO34-39 of a classic ESP32 have no pull-ups (the
-                        pin = self._mp.Pin(number, self._mp.Pin.IN)    # watch's lines are pulled up on the board)
-                    Pin = self._mp.Pin           # UIFlow: IRQ_LOW_LEVEL; plain MicroPython (ESP32): WAKE_LOW
-                    pin.irq(trigger=getattr(Pin, "IRQ_LOW_LEVEL", None) or Pin.WAKE_LOW, wake=self._mp.SLEEP)
+            if not self._armed and self._wake_pins:
+                self._arm_pins()
                 self._armed = True
+            if self._before_sleep is not None and not self._before_sleep():
+                return False
             if self._keypad is not None:
                 self._keypad.acknowledge()
             wall_before, ticks_before = time.time_ns(), self._now()
+            if self._sleeping_since is None:
+                self._sleeping_since = (self.sleeps, self._now())
+                log("[POWER] light sleep begins")
             self._mp.lightsleep(800)
+            self._pins_digital()
             self.sleeps += 1
             self._repair_clock(wall_before, ticks_before)
             return True

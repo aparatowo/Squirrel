@@ -241,3 +241,7 @@ lesen. **Die Datensätze gehen unverschlüsselt** - siehe [bluetooth.md](bluetoo
 | note | `notes/<name>.txt`, `notes/meta.json` (`{name: {id, e}}`) | |
 | stat | `focus/routines.txt`, `focus/todos.txt`, `focus/focus.txt` (Sekunden -> Minuten), Schritte | `focus/peers/<slot>/` - die Statistiken der anderen Geräte auf dem Chef |
 | settings | `config.txt` | |
+
+Keine Datensätze (noch nicht): das Erfolgstagebuch, `wins/JJJJ-MM-TT.txt` (ein Tag: das Datum, dann `-` / `>`-Zeilen
+= erledigte Dinge) bleibt auf dem Gerät. `focus/focus.txt` kann negative Zeilen haben (`2026-10-19,-900`):
+abgezogene Fokuszeit; die Zeilen eines Tages addieren sich, nie unter null.

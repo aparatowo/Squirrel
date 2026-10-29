@@ -11,6 +11,7 @@ from boot_log import log
 from timeutil import local_from_utc
 
 _CONNECT_TIMEOUT_MS = 20000
+_UNSEEN_TIMEOUT_MS = 8000          # a known network no scan saw (hidden, or missed): a shorter try
 _NTP_RETRY_GAP_MS = 1500
 _NTP_ATTEMPTS = 3
 
@@ -19,7 +20,7 @@ _NTP_ATTEMPTS = 3
 MESSAGE_TEMPLATES = ("Looking for a network...", "no saved WiFi network", "WiFi scan failed: %s", "no saved network in range",
                      "WiFi start failed: %s", "Connecting...", "Getting time...", "connection failed",
                      "connection timeout (is the hotspot on?)", "NTP failed: %s", "clock write failed: %s",
-                     "Synced %02d:%02d %02d-%02d-%04d")
+                     "Synced %02d:%02d %02d-%02d-%04d", "wrong password", "network not found")
 
 
 class TimeSyncService:
@@ -36,6 +37,10 @@ class TimeSyncService:
         self._t_connect = 0         # when the connection attempt started (the timeout counts from here)
         self._attempt = 0
         self._next_at = 0
+        self._queue = []            # the networks still to try: [(ssid, password, source, rssi or None)]
+        self._timeout = _CONNECT_TIMEOUT_MS
+        self._seen = False          # the network being tried was in the scan
+        self._problem = None        # what went wrong with a network that was in range: shown if every try fails
 
     @property
     def busy(self):
@@ -66,28 +71,40 @@ class TimeSyncService:
             self._tick_syncing()
 
     def _tick_scanning(self):
-        """Pick the network with the strongest signal and start connecting (the scan blocks briefly)."""
+        """Scan, then try the known networks one after another: those in range strongest first, then the rest
+        (the scans block briefly)."""
+        self._problem = None
         try:
-            choice = self._net.choose()
+            self._queue = self._net.plan()
         except LookupError as e:
             self._fail(str(e) or "no saved WiFi network")
             return
         except Exception as e:
             self._fail("WiFi scan failed: %s" % e)
             return
-        if choice is None:
-            self._fail("no saved network in range")
+        self._next_network()
+
+    def _next_network(self, problem=None):
+        """Connect to the next network of the queue; when none is left, fail - with what went wrong with a network
+        that was in range ("wrong password"), rather than with the last one tried ("not found")."""
+        if problem and (self._seen or self._problem is None):
+            self._problem = problem
+        while self._queue:
+            ssid, password, _source, rssi = self._queue.pop(0)
+            self.ssid = ssid
+            try:
+                self._net.begin(ssid, password)
+            except Exception as e:
+                problem = "WiFi start failed: %s" % e
+                continue
+            self.state = "connecting"
+            self.message = "Connecting..."
+            self._t_connect = time.ticks_ms()
+            self._seen = rssi is not None
+            self._timeout = _CONNECT_TIMEOUT_MS if self._seen else _UNSEEN_TIMEOUT_MS
+            log(f"[TIMESYNC] connecting to '{ssid}'" + ("" if rssi is not None else " (not seen by the scan)"))
             return
-        self.ssid = choice[0]
-        try:
-            self._net.begin(choice[0], choice[1])
-        except Exception as e:
-            self._fail("WiFi start failed: %s" % e)
-            return
-        self.state = "connecting"
-        self.message = "Connecting..."
-        self._t_connect = time.ticks_ms()
-        log(f"[TIMESYNC] connecting to '{self.ssid}'")
+        self._fail(self._problem or "no saved network in range")
 
     def _tick_connecting(self):
         result = self._net.poll()
@@ -95,10 +112,15 @@ class TimeSyncService:
             self.state = "syncing"
             self.message = "Getting time..."
             self._next_at = time.ticks_ms()
-        elif result.startswith("failed"):
-            self._fail(result[len("failed:"):].strip() or "connection failed")
-        elif time.ticks_diff(time.ticks_ms(), self._t_connect) > _CONNECT_TIMEOUT_MS:
-            self._fail("connection timeout (is the hotspot on?)")
+            return
+        if result.startswith("failed"):
+            problem = result[len("failed:"):].strip() or "connection failed"
+        elif time.ticks_diff(time.ticks_ms(), self._t_connect) > self._timeout:
+            problem = "connection timeout (is the hotspot on?)"
+        else:
+            return
+        log(f"[TIMESYNC] '{self.ssid}': {problem}")
+        self._next_network(problem)
 
     def _tick_syncing(self):
         now = time.ticks_ms()

@@ -29,6 +29,26 @@ def charging():
         return None
 
 
+_USB_DSTS = 0x60080808               # ESP32-S3 USB OTG core (TinyUSB's): DSTS - bit 0 suspended, bits 8..21 the frame
+                                    # number (esp-idf soc/esp32s3 usb_dwc_struct.h)
+
+
+def usb_host():
+    """True when a USB host (a computer) is sending frames - it powers the Cardputer; False when the bus is idle (a
+    charger without data, or nothing: the ESP32-S3 cannot tell those apart); None when it cannot be read."""
+    try:
+        import time
+        from machine import mem32
+        a = mem32[_USB_DSTS]
+        time.sleep_ms(2)                         # a frame every millisecond at full speed
+        b = mem32[_USB_DSTS]
+        if b & 1:
+            return False                         # suspended: no frames
+        return (a >> 8 & 0x3FFF) != (b >> 8 & 0x3FFF)
+    except Exception:
+        return None
+
+
 def millivolts():
     try:
         from M5 import Power

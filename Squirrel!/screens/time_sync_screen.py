@@ -61,7 +61,7 @@ class TimeSyncScreen(BaseScreen):
             Lcd.drawString(text[38:76], 5, 56)
 
         Lcd.setTextColor(theme["FG"], theme["BG"])
-        Lcd.drawString(_("Phone hotspot must be ON"), 5, 82)
-        Lcd.drawString(_("(2.4 GHz). WiFi and BT are"), 5, 94)
-        Lcd.drawString(_("switched off afterwards."), 5, 106)
+        Lcd.drawString(_("Phone hotspot must be ON"), 5, 70)          # right under the status (its 2nd line: 56)
+        Lcd.drawString(_("(2.4 GHz). WiFi and BT are"), 5, 82)
+        Lcd.drawString(_("switched off afterwards."), 5, 94)
         Lcd.drawString(_("[ENTER] Retry  [ESC] Back"), 5, 124)
