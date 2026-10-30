@@ -139,5 +139,5 @@ The firmware is changed only by patches kept in the repository, applied to a tem
 | `CFG_TUD_CDC_EP_BUFSIZE undeclared` | mismatched TinyUSB components: pin `espressif/tinyusb` to `0.15.0~10` in `m5stack/main/idf_component.yml`, then `--reset-deps` |
 | `Cannot stat .../firmware_info.py` | the script generates it for the base board before building; if that fails it says what to check (`--allow-missing` skips the check) |
 | flashing fails | close Thonny; Cardputer: hold G0 while plugging in; Linux: `sudo usermod -aG dialout $USER` and log in again |
-| no app after flashing | `--setup-device PORT`; check `/flash/main.py` |
+| no app after flashing | since 2.1 the firmware writes `/flash/main.py` itself on a first start (a complete image from M5Burner, an erased chip); otherwise `--setup-device PORT`; check `/flash/main.py` |
 | anything else | the whole output is in `.build/make.log`; `--diagnose` recognises the known cases |

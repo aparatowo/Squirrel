@@ -143,5 +143,5 @@ Le firmware n'est modifié que par des correctifs gardés dans le dépôt, appli
 | `CFG_TUD_CDC_EP_BUFSIZE undeclared` | composants TinyUSB incompatibles : fixe `espressif/tinyusb` à `0.15.0~10` dans `m5stack/main/idf_component.yml`, puis `--reset-deps` |
 | `Cannot stat .../firmware_info.py` | le script le génère pour la carte de base avant la compilation ; si cela échoue, il dit quoi vérifier (`--allow-missing` saute la vérification) |
 | le flashage échoue | ferme Thonny ; Cardputer : maintiens G0 en branchant ; Linux : `sudo usermod -aG dialout $USER` et reconnecte-toi |
-| pas d'application après le flashage | `--setup-device PORT` ; vérifie `/flash/main.py` |
+| pas d'application après le flashage | depuis la 2.1 le firmware écrit lui-même `/flash/main.py` au premier démarrage (image complète par M5Burner, puce effacée) ; sinon `--setup-device PORT` ; vérifie `/flash/main.py` |
 | autre chose | toute la sortie est dans `.build/make.log` ; `--diagnose` reconnaît les cas connus |

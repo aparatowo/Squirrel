@@ -140,5 +140,5 @@ angewendet werden:
 | `CFG_TUD_CDC_EP_BUFSIZE undeclared` | nicht passende TinyUSB-Komponenten: `espressif/tinyusb` in `m5stack/main/idf_component.yml` auf `0.15.0~10` festlegen, dann `--reset-deps` |
 | `Cannot stat .../firmware_info.py` | das Skript erzeugt sie vor dem Build für das Basis-Board; wenn das scheitert, sagt es, was zu prüfen ist (`--allow-missing` überspringt die Prüfung) |
 | Flashen scheitert | Thonny schließen; Cardputer: G0 beim Einstecken halten; Linux: `sudo usermod -aG dialout $USER` und neu anmelden |
-| keine App nach dem Flashen | `--setup-device PORT`; `/flash/main.py` prüfen |
+| keine App nach dem Flashen | seit 2.1 schreibt die Firmware `/flash/main.py` beim ersten Start selbst (komplettes Image aus M5Burner, gelöschter Chip); sonst `--setup-device PORT`; `/flash/main.py` prüfen |
 | etwas anderes | die ganze Ausgabe steht in `.build/make.log`; `--diagnose` erkennt die bekannten Fälle |

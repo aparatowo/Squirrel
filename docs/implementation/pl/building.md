@@ -137,5 +137,5 @@ Firmware jest zmieniany tylko łatkami trzymanymi w repozytorium, nakładanymi n
 | `CFG_TUD_CDC_EP_BUFSIZE undeclared` | niedopasowane komponenty TinyUSB: przypnij `espressif/tinyusb` do `0.15.0~10` w `m5stack/main/idf_component.yml`, potem `--reset-deps` |
 | `Cannot stat .../firmware_info.py` | skrypt generuje go dla płytki bazowej przed buildem; gdy to się nie uda, mówi, co sprawdzić (`--allow-missing` pomija kontrolę) |
 | wgrywanie się nie udaje | zamknij Thonny; Cardputer: przytrzymaj G0 przy podłączaniu; Linux: `sudo usermod -aG dialout $USER` i zaloguj się ponownie |
-| po wgraniu brak aplikacji | `--setup-device PORT`; sprawdź `/flash/main.py` |
+| po wgraniu brak aplikacji | od 2.1 firmware sam zapisuje `/flash/main.py` przy pierwszym starcie (pełny obraz z M5Burner, wymazany układ); poza tym `--setup-device PORT`; sprawdź `/flash/main.py` |
 | cokolwiek innego | całe wyjście jest w `.build/make.log`; `--diagnose` rozpoznaje znane przypadki |
